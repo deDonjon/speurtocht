@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#F6C35B">
+<title>Pannenkoekenmonster Speurtocht</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* Layout: één scherm, één kaart per stap; het monster groeit bovenin terwijl de kaart eronder wisselt. */
+:root{
+  --cream:#FFF4DF;   /* beslag */
+  --card:#FFFCF5;
+  --pan:#F6C35B;     /* pannenkoekgoud */
+  --pan-dark:#D7962A;
+  --stroop:#5A2E12;  /* stroopbruin, inkt */
+  --ink:#3B2410;
+  --muted:#8A6A4A;
+  --berry:#6D3FA6;   /* bosbes, accent */
+  --straw:#E0473C;   /* aardbei */
+  --ok:#3C8F5A;
+  --line:#EBD9B8;
+  --display:'Lilita One', 'Arial Rounded MT Bold', 'Arial Black', sans-serif;
+  --body:'Nunito', 'Segoe UI', system-ui, sans-serif;
+  color-scheme: light;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  -webkit-text-size-adjust:100%;overscroll-behavior:none}
+#app{min-height:100%;display:flex;flex-direction:column;max-width:520px;margin:0 auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 24px;gap:14px}
+h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:.01em;line-height:1.1;margin:0;text-wrap:balance;color:var(--stroop)}
+h1{font-size:2.1rem}h2{font-size:1.5rem}h3{font-size:1.15rem}
+p{margin:0}
+button{font:inherit;cursor:pointer;border:0;border-radius:14px;padding:14px 18px;font-weight:800;color:var(--stroop);background:var(--pan);
+  box-shadow:0 4px 0 var(--pan-dark);transition:transform .08s,box-shadow .08s;touch-action:manipulation}
+button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--pan-dark)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--berry);outline-offset:2px}
+button.ghost{background:transparent;box-shadow:none;color:var(--muted);text-decoration:underline;padding:8px 10px;font-weight:700}
+button.ghost:active{transform:none}
+button.berry{background:var(--berry);color:#fff;box-shadow:0 4px 0 #4A2878}
+button.berry:active{box-shadow:0 1px 0 #4A2878}
+button.small{padding:9px 12px;border-radius:10px;font-size:.92rem;box-shadow:0 3px 0 var(--pan-dark)}
+button.ok{background:var(--ok);color:#fff;box-shadow:0 4px 0 #2A6A40}
+button.danger{background:#fff;color:var(--straw);box-shadow:0 3px 0 #e6cfc4;border:2px solid #f1d3cd}
+button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row>*{min-width:0}
+.grow{flex:1}
+.card{background:var(--card);border:2px solid var(--line);border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.card.hot{border-color:var(--pan);box-shadow:0 0 0 6px rgba(246,195,91,.25)}
+.eyebrow{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:800}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.team-pill{background:var(--stroop);color:var(--cream);border-radius:999px;padding:5px 12px;font-weight:800;font-size:.85rem}
+.parts{display:flex;gap:6px;flex-wrap:wrap}
+.part{width:30px;height:30px;border-radius:50%;background:var(--card);border:2px dashed var(--line);display:grid;place-items:center;font-size:15px}
+.part.got{background:var(--pan);border:2px solid var(--pan-dark);animation:pop .4s}
+@keyframes pop{0%{transform:scale(.4)}70%{transform:scale(1.25)}100%{transform:scale(1)}}
+.monster{display:flex;justify-content:center}
+.monster svg{width:min(70vw,260px);height:auto;max-width:100%}
+.monster.big svg{width:min(85vw,340px)}
+.monster-sm .monster svg{width:112px}
+.monster-sm{margin:-6px 0}
+.dist{font-family:var(--display);font-size:3.2rem;color:var(--stroop);line-height:1;font-variant-numeric:tabular-nums}
+.dist small{font-size:1.2rem;color:var(--muted);font-family:var(--body);font-weight:800}
+.meter{height:16px;border-radius:999px;background:#EFE1C5;overflow:hidden;border:2px solid var(--line)}
+.meter i{display:block;height:100%;background:linear-gradient(90deg,var(--berry),var(--straw) 60%,var(--pan));border-radius:999px;transition:width .6s}
+.status{font-size:.85rem;color:var(--muted);font-weight:700}
+.status.bad{color:var(--straw)}
+.clue{font-size:1.2rem;font-weight:800;line-height:1.35}
+.question{font-size:1.25rem;font-weight:800;line-height:1.35}
+input[type=text],input[type=number],input[type=password],textarea,select{font:inherit;width:100%;border:2px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff;color:var(--ink)}
+input.big{font-size:1.4rem;text-align:center;font-weight:800;letter-spacing:.05em}
+textarea{min-height:90px;font-family:ui-monospace,Menlo,monospace;font-size:.8rem}
+label{display:flex;flex-direction:column;gap:5px;font-weight:700;font-size:.9rem;color:var(--muted)}
+label.inline{flex-direction:row;align-items:center;gap:10px;color:var(--ink)}
+.choices{display:grid;gap:10px}
+.choices button{background:#fff;box-shadow:0 3px 0 var(--line);border:2px solid var(--line);text-align:left}
+.choices button.wrong{border-color:var(--straw);color:var(--straw);animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.feedback{font-weight:800;color:var(--straw);min-height:1.4em}
+.feedback.ok{color:var(--ok)}
+.hint{background:#FBF0D8;border-radius:12px;padding:10px 12px;font-weight:700}
+.overlay{position:fixed;inset:0;background:rgba(58,36,16,.72);display:flex;align-items:center;justify-content:center;padding:20px;z-index:20;
+  padding-top:max(20px,env(safe-area-inset-top,0px));padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
+.overlay .card{width:100%;max-width:420px;text-align:center;align-items:center;animation:pop .5s}
+.wp{border:2px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px;background:#fff}
+.wp summary{cursor:pointer;font-weight:800;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.wp summary::-webkit-details-marker{display:none}
+.wp .num{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--pan);color:var(--stroop);font-family:var(--display);flex:none}
+.wp.home .num{background:var(--berry);color:#fff}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:360px){.grid2{grid-template-columns:1fr}}
+.note{font-size:.85rem;color:var(--muted)}
+.divider{height:2px;background:var(--line);margin:4px 0}
+canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:15}
+/* Kaart */
+.mapwrap{position:relative;border-radius:16px;overflow:hidden;border:2px solid var(--line);background:#EFE1C5}
+.map{height:min(46vh,320px);width:100%;z-index:0}
+.mapwrap.tall .map{height:min(60vh,460px)}
+.leaflet-container{font-family:var(--body);background:#EFE1C5}
+.leaflet-control-attribution{font-size:9px;background:rgba(255,252,245,.8)!important;color:var(--muted)!important}
+.leaflet-control-attribution a{color:var(--muted)!important}
+.mapbtn{position:absolute;right:10px;bottom:28px;z-index:2;width:44px;height:44px;border-radius:50%;padding:0;font-size:20px;display:grid;place-items:center;box-shadow:0 3px 0 var(--pan-dark),0 2px 8px rgba(0,0,0,.2)}
+.mapbtn:active{transform:translateY(2px)}
+.pin-target{position:relative;width:46px;height:46px}
+.pin-target .ring{position:absolute;inset:0;border-radius:50%;background:rgba(224,71,60,.35);animation:pulse 1.6s ease-out infinite}
+.pin-target .dot{position:absolute;inset:7px;border-radius:50%;background:var(--straw);border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);display:grid;place-items:center;font-size:16px;line-height:1}
+@keyframes pulse{0%{transform:scale(.5);opacity:.9}100%{transform:scale(1.6);opacity:0}}
+.pin-me{width:22px;height:22px;border-radius:50%;background:#2F7BF5;border:3px solid #fff;box-shadow:0 0 0 2px rgba(47,123,245,.4),0 2px 6px rgba(0,0,0,.3)}
+.pin-home{width:34px;height:34px;border-radius:50%;background:var(--berry);border:3px solid #fff;display:grid;place-items:center;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.pin-num{width:28px;height:28px;border-radius:50%;background:var(--pan);border:3px solid #fff;display:grid;place-items:center;font-family:var(--display);font-size:13px;color:var(--stroop);box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.pin-num.active{background:var(--straw);color:#fff;transform:scale(1.25)}
+.pickbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pickbar .note{flex:1;min-width:120px}
+.sr{position:absolute;left:-9999px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app" aria-live="polite"></div>
+<canvas id="confetti" hidden></canvas>
+<script>
+'use strict';
+/* ============ Data ============ */
+const HOME = {lat:51.6168188, lng:5.5622347}; // De Haag 6-D, Veghel
+const PARTS = {
+  lijf:  {icon:'🥞', label:'de pannenkoekenstapel (het lijf)'},
+  ogen:  {icon:'🫐', label:'de bosbessenogen'},
+  neus:  {icon:'🍓', label:'de aardbeienneus'},
+  mond:  {icon:'🍯', label:'de stroopgrijns'},
+  armen: {icon:'🥓', label:'de spekarmen'},
+  benen: {icon:'🍌', label:'de bananenbenen'},
+  hoed:  {icon:'🧈', label:'het boterhoedje'}
+};
+const CFG_KEY='pkm_cfg_v1', TEST_KEY='pkm_test', TEAM_KEY='pkm_team';
+const uid=()=>Math.random().toString(36).slice(2,8);
+
+function defaultConfig(){
+  const o=(dlat,dlng)=>({lat:+(HOME.lat+dlat).toFixed(7), lng:+(HOME.lng+dlng).toFixed(7)});
+  return {
+    title:'Het Pannenkoekenmonster', kind:'Hannah', radius:20, pin:'2016',
+    teams:['Team Stroop','Team Spek'], twoTeams:true, reverseTeam2:true,
+    intro:'Het Pannenkoekenmonster is in stukken uit elkaar gevallen en overal in de buurt verstopt! Loop van plek naar plek, los de puzzels op en breng alle delen terug naar huis. Dan... pannenkoeken!',
+    finale:'Jullie hebben het Pannenkoekenmonster compleet gemaakt! Als beloning staat er een berg pannenkoeken klaar. Smullen maar!',
+    waypoints:[
+      {id:uid(), name:'Stop 1 (voorbeeld)', clue:'Voorbeeld: loop naar de speeltuin om de hoek. Zoek de plek waar je het hoogst kunt klimmen.', ...o(0.0010,0.0008), part:'lijf',
+        puzzle:{type:'code', question:'Hoeveel letters heeft het woord PANNENKOEKENMONSTER? Tel goed!', answer:'19', hint:'Tel de letters één voor één, met je vinger erbij.'}},
+      {id:uid(), name:'Stop 2 (voorbeeld)', clue:'Voorbeeld: ga naar de grote boom aan het einde van de straat.', ...o(0.0018,-0.0006), part:'ogen',
+        puzzle:{type:'vraag', question:'Raadsel: wat wordt natter terwijl het droogt?', answer:'handdoek|een handdoek|de handdoek|theedoek', hint:'Je gebruikt het na het douchen.'}},
+      {id:uid(), name:'Stop 3 (voorbeeld)', clue:'Voorbeeld: zoek het bankje bij het water.', ...o(0.0008,-0.0020), part:'neus',
+        puzzle:{type:'keuze', question:'Welk ingrediënt hoort NIET in pannenkoekenbeslag?', options:['Melk','Eieren','Bloem','Kaas'], answer:'Kaas', hint:'Het is iets wat je er misschien wel OP legt...'}},
+      {id:uid(), name:'Stop 4 (voorbeeld)', clue:'Voorbeeld: loop naar de brievenbus op de hoek.', ...o(-0.0008,-0.0022), part:'mond',
+        puzzle:{type:'code', question:'Het Pannenkoekenmonster eet elke dag 3 pannenkoeken. Hoeveel eet het in een hele week?', answer:'21', hint:'Een week heeft 7 dagen.'}},
+      {id:uid(), name:'Stop 5 (voorbeeld)', clue:'Voorbeeld: ga naar het lantaarnpaaltje bij het voetpad.', ...o(-0.0016,-0.0004), part:'armen',
+        puzzle:{type:'vraag', question:'Raadsel: ik heb steden maar geen huizen, bossen maar geen bomen, en rivieren maar geen water. Wat ben ik?', answer:'landkaart|kaart|een kaart|een landkaart|plattegrond', hint:'Je gebruikt mij om de weg te vinden.'}},
+      {id:uid(), name:'Stop 6 (voorbeeld)', clue:'Voorbeeld: loop naar het hekje van het grasveld.', ...o(-0.0010,0.0014), part:'benen',
+        puzzle:{type:'opdracht', question:'Maak samen één foto waarop iedereen een pannenkoekengezicht trekt (zo rond en plat mogelijk!). De begeleider vinkt af.', answer:'', hint:''}},
+      {id:'home', name:'Thuis', clue:'Het monster is bijna compleet! Loop terug naar huis. Daar wacht het boterhoedje... en de pannenkoeken!', lat:HOME.lat, lng:HOME.lng, part:'hoed', home:true,
+        puzzle:{type:'opdracht', question:'', answer:'', hint:''}}
+    ]
+  };
+}
+
+/* ============ Opslag ============ */
+const store={
+  get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},
+  del(k){try{localStorage.removeItem(k)}catch(e){}}
+};
+function loadConfig(){
+  const fromHash=readHashConfig();
+  if(fromHash){store.set(CFG_KEY,fromHash);history.replaceState(null,'',location.pathname+location.search);return fromHash}
+  const c=store.get(CFG_KEY,null);
+  return c&&Array.isArray(c.waypoints)&&c.waypoints.length>1?c:defaultConfig();
+}
+function readHashConfig(){
+  const m=location.hash.match(/^#c=(.+)$/); if(!m)return null;
+  try{return JSON.parse(decodeURIComponent(escape(atob(m[1]))))}catch(e){return null}
+}
+function shareLink(){return location.origin+location.pathname+'#c='+btoa(unescape(encodeURIComponent(JSON.stringify(cfg))))}
+const progKey=t=>'pkm_prog_'+t;
+function loadProg(t){return store.get(progKey(t),{idx:0,got:[],done:false})}
+function saveProg(){store.set(progKey(team),prog)}
+
+/* ============ State ============ */
+let cfg=loadConfig();
+let team=store.get(TEAM_KEY,0);
+let prog=loadProg(team);
+let screen='start';
+let pos=null, watchId=null, lastDist=null, gpsError='';
+let unlocked=false, attempts=0, showHint=false, feedback='';
+let test=store.get(TEST_KEY,false);
+let pinOk=false, pinFor=null, pinMsg='';
+let celebrate=null; // part just found
+let wake=null;
+
+const route=()=>{const w=cfg.waypoints,home=w[w.length-1],mid=w.slice(0,-1);return (team===1&&cfg.reverseTeam2?mid.slice().reverse():mid).concat([home])};
+const current=()=>route()[prog.idx];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s??'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+
+/* ============ Geo ============ */
+function haversine(a,b){
+  const R=6371000,toR=x=>x*Math.PI/180;
+  const dLat=toR(b.lat-a.lat),dLng=toR(b.lng-a.lng);
+  const s=Math.sin(dLat/2)**2+Math.cos(toR(a.lat))*Math.cos(toR(b.lat))*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(s));
+}
+function startGps(){
+  if(watchId!=null||test)return;
+  if(!navigator.geolocation){gpsError='Dit apparaat heeft geen GPS.';render();return}
+  watchId=navigator.geolocation.watchPosition(p=>{
+    pos={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy||30};gpsError='';onPosition();
+  },e=>{
+    gpsError=e.code===1?'Locatie geweigerd. Sta locatie toe in de browserinstellingen.':'GPS zoekt nog... loop even een stukje.';render();
+  },{enableHighAccuracy:true,maximumAge:2000,timeout:15000});
+}
+function stopGps(){if(watchId!=null&&navigator.geolocation){navigator.geolocation.clearWatch(watchId)}watchId=null}
+function onPosition(){
+  if(screen!=='play'||!pos||unlocked||prog.done)return;
+  const wp=current(); if(!wp)return;
+  const d=haversine(pos,wp);
+  const r=(wp.radius||cfg.radius)+Math.min(pos.acc||0,12);
+  if(d<=r){unlock();lastDist=d;return}
+  // Alleen de cijfers en de kaart bijwerken; de kaart blijft staan en het pincodeveld verliest geen focus.
+  const warm=lastDist==null?'':(d<lastDist-1?'🔥 Warmer!':d>lastDist+1?'🧊 Kouder...':'');
+  const el=document.querySelector('.dist');
+  if(el){el.innerHTML=Math.round(d)+'<small> m</small>';
+    const st=document.getElementById('warm');if(st)st.innerHTML=warm+' <span style="float:right">GPS ±'+Math.round(pos.acc)+' m</span>';
+    const meter=document.querySelector('.meter i');if(meter)meter.style.width=Math.max(0,Math.min(100,100-((d-r)/300)*100))+'%';
+    const status=document.getElementById('status');if(status){status.textContent=d<=r+30?'Bijna! Loop nog een klein stukje naar de plek.':'Loop in de richting waar de meter stijgt.';status.classList.remove('bad')}
+    updateMap(wp);
+  } else render();
+  lastDist=d;
+}
+function unlock(){unlocked=true;attempts=0;showHint=false;feedback='';chime([523,659,784]);if(navigator.vibrate)navigator.vibrate([80,40,80]);render()}
+async function keepAwake(){try{if('wakeLock' in navigator&&!wake){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null})}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&screen==='play')keepAwake()});
+
+/* ============ Geluid ============ */
+let actx=null;
+function chime(notes){
+  try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    notes.forEach((f,i)=>{const o=actx.createOscillator(),g=actx.createGain();o.type='triangle';o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,actx.currentTime+i*.14);g.gain.exponentialRampToValueAtTime(.25,actx.currentTime+i*.14+.02);
+      g.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+i*.14+.35);o.connect(g).connect(actx.destination);o.start(actx.currentTime+i*.14);o.stop(actx.currentTime+i*.14+.4)});
+  }catch(e){}
+}
+
+/* ============ Monster ============ */
+function monsterSvg(got,big){
+  const has=p=>got.includes(p);
+  const hid=p=>has(p)?'':'opacity=".12"';
+  return `<div class="monster ${big?'big':''}"><svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Het pannenkoekenmonster">
+  <ellipse cx="150" cy="282" rx="110" ry="10" fill="#E6D3AE"/>
+  <g ${hid('benen')}>
+    <path d="M110 232c-8 20-6 38 6 48 8 7 20 5 24-6" fill="none" stroke="#F3D34A" stroke-width="16" stroke-linecap="round"/>
+    <path d="M190 232c8 20 6 38-6 48-8 7-20 5-24-6" fill="none" stroke="#F3D34A" stroke-width="16" stroke-linecap="round"/>
+    <path d="M110 232c-8 20-6 38 6 48" fill="none" stroke="#B88E1E" stroke-width="3" stroke-linecap="round"/>
+    <path d="M190 232c8 20 6 38-6 48" fill="none" stroke="#B88E1E" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <g ${hid('lijf')}>
+    <ellipse cx="150" cy="228" rx="98" ry="22" fill="#D7962A"/><ellipse cx="150" cy="220" rx="98" ry="22" fill="#F6C35B"/>
+    <ellipse cx="150" cy="200" rx="100" ry="22" fill="#D7962A"/><ellipse cx="150" cy="192" rx="100" ry="22" fill="#F8CC6B"/>
+    <ellipse cx="150" cy="172" rx="96" ry="22" fill="#D7962A"/><ellipse cx="150" cy="164" rx="96" ry="22" fill="#F6C35B"/>
+    <ellipse cx="150" cy="144" rx="92" ry="22" fill="#D7962A"/><ellipse cx="150" cy="136" rx="92" ry="22" fill="#F9D27A"/>
+    <ellipse cx="150" cy="116" rx="86" ry="21" fill="#D7962A"/><ellipse cx="150" cy="108" rx="86" ry="21" fill="#F6C35B"/>
+    <path d="M150 90c-22 0-44 5-58 14 8 6 18 8 28 6 10 6 22 8 30 8s20-2 30-8c10 2 20 0 28-6-14-9-36-14-58-14z" fill="#FBE19C"/>
+  </g>
+  <g ${hid('ogen')}>
+    <circle cx="118" cy="104" r="16" fill="#fff" stroke="#D7962A" stroke-width="3"/><circle cx="182" cy="104" r="16" fill="#fff" stroke="#D7962A" stroke-width="3"/>
+    <circle cx="121" cy="106" r="9" fill="#4B2C8C"/><circle cx="185" cy="106" r="9" fill="#4B2C8C"/>
+    <circle cx="124" cy="103" r="3" fill="#fff"/><circle cx="188" cy="103" r="3" fill="#fff"/>
+  </g>
+  <g ${hid('neus')}>
+    <path d="M150 118c-10 0-16 9-13 18 2 8 8 14 13 14s11-6 13-14c3-9-3-18-13-18z" fill="#E0473C"/>
+    <path d="M140 122c4-6 8-8 10-8s6 2 10 8" fill="none" stroke="#3C8F5A" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="146" cy="134" r="1.6" fill="#FBE19C"/><circle cx="154" cy="138" r="1.6" fill="#FBE19C"/><circle cx="150" cy="128" r="1.6" fill="#FBE19C"/>
+  </g>
+  <g ${hid('mond')}>
+    <path d="M112 156c12 16 64 16 76 0" fill="none" stroke="#5A2E12" stroke-width="7" stroke-linecap="round"/>
+    <path d="M118 158c8 8 20 11 32 11s24-3 32-11" fill="#8A4A1C"/>
+    <path d="M126 160l4 10M148 168l0 12M170 160l-4 10" stroke="#8A4A1C" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <g ${hid('armen')}>
+    <path d="M58 160c-20 10-34 30-30 52" fill="none" stroke="#C94C5A" stroke-width="14" stroke-linecap="round"/>
+    <path d="M58 160c-20 10-34 30-30 52" fill="none" stroke="#F7B2B2" stroke-width="5" stroke-linecap="round" stroke-dasharray="10 10"/>
+    <path d="M242 160c20 10 34 30 30 52" fill="none" stroke="#C94C5A" stroke-width="14" stroke-linecap="round"/>
+    <path d="M242 160c20 10 34 30 30 52" fill="none" stroke="#F7B2B2" stroke-width="5" stroke-linecap="round" stroke-dasharray="10 10"/>
+  </g>
+  <g ${hid('hoed')}>
+    <rect x="124" y="56" width="52" height="36" rx="6" fill="#FFE98A" transform="rotate(-8 150 74)"/>
+    <rect x="124" y="56" width="52" height="12" rx="6" fill="#FFF4B8" transform="rotate(-8 150 74)"/>
+    <path d="M118 96c20-12 60-14 76-6" fill="none" stroke="#8A4A1C" stroke-width="5" stroke-linecap="round" opacity=".9"/>
+  </g>
+</svg></div>`;
+}
+
+/* ============ Kaart ============ */
+const hasL=typeof L!=='undefined';
+const TILES='https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const ATTR='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+const mapEl=document.createElement('div'); mapEl.className='map'; mapEl.id='playmap';
+let map=null, mTarget=null, mMe=null, mAcc=null, mLine=null, fittedFor=null;
+function ensureMap(){
+  if(!hasL)return null;
+  if(!map){
+    map=L.map(mapEl,{zoomControl:false,attributionControl:true});
+    L.tileLayer(TILES,{maxZoom:19,attribution:ATTR}).addTo(map);
+    map.setView([HOME.lat,HOME.lng],16);
+  }
+  return map;
+}
+const targetIcon=()=>L.divIcon({className:'',html:'<div class="pin-target"><div class="ring"></div><div class="dot">🥞</div></div>',iconSize:[46,46],iconAnchor:[23,23]});
+const meIcon=()=>L.divIcon({className:'',html:'<div class="pin-me"></div>',iconSize:[22,22],iconAnchor:[11,11]});
+function updateMap(wp){
+  const m=ensureMap(); if(!m)return;
+  const t=[wp.lat,wp.lng];
+  if(!mTarget){mTarget=L.marker(t,{icon:targetIcon(),interactive:false}).addTo(m)}else mTarget.setLatLng(t);
+  if(pos){
+    const p=[pos.lat,pos.lng];
+    if(!mMe){mMe=L.marker(p,{icon:meIcon(),interactive:false}).addTo(m);mAcc=L.circle(p,{radius:pos.acc||20,color:'#2F7BF5',weight:1,fillOpacity:.08}).addTo(m);
+      mLine=L.polyline([p,t],{color:'#5A2E12',weight:3,dashArray:'6 8',opacity:.7}).addTo(m)}
+    else{mMe.setLatLng(p);mAcc.setLatLng(p).setRadius(pos.acc||20);mLine.setLatLngs([p,t])}
+  }
+  if(fittedFor!==wp.id){fittedFor=wp.id;fitMap()}
+  requestAnimationFrame(()=>m.invalidateSize());
+}
+function fitMap(){
+  const m=ensureMap(); if(!m||!mTarget)return;
+  if(mMe){m.fitBounds(L.latLngBounds([mMe.getLatLng(),mTarget.getLatLng()]),{padding:[40,40],maxZoom:18})}
+  else m.setView(mTarget.getLatLng(),17);
+}
+function mountMap(){
+  const slot=document.getElementById('mapslot'); if(!slot||!hasL)return;
+  slot.appendChild(mapEl);
+  updateMap(current());
+}
+/* Kaart-kiezer in de instelmodus */
+let picker=null, pickMarker=null, pickIdx=null;
+function openPicker(i){
+  if(!hasL)return;
+  pickIdx=i; const wp=cfg.waypoints[i];
+  const ov=document.createElement('div'); ov.className='overlay'; ov.id='pickov';
+  ov.innerHTML=`<div class="card" style="max-width:520px;align-items:stretch;text-align:left">
+    <div class="pickbar"><strong>${esc(wp.name)}</strong><span class="note">Tik op de kaart om de stip te verplaatsen.</span></div>
+    <div class="mapwrap tall"><div class="map" id="pickmap"></div></div>
+    <div class="row"><button class="ok grow" id="pickok">Gebruik dit punt</button><button class="ghost" id="pickcancel">Annuleer</button></div></div>`;
+  document.body.appendChild(ov);
+  picker=L.map(document.getElementById('pickmap'),{zoomControl:true});
+  L.tileLayer(TILES,{maxZoom:19,attribution:ATTR}).addTo(picker);
+  picker.setView([wp.lat,wp.lng],17);
+  cfg.waypoints.forEach((w,j)=>{
+    const isHome=j===cfg.waypoints.length-1;
+    const ic=L.divIcon({className:'',html:isHome?'<div class="pin-home">🏠</div>':`<div class="pin-num ${j===i?'active':''}">${j+1}</div>`,iconSize:isHome?[34,34]:[28,28],iconAnchor:isHome?[17,17]:[14,14]});
+    const mk=L.marker([w.lat,w.lng],{icon:ic,interactive:false,zIndexOffset:j===i?1000:0}).addTo(picker);
+    if(j===i)pickMarker=mk;
+  });
+  picker.on('click',e=>{pickMarker.setLatLng(e.latlng)});
+  document.getElementById('pickok').onclick=()=>{const ll=pickMarker.getLatLng();wp.lat=+ll.lat.toFixed(7);wp.lng=+ll.lng.toFixed(7);saveCfg();closePicker();render();
+    const d=document.querySelectorAll('details.wp')[i];if(d){d.open=true;d.scrollIntoView({block:'center'})}};
+  document.getElementById('pickcancel').onclick=closePicker;
+  setTimeout(()=>picker.invalidateSize(),50);
+}
+function closePicker(){if(picker){picker.remove();picker=null}const ov=document.getElementById('pickov');if(ov)ov.remove()}
+
+/* ============ Render ============ */
+const app=document.getElementById('app');
+function render(){
+  let html='';
+  if(screen==='start')html=viewStart();
+  else if(screen==='play')html=prog.done?viewFinale():viewPlay();
+  else if(screen==='setup')html=pinOk?viewSetup():viewPin();
+  if(celebrate)html+=viewCelebrate();
+  app.innerHTML=html;
+  if(screen==='play'&&!prog.done&&!unlocked)mountMap();
+}
+
+function viewStart(){
+  const teams=cfg.twoTeams?cfg.teams:[cfg.teams[0]];
+  const p=loadProg(team);
+  return `<div class="topbar"><span class="eyebrow">Kinderfeestje van ${esc(cfg.kind)}</span><button class="ghost small" data-a="setup">⚙︎ Instellen</button></div>
+  <div style="text-align:center"><h1>${esc(cfg.title)}</h1></div>
+  ${monsterSvg(p.got,true)}
+  <div class="card">
+    <p>${esc(cfg.intro)}</p>
+    ${teams.length>1?`<div><div class="eyebrow" style="margin-bottom:8px">Welk team zijn jullie?</div><div class="row">${teams.map((t,i)=>`<button class="grow ${i===team?'berry':''}" data-a="team" data-i="${i}">${esc(t)}</button>`).join('')}</div></div>`:''}
+    <button class="ok" data-a="start">${p.idx>0&&!p.done?'Verder met de speurtocht ▶':p.done?'Bekijk het monster 🥞':'Start de speurtocht ▶'}</button>
+    ${p.idx>0?`<button class="ghost small" data-a="restart">Opnieuw beginnen voor dit team</button>`:''}
+    <p class="note">Tip: zet het geluid aan en geef de browser toestemming voor je locatie.</p>
+  </div>`;
+}
+
+function viewPlay(){
+  const r=route(),wp=current(),n=prog.idx+1,total=r.length;
+  const head=`<div class="topbar"><span class="team-pill">${esc(cfg.twoTeams?cfg.teams[team]:cfg.teams[0])}</span>
+    <div class="parts" title="Verzamelde delen">${r.map(w=>`<span class="part ${prog.got.includes(w.part)?'got':''}">${prog.got.includes(w.part)?PARTS[w.part]?.icon||'⭐':''}</span>`).join('')}</div>
+    <button class="ghost small" data-a="home">✕</button></div>${unlocked?monsterSvg(prog.got,false):`<div class="monster-sm">${monsterSvg(prog.got,false)}</div>`}`;
+  if(!unlocked)return head+viewNavigate(wp,n,total);
+  return head+viewPuzzle(wp,n,total);
+}
+
+function viewNavigate(wp,n,total){
+  let distHtml='',status='',pct=0;
+  const r=wp.radius||cfg.radius;
+  if(test){status='Testmodus: nep-GPS aan.'; distHtml=`<div class="dist">?<small> m</small></div>`}
+  else if(pos){const d=haversine(pos,wp);pct=Math.max(0,Math.min(100,100-((d-r)/300)*100));
+    const warm=lastDist==null?'':(d<lastDist-1?'🔥 Warmer!':d>lastDist+1?'🧊 Kouder...':'');
+    distHtml=`<div class="dist">${Math.round(d)}<small> m</small></div><div class="status" id="warm">${warm} <span style="float:right">GPS ±${Math.round(pos.acc)} m</span></div>`;
+    status=d<=r+30?'Bijna! Loop nog een klein stukje naar de plek.':'Loop in de richting waar de meter stijgt.'}
+  else{distHtml=`<div class="dist">…<small> m</small></div><div class="status" id="warm"></div>`;status=gpsError||'GPS zoekt je positie...'}
+  return `<div class="card hot">
+    <div class="row" style="justify-content:space-between"><span class="eyebrow">${wp.home?'Laatste stop':'Stop '+n+' van '+total}</span><span class="eyebrow">${PARTS[wp.part]?.icon||''} ${wp.home?'Finale':'Deel '+n}</span></div>
+    <h2>${esc(wp.name)}</h2>
+    <p class="clue">${esc(wp.clue)}</p>
+    ${hasL?`<div class="mapwrap"><div id="mapslot"></div><button class="mapbtn" data-a="fitmap" aria-label="Kaart centreren">🎯</button></div>`:''}
+    ${distHtml}
+    <div class="meter" aria-hidden="true"><i style="width:${pct}%"></i></div>
+    <p class="status ${gpsError?'bad':''}" id="status">${esc(status)}</p>
+    ${test?`<button class="berry" data-a="teleport">🛸 Teleporteer naar deze stop (test)</button>`:''}
+    <button class="ghost small" data-a="override">Begeleider: ontgrendel met pincode</button>
+    ${pinFor==='override'?viewPinInline():''}
+  </div>`;
+}
+
+function viewPuzzle(wp,n,total){
+  const pz=wp.puzzle||{type:'opdracht'};
+  let body='';
+  if(wp.home&&!pz.question){
+    body=`<p class="question">Jullie zijn thuis! Het Pannenkoekenmonster wacht op zijn laatste deel: ${esc(PARTS.hoed.label)}.</p><button class="ok" data-a="solve">🧈 Zet het boterhoedje op!</button>`;
+  } else if(pz.type==='keuze'){
+    body=`<p class="question">${esc(pz.question)}</p><div class="choices">${(pz.options||[]).map((o,i)=>`<button data-a="choose" data-v="${esc(o)}" id="opt${i}">${esc(o)}</button>`).join('')}</div>`;
+  } else if(pz.type==='opdracht'){
+    body=`<p class="question">${esc(pz.question)}</p><button class="ok" data-a="solve">✅ Begeleider: opdracht gelukt!</button>`;
+  } else {
+    const isCode=pz.type==='code';
+    body=`<p class="question">${esc(pz.question)}</p>
+      <form data-a="answer" class="row" autocomplete="off"><input id="ans" class="big grow" type="${isCode?'tel':'text'}" ${isCode?'inputmode="numeric" pattern="[0-9]*"':''} placeholder="${isCode?'cijfers':'jouw antwoord'}" aria-label="Antwoord"><button class="ok" type="submit">Check</button></form>`;
+  }
+  return `<div class="card hot">
+    <div class="row" style="justify-content:space-between"><span class="eyebrow">📍 Jullie zijn er! · ${wp.home?'Finale':'Stop '+n+' van '+total}</span></div>
+    <h2>${esc(wp.name)}</h2>
+    ${body}
+    <p class="feedback ${feedback.startsWith('✓')?'ok':''}">${esc(feedback)}</p>
+    ${pz.hint&&attempts>=2?(showHint?`<div class="hint">💡 ${esc(pz.hint)}</div>`:`<button class="ghost small" data-a="hint">Hint nodig?</button>`):''}
+  </div>`;
+}
+
+function viewCelebrate(){
+  const p=PARTS[celebrate.part]||{icon:'⭐',label:'een geheim deel'};
+  return `<div class="overlay"><div class="card">
+    <div style="font-size:4rem;line-height:1">${p.icon}</div>
+    <h2>Gevonden!</h2>
+    <p>Jullie hebben <strong>${esc(p.label)}</strong> van het Pannenkoekenmonster verdiend.</p>
+    ${monsterSvg(prog.got,false)}
+    <button class="ok" data-a="next">${celebrate.last?'🥞 Pannenkoeken!':'Op naar de volgende stop ▶'}</button>
+  </div></div>`;
+}
+
+function viewFinale(){
+  return `<div class="topbar"><span class="team-pill">${esc(cfg.twoTeams?cfg.teams[team]:cfg.teams[0])}</span><button class="ghost small" data-a="home">✕</button></div>
+  <div style="text-align:center"><h1>Het monster is compleet!</h1></div>
+  ${monsterSvg(Object.keys(PARTS),true)}
+  <div class="card" style="text-align:center"><p class="clue">${esc(cfg.finale)}</p>
+    <p style="font-size:2.5rem;line-height:1">🥞🥞🥞</p>
+    <button data-a="home">Terug naar start</button></div>`;
+}
+
+function viewPin(){
+  return `<div class="topbar"><button class="ghost small" data-a="home">← Terug</button></div>
+  <div class="card"><h2>Instellen</h2><p class="note">Alleen voor de begeleider.</p>${viewPinInline()}</div>`;
+}
+function viewPinInline(){
+  return `<form data-a="pin" class="row" autocomplete="off"><input id="pin" class="big grow" type="password" inputmode="numeric" placeholder="pincode" aria-label="Pincode"><button class="berry" type="submit">OK</button></form>
+  <p class="feedback">${esc(pinMsg)}</p>`;
+}
+
+function viewSetup(){
+  const w=cfg.waypoints;
+  const wpHtml=w.map((p,i)=>{
+    const isHome=i===w.length-1;
+    const pz=p.puzzle||{type:'vraag'};
+    return `<details class="wp ${isHome?'home':''}" ${i===0?'open':''}>
+      <summary><span class="row" style="gap:8px"><span class="num">${isHome?'🏠':i+1}</span><span>${esc(p.name)}</span></span><span class="note">${PARTS[p.part]?.icon||''}</span></summary>
+      <label>Naam van de stop<input type="text" data-wp="${i}" data-k="name" value="${esc(p.name)}" ${isHome?'':''}></label>
+      <label>Aanwijzing waar ze heen moeten<textarea data-wp="${i}" data-k="clue" style="font-family:inherit;font-size:1rem;min-height:70px">${esc(p.clue)}</textarea></label>
+      <div class="grid2">
+        <label>Breedtegraad<input type="text" inputmode="decimal" data-wp="${i}" data-k="lat" value="${p.lat}"></label>
+        <label>Lengtegraad<input type="text" inputmode="decimal" data-wp="${i}" data-k="lng" value="${p.lng}"></label>
+      </div>
+      <div class="row"><button class="berry small" data-a="uselocation" data-i="${i}">📍 Gebruik mijn locatie</button>${hasL?`<button class="small" data-a="pick" data-i="${i}">🗺️ Kies op kaart</button>`:''}<span class="note" id="loc${i}"></span></div>
+      <div class="grid2">
+        <label>Straal (m, leeg = standaard)<input type="number" data-wp="${i}" data-k="radius" value="${p.radius||''}" placeholder="${cfg.radius}"></label>
+        <label>Monsterdeel<select data-wp="${i}" data-k="part">${Object.keys(PARTS).map(k=>`<option value="${k}" ${p.part===k?'selected':''}>${PARTS[k].icon} ${PARTS[k].label}</option>`).join('')}</select></label>
+      </div>
+      <div class="divider"></div>
+      <label>Soort puzzel<select data-wp="${i}" data-pz="type"><option value="vraag" ${pz.type==='vraag'?'selected':''}>Vraag / raadsel (tekstantwoord)</option><option value="code" ${pz.type==='code'?'selected':''}>Cijfercode</option><option value="keuze" ${pz.type==='keuze'?'selected':''}>Meerkeuze</option><option value="opdracht" ${pz.type==='opdracht'?'selected':''}>Opdracht (begeleider vinkt af)</option></select></label>
+      <label>Vraag of opdracht${isHome?' (leeg = standaard finale)':''}<textarea data-wp="${i}" data-pz="question" style="font-family:inherit;font-size:1rem;min-height:70px">${esc(pz.question||'')}</textarea></label>
+      ${pz.type==='keuze'?`<label>Keuzes (één per regel)<textarea data-wp="${i}" data-pz="options" style="font-family:inherit;font-size:1rem">${esc((pz.options||[]).join('\n'))}</textarea></label>`:''}
+      ${pz.type!=='opdracht'?`<label>Goede antwoord${pz.type==='vraag'?' (meerdere mogen, gescheiden door |)':''}<input type="text" data-wp="${i}" data-pz="answer" value="${esc(pz.answer||'')}"></label>`:''}
+      <label>Hint (verschijnt na 2 foute pogingen)<input type="text" data-wp="${i}" data-pz="hint" value="${esc(pz.hint||'')}"></label>
+      ${isHome?'':`<div class="row"><button class="small" data-a="up" data-i="${i}" ${i===0?'disabled':''}>↑</button><button class="small" data-a="down" data-i="${i}" ${i>=w.length-2?'disabled':''}>↓</button><span class="grow"></span><button class="danger small" data-a="del" data-i="${i}">Verwijder</button></div>`}
+    </details>`}).join('');
+  return `<div class="topbar"><button class="ghost small" data-a="home">← Terug naar start</button><span class="eyebrow">Instellen</span></div>
+  <div class="card">
+    <h2>Algemeen</h2>
+    <div class="grid2">
+      <label>Titel<input type="text" data-c="title" value="${esc(cfg.title)}"></label>
+      <label>Jarige<input type="text" data-c="kind" value="${esc(cfg.kind)}"></label>
+      <label>Standaardstraal (m)<input type="number" data-c="radius" value="${cfg.radius}" min="5"></label>
+      <label>Pincode begeleider<input type="text" data-c="pin" value="${esc(cfg.pin)}" inputmode="numeric"></label>
+    </div>
+    <p class="note">Straal 15–25 m werkt goed; de GPS-nauwkeurigheid wordt er automatisch bij opgeteld. Zet stops minstens 60 m uit elkaar.</p>
+    <label>Introtekst<textarea data-c="intro" style="font-family:inherit;font-size:1rem">${esc(cfg.intro)}</textarea></label>
+    <label>Finaletekst<textarea data-c="finale" style="font-family:inherit;font-size:1rem">${esc(cfg.finale)}</textarea></label>
+    <label class="inline"><input type="checkbox" data-c="twoTeams" ${cfg.twoTeams?'checked':''}> Twee teams</label>
+    <div class="grid2"><label>Naam team 1<input type="text" data-c="teams.0" value="${esc(cfg.teams[0])}"></label><label>Naam team 2<input type="text" data-c="teams.1" value="${esc(cfg.teams[1]||'')}"></label></div>
+    <label class="inline"><input type="checkbox" data-c="reverseTeam2" ${cfg.reverseTeam2?'checked':''}> Team 2 loopt de route andersom (zo komen ze elkaar niet tegen)</label>
+  </div>
+  <div class="card">
+    <h2>Stops</h2>
+    <p class="note">Loop de route en druk bij elke plek op <strong>Gebruik mijn locatie</strong>. De laatste stop is altijd Thuis.</p>
+    ${wpHtml}
+    <button data-a="add">+ Stop toevoegen</button>
+  </div>
+  <div class="card">
+    <h2>Delen &amp; testen</h2>
+    <p class="note">Zet de tocht op de telefoons van de kinderen: kopieer de deel-link en stuur hem via WhatsApp. Openen = klaar.</p>
+    <div class="row"><button class="berry grow" data-a="copylink">🔗 Kopieer deel-link</button><button class="grow" data-a="copyjson">Kopieer als JSON</button></div>
+    <textarea id="share" readonly aria-label="Deel-link"></textarea>
+    <label>Importeer JSON of deel-link<textarea id="import" placeholder="Plak hier..."></textarea></label>
+    <button class="small" data-a="import">Importeer</button>
+    <div class="divider"></div>
+    <label class="inline"><input type="checkbox" id="testmode" ${test?'checked':''}> Testmodus (nep-GPS: teleporteer naar elke stop zonder te lopen)</label>
+    <div class="row"><button class="danger small" data-a="resetprog">Reset voortgang van alle teams</button><button class="danger small" data-a="resetcfg">Herstel voorbeeld-tocht</button></div>
+    <p class="feedback ok" id="setupmsg"></p>
+  </div>`;
+}
+
+/* ============ Acties ============ */
+function solve(wp){
+  if(!prog.got.includes(wp.part))prog.got.push(wp.part);
+  const last=prog.idx>=route().length-1;
+  celebrate={part:wp.part,last};
+  chime([659,784,988,1319]);
+  if(navigator.vibrate)navigator.vibrate([60,40,60,40,120]);
+  saveProg();render();
+  if(last)confetti();
+}
+function advance(){
+  const last=celebrate&&celebrate.last; celebrate=null;
+  if(last){prog.done=true}else{prog.idx++}
+  unlocked=false;lastDist=null;feedback='';attempts=0;showHint=false;
+  saveProg();render();
+}
+function checkAnswer(v){
+  const wp=current(),pz=wp.puzzle||{};
+  const ok=(pz.answer||'').split('|').map(norm).filter(Boolean).includes(norm(v));
+  if(ok){feedback='✓ Goed zo!';solve(wp)}
+  else{attempts++;feedback=['Hmm, dat is het niet. Probeer nog eens!','Nog niet goed. Denk goed na!','Bijna... of toch niet. Nog een keer!'][attempts%3];chime([220]);render();
+    if(pz.type==='keuze'){const b=[...document.querySelectorAll('.choices button')].find(x=>x.dataset.v===v);if(b)b.classList.add('wrong')}}
+}
+function goHome(){screen='start';stopGps();unlocked=false;celebrate=null;pinFor=null;pinMsg='';prog=loadProg(team);render()}
+function msg(t){const el=document.getElementById('setupmsg');if(el){el.textContent=t;setTimeout(()=>{if(el.textContent===t)el.textContent=''},3000)}}
+function copyText(t,el){
+  if(el){el.value=t}
+  const done=()=>msg('Gekopieerd! Plak hem in WhatsApp.');
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done).catch(()=>{if(el){el.focus();el.select()}msg('Selecteer de tekst hieronder en kopieer handmatig.')})}
+  else{if(el){el.focus();el.select()}msg('Selecteer de tekst hieronder en kopieer handmatig.')}
+}
+function confetti(){
+  const c=document.getElementById('confetti');if(!c)return;c.hidden=false;const ctx=c.getContext('2d');
+  c.width=innerWidth;c.height=innerHeight;const cols=['#F6C35B','#6D3FA6','#E0473C','#FFE98A','#3C8F5A'];
+  const ps=Array.from({length:140},()=>({x:Math.random()*c.width,y:-20-Math.random()*c.height,r:4+Math.random()*6,s:2+Math.random()*3,c:cols[Math.random()*cols.length|0],a:Math.random()*6}));
+  let t=0;const step=()=>{ctx.clearRect(0,0,c.width,c.height);ps.forEach(p=>{p.y+=p.s;p.a+=.1;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.fillStyle=p.c;ctx.fillRect(-p.r,-p.r/2,p.r*2,p.r);ctx.restore()});
+    if(++t<260)requestAnimationFrame(step);else{c.hidden=true}};requestAnimationFrame(step);
+}
+
+app.addEventListener('click',e=>{
+  const b=e.target.closest('[data-a]');if(!b||b.tagName==='FORM')return;
+  const a=b.dataset.a,i=+b.dataset.i;
+  if(a==='setup'){screen='setup';pinMsg='';render()}
+  else if(a==='home'){goHome()}
+  else if(a==='team'){team=i;store.set(TEAM_KEY,team);prog=loadProg(team);render()}
+  else if(a==='start'){if(!cfg.twoTeams){team=0;prog=loadProg(0)}screen='play';unlocked=false;lastDist=null;render();startGps();keepAwake();chime([523])}
+  else if(a==='restart'){prog={idx:0,got:[],done:false};saveProg();render()}
+  else if(a==='override'){pinFor=pinFor==='override'?null:'override';pinMsg='';render();const el=document.getElementById('pin');if(el)el.focus()}
+  else if(a==='teleport'){const wp=current();pos={lat:wp.lat,lng:wp.lng,acc:5};unlock()}
+  else if(a==='fitmap'){fitMap()}
+  else if(a==='pick'){openPicker(i)}
+  else if(a==='solve'){solve(current())}
+  else if(a==='choose'){checkAnswer(b.dataset.v)}
+  else if(a==='hint'){showHint=true;render()}
+  else if(a==='next'){advance()}
+  else if(a==='add'){const w=cfg.waypoints;const used=w.map(x=>x.part);const part=Object.keys(PARTS).find(k=>k!=='hoed'&&!used.includes(k))||'lijf';
+    w.splice(w.length-1,0,{id:uid(),name:'Stop '+(w.length),clue:'',lat:HOME.lat,lng:HOME.lng,part,puzzle:{type:'vraag',question:'',answer:'',hint:''}});saveCfg();render()}
+  else if(a==='del'){cfg.waypoints.splice(i,1);saveCfg();render()}
+  else if(a==='up'){const w=cfg.waypoints;[w[i-1],w[i]]=[w[i],w[i-1]];saveCfg();render()}
+  else if(a==='down'){const w=cfg.waypoints;[w[i+1],w[i]]=[w[i],w[i+1]];saveCfg();render()}
+  else if(a==='uselocation'){const out=document.getElementById('loc'+i);if(out)out.textContent='Zoeken...';
+    if(!navigator.geolocation){if(out)out.textContent='Geen GPS beschikbaar.';return}
+    navigator.geolocation.getCurrentPosition(p=>{const wp=cfg.waypoints[i];wp.lat=+p.coords.latitude.toFixed(7);wp.lng=+p.coords.longitude.toFixed(7);saveCfg();
+      const d=document.querySelectorAll('details.wp')[i];if(d){d.querySelector('[data-k=lat]').value=wp.lat;d.querySelector('[data-k=lng]').value=wp.lng}
+      if(out)out.textContent='Vastgelegd (±'+Math.round(p.coords.accuracy)+' m)'},
+      err=>{if(out)out.textContent=err.code===1?'Locatie geweigerd in de browser.':'Geen GPS-fix, probeer buiten nog eens.'},{enableHighAccuracy:true,timeout:20000,maximumAge:0})}
+  else if(a==='copylink'){copyText(shareLink(),document.getElementById('share'))}
+  else if(a==='copyjson'){copyText(JSON.stringify(cfg,null,1),document.getElementById('share'))}
+  else if(a==='import'){const t=(document.getElementById('import').value||'').trim();let c=null;
+    try{const m=t.match(/#c=(.+)$/);c=m?JSON.parse(decodeURIComponent(escape(atob(m[1])))):JSON.parse(t)}catch(err){}
+    if(c&&Array.isArray(c.waypoints)){cfg=c;saveCfg();render();msg('Geïmporteerd!')}else msg('Dat kon ik niet lezen. Plak de volledige link of JSON.')}
+  else if(a==='resetprog'){[0,1].forEach(t=>store.del(progKey(t)));prog=loadProg(team);msg('Voortgang gewist.')}
+  else if(a==='resetcfg'){cfg=defaultConfig();saveCfg();render();msg('Voorbeeld-tocht hersteld.')}
+});
+app.addEventListener('submit',e=>{
+  const f=e.target.closest('form[data-a]');if(!f)return;e.preventDefault();
+  if(f.dataset.a==='answer'){const v=document.getElementById('ans').value;if(norm(v))checkAnswer(v)}
+  else if(f.dataset.a==='pin'){const v=document.getElementById('pin').value;
+    if(v===String(cfg.pin)){pinMsg='';if(screen==='setup'){pinOk=true;render()}else if(pinFor==='override'){pinFor=null;unlock()}}
+    else{pinMsg='Verkeerde pincode.';render();const el=document.getElementById('pin');if(el)el.focus()}}
+});
+app.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.dataset.c){const k=t.dataset.c;const v=t.type==='checkbox'?t.checked:(t.type==='number'?+t.value:t.value);
+    if(k.startsWith('teams.')){cfg.teams[+k.split('.')[1]]=v}else{cfg[k]=v}saveCfg();return}
+  if(t.dataset.wp!=null){const wp=cfg.waypoints[+t.dataset.wp];if(!wp)return;
+    if(t.dataset.k){const k=t.dataset.k;if(k==='lat'||k==='lng'){const n=parseFloat(String(t.value).replace(',','.'));if(!isNaN(n))wp[k]=n}else if(k==='radius'){wp.radius=t.value?+t.value:undefined}else wp[k]=t.value}
+    else if(t.dataset.pz){wp.puzzle=wp.puzzle||{};const k=t.dataset.pz;
+      if(k==='options'){wp.puzzle.options=t.value.split('\n').map(s=>s.trim()).filter(Boolean)}else{wp.puzzle[k]=t.value}}
+    saveCfg();
+    if(t.dataset.pz==='type'){render();const d=document.querySelectorAll('details.wp')[+t.dataset.wp];if(d)d.open=true}}
+});
+app.addEventListener('change',e=>{const t=e.target;
+  if(t.dataset.c&&t.type==='checkbox'){cfg[t.dataset.c]=t.checked;saveCfg()}
+  if(t.id==='testmode'){test=t.checked;store.set(TEST_KEY,test);if(test)stopGps();msg(test?'Testmodus aan.':'Testmodus uit.')}});
+function saveCfg(){store.set(CFG_KEY,cfg)}
+
+render();
+</script>
+</body>
+</html>
