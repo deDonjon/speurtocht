@@ -222,7 +222,8 @@ function startGps(){
   watchId=navigator.geolocation.watchPosition(p=>{
     pos={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy||30};gpsError='';onPosition();
   },e=>{
-    gpsError=e.code===1?'Locatie geweigerd. Sta locatie toe in de browserinstellingen.':'GPS zoekt nog... loop even een stukje.';render();
+    gpsError=e.code===1?'Locatie geweigerd. iPhone: Instellingen → Privacy → Locatievoorzieningen → Safari-websites → "Bij gebruik". Of tik op AA in de adresbalk → Website-instellingen → Locatie → Toestaan. Daarna hieronder opnieuw proberen.':'GPS zoekt nog... loop even een stukje de open lucht in.';
+    stopGps();render();
   },{enableHighAccuracy:true,maximumAge:2000,timeout:15000});
 }
 function stopGps(){if(watchId!=null&&navigator.geolocation){navigator.geolocation.clearWatch(watchId)}watchId=null}
@@ -427,6 +428,7 @@ function viewNavigate(wp,n,total){
     ${distHtml}
     <div class="meter" aria-hidden="true"><i style="width:${pct}%"></i></div>
     <p class="status ${gpsError?'bad':''}" id="status">${esc(status)}</p>
+    ${gpsError?`<button class="berry" data-a="retrygps">📡 Probeer locatie opnieuw</button>`:''}
     ${test?`<button class="berry" data-a="teleport">🛸 Teleporteer naar deze stop (test)</button>`:''}
     <button class="ghost small" data-a="override">Begeleider: ontgrendel met pincode</button>
     ${pinFor==='override'?viewPinInline():''}
@@ -597,6 +599,7 @@ app.addEventListener('click',e=>{
   else if(a==='override'){pinFor=pinFor==='override'?null:'override';pinMsg='';render();const el=document.getElementById('pin');if(el)el.focus()}
   else if(a==='teleport'){const wp=current();pos={lat:wp.lat,lng:wp.lng,acc:5};unlock()}
   else if(a==='fitmap'){fitMap()}
+  else if(a==='retrygps'){gpsError='';stopGps();render();startGps()}
   else if(a==='pick'){openPicker(i)}
   else if(a==='solve'){solve(current())}
   else if(a==='choose'){checkAnswer(b.dataset.v)}
