@@ -189,17 +189,41 @@ const canSubmit = () => state.hasTalent('sleutelbewaarder') || !!S().game?.setti
 const birthday = () => S().players.find(p => p.is_birthday);
 
 /* ================================================================ geluid, trilling, toast, ballon (chat 3 vervangt door audio.js / monster.js) */
+// iPhone: Web Audio zwijgt standaard als de stil-schakelaar aan staat, en mag pas na een tik starten.
+// audioSession 'playback' laat het geluid door de stil-schakelaar heen; bij elke tik maken we de context weer wakker.
 let actx = null;
-addEventListener('pointerdown', () => { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume?.(); } catch {} }, { once: true });
+function audio() {
+  try {
+    if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback';
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state !== 'running') { actx.resume?.(); const b = actx.createBufferSource(); b.buffer = actx.createBuffer(1, 1, 22050); b.connect(actx.destination); b.start(0); }
+  } catch {}
+  return actx;
+}
+addEventListener('pointerdown', audio, { capture: true });
+addEventListener('touchend', audio, { capture: true });
 function chime(notes) {
   if (muted) return;
-  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)();
-    notes.forEach((f, i) => { const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + i * .14; o.type = 'triangle'; o.frequency.value = f;
-      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.25, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + .35);
-      o.connect(g).connect(actx.destination); o.start(t); o.stop(t + .4); });
+  const a = audio(); if (!a) return;
+  try {
+    notes.forEach((f, i) => { const o = a.createOscillator(), g = a.createGain(), t = a.currentTime + .02 + i * .14; o.type = 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.45, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + .38);
+      o.connect(g).connect(a.destination); o.start(t); o.stop(t + .42); });
   } catch {}
 }
-const buzz = p => { try { navigator.vibrate?.(p); } catch {} };
+// Trillen: Android heeft navigator.vibrate; Safari op iPhone niet. Daar geeft een verborgen schakelaar (iOS 18+) een tikje,
+// maar alleen direct na een tik van het kind zelf. Een patroon wordt een reeks tikjes.
+function haptic() {
+  try { const l = document.createElement('label'); l.ariaHidden = 'true'; l.style.display = 'none';
+    const i = document.createElement('input'); i.type = 'checkbox'; i.setAttribute('switch', ''); l.appendChild(i);
+    document.head.appendChild(l); l.click(); l.remove(); } catch {}
+}
+addEventListener('click', e => { if (e.isTrusted && e.target.closest('button') && !navigator.vibrate) haptic(); }, { capture: true }); // tikje bij elke knop
+function buzz(p) {
+  if (navigator.vibrate) { try { navigator.vibrate(p); } catch {} return; }
+  const n = Array.isArray(p) ? Math.ceil(p.length / 2) : 1;
+  for (let k = 0; k < Math.min(n, 4); k++) setTimeout(haptic, k * 140);
+}
 function toast(text, ms = 3200) { const d = document.createElement('div'); d.textContent = text; $('#toast').appendChild(d); setTimeout(() => d.remove(), ms); }
 function say(text, ms = 6000) { // tekstballon van het monster
   document.querySelector('.bubble')?.remove();
@@ -548,7 +572,7 @@ screens.puz = (el, id) => {
   // Zet direct lokaal tonen (pending) en naar de server sturen; zodra de server hem terugstuurt valt hij uit pending.
   function move(m) {
     const id = Math.random().toString(36).slice(2, 10), mv = { ...m, id, by: state.me()[0]?.id };
-    pending.push(mv); chime([880]); update(true);
+    pending.push(mv); chime([880]); buzz(15); update(true);
     sync.move({ ...m, id }, st.id).catch(e => { pending = pending.filter(x => x !== mv); toast('⚠️ ' + e.message); update(true); });
   }
   async function submit() {
