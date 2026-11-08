@@ -410,7 +410,7 @@ function wordTimes(text, rate) {
 }
 
 // Wie praat hardop? De telefoon met het laagste device-id dat online is.
-function isSpeakerPhone() {
+export function isSpeakerPhone() {
   const s = globalThis.pkm?.state?.get?.();
   if (!s) return true;
   const me = s.device?.id, mine = (s.device?.players || []).length > 0;
@@ -495,6 +495,7 @@ export function createMonster() {
     nextBlink: 0, blinkT: -1, nextLook: 0, gazeT: { x: 0, y: 0 }, nextSniff: 0, sniffUntil: 0,
     bru: { phase: 'snap', until: 0, dir: 1 }, spin0: -1e9, nextSpin: 0,
     talk: 0, busyUntil: 0, lastT: 0, melt: 0,
+    live: null, liveOut: 0, liveIn: 0, livePeak: 0, // walkietalkie: fase + volumes (0..1)
   };
   let visible = false, docVisible = document.visibilityState !== 'hidden', raf = 0;
   let pointer = { x: 0, y: 0, t: -1e9 };
@@ -596,6 +597,10 @@ export function createMonster() {
       if (ex.kind === 'tik' || ex.kind === 'goed') Object.assign(T, { eyeClose: 1, arcHappy: true, mouth: 0.6, lid: 0 });
       if (ex.kind === 'hint') { Object.assign(T, { browL: 0.9, browR: 0.3, mouth: 0.3, cross: 0, lid: 0 }); S.gazeT = { x: 0.5, y: -0.9 }; gazeMode = 'fixed'; armUp = [0, 0.75 + 0.1 * Math.sin(sec * 10)]; }
       if (ex.kind === 'start') { Object.assign(T, { eyeClose: 0.85, arcHappy: false, mouth: 0.95, cross: 0, lid: 0 }); armUp = [0.85, 0.85]; }
+      // walkietalkie: luistert (grote ogen, kijkt naar je, hand bij het 'oor') en denkt (kijkt omhoog, "hmm")
+      if (ex.kind === 'luister') { Object.assign(T, { browL: 0.7, browR: 0.7, mouth: 0.08, cross: 0, lid: 0, eyeClose: 0, lean: 0.25 * Math.sin(sec * 2.2) }); S.gazeT = { x: 0, y: 0.25 }; gazeMode = 'fixed'; armUp = [0.55 + 0.25 * S.liveIn, 0]; }
+      if (ex.kind === 'denk') { Object.assign(T, { browL: 0.9, browR: 0.2, mouth: 0.12, smirk: 0.3, cross: 0, lid: 0.15 }); S.gazeT = { x: 0.6 * Math.sin(sec * 1.3), y: -0.9 }; gazeMode = 'fixed'; armUp = [0, 0.7 + 0.08 * Math.sin(sec * 6)]; }
+      if (ex.kind === 'praat') { Object.assign(T, { browL: 0.3 + 0.5 * S.liveOut, browR: 0.3 + 0.5 * S.liveOut, cross: 0, lid: 0, eyeClose: 0 }); S.gazeT = { x: 0.15 * Math.sin(sec * 0.9), y: 0.1 }; gazeMode = 'fixed'; armUp = [0.35 * S.liveOut, 0.35 * S.liveOut]; }
     }
     // knipperen (wakker, nieuwsgierig)
     if ((mood === 'wakker' || mood === 'nieuwsgierig') && !ex && mv) {
@@ -621,7 +626,8 @@ export function createMonster() {
     P.melt = S.melt;
     // praten: mond per woord
     S.talk = Math.max(0, S.talk - dt * 4.5);
-    const talkOpen = S.talk > 0 ? S.talk * (0.55 + 0.45 * Math.abs(Math.sin(sec * 17))) : 0;
+    // live (walkietalkie): de mond volgt het echte volume, zonder het kunstmatige klapperen
+    const talkOpen = S.live ? clamp(S.liveOut * 1.35, 0, 1) : S.talk > 0 ? S.talk * (0.55 + 0.45 * Math.abs(Math.sin(sec * 17))) : 0;
     const snore = mood === 'slaap' ? 0.12 * (1 + Math.sin(sec * T.breathW)) * mv : 0;
     P.mouth = lerpK(P.mouth, Math.max(T.mouth + snore, talkOpen), 22, dt);
     // draaien: slepen, uitrollen, terug naar huis
@@ -782,6 +788,7 @@ export function createMonster() {
     if (typeof opts === 'number') opts = { ms: opts };
     text = String(text ?? '').trim();
     if (!text || destroyed) return Promise.resolve(false);
+    if (S.live) return Promise.resolve(false); // walkietalkie is open: het live monster praat zelf
     if (opts.auto && talking && !opts.force) return Promise.resolve(false);
     if (opts.auto && talking && opts.force && !talking.auto) return Promise.resolve(false);
     stopTalking(false);
@@ -953,6 +960,20 @@ export function createMonster() {
       requestAnimationFrame(sizeCanvas);
     },
     say(text, opts) { return say(text, opts); },
+    /** Walkietalkie: elk frame aanroepen met de fase en de volumes (0..1). phase: 'luister'|'denk'|'praat'|null.
+        De mond volgt het uitgaande volume; bij een harde piek een klein hupje. null = terug naar normaal. */
+    live(phase, { out = 0, in: inp = 0 } = {}) {
+      if (!phase) { if (S.live) { S.live = null; S.liveOut = S.liveIn = 0; S.expr = null; kick(300); } return; }
+      if (talking) stopTalking(false);
+      const t = now();
+      S.live = phase;
+      S.liveOut = lerpK(S.liveOut, phase === 'praat' ? clamp(out, 0, 1) : 0, out > S.liveOut ? 40 : 14, 1 / 60);
+      S.liveIn = lerpK(S.liveIn, phase === 'luister' ? clamp(inp, 0, 1) : 0, 20, 1 / 60);
+      S.expr = { kind: phase, until: t + 500 };
+      if (phase === 'praat' && out > 0.75 && t - S.livePeak > 900 && !RM()) { S.livePeak = t; S.hop = { t0: t, h: 6 }; }
+      if (phase === 'luister' && inp > 0.6 && !RM()) S.sqV += 0.15;
+      kick(500);
+    },
     react(kind) { react(kind); },
     /** Extra: zeg een zin uit monster-lines.js ('start', 'stilte', 'deel', …). Voor de testpagina. */
     line(sit, sub) {

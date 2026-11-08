@@ -96,6 +96,8 @@ export const SOUNDS = {
   aankomst() { notes([523, 659, 784], 0.14, { dur: 0.38, vol: 0.4 }); },
   login()    { notes([392, 523], 0.14, { dur: 0.38, vol: 0.4 }); },
   ok()       { notes([523, 784], 0.14, { dur: 0.38, vol: 0.4 }); },
+  zend()     { hiss({ dur: 0.09, vol: 0.12, from: 3200, to: 2200, q: 0.7 }); tone({ f: 1400, type: 'square', at: 0.05, dur: 0.05, vol: 0.08, filter: 2500 }); }, // walkietalkie: knop in
+  over()     { tone({ f: [1300, 900], type: 'square', dur: 0.08, vol: 0.08, filter: 2500 }); hiss({ at: 0.05, dur: 0.22, vol: 0.14, from: 2600, to: 900, q: 0.6 }); }, // knop los: "over!"
 };
 
 export const audio = {

@@ -165,7 +165,8 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:35}
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync } from './js/sync.js';
 import { createMap } from './js/map.js?v=4'; // ?v ophogen bij elke wijziging: GitHub Pages en Safari bewaren oude bestanden
-import { createMonster, monsterImage } from './js/monster.js?v=3'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
+import { createMonster, monsterImage, isSpeakerPhone } from './js/monster.js?v=3';
+import { openWalkie } from './js/walkie.js?v=1'; // walkietalkie met het live monster (ElevenLabs, zie MONSTER-AGENT.md) // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
 import { audio } from './js/audio.js?v=3'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
 
 /* ================================================================ hulpjes */
@@ -234,6 +235,7 @@ const monsterUrl = () => monsterImage(); // stilstaand plaatje van het complete 
      monsterImage(parts?) → data-URL                 // stilstaand plaatje, voor de schuifpuzzel
    Schermen zetten alleen <div class="mslot" data-size="sm|md|lg"></div> neer; placeMonster() hangt het monster in de bovenste. */
 const mon = createMonster();
+let walkie = null; // open walkietalkie (js/walkie.js) of null
 function moodFor() {
   const g = S().game, n = g?.parts?.length || 0;
   if (!g || g.phase === 'lobby') return 'slaap';
@@ -241,6 +243,7 @@ function moodFor() {
   return n <= 2 ? 'wakker' : n <= 4 ? 'nieuwsgierig' : 'brutaal';
 }
 function placeMonster() {
+  if (walkie?.open) return; // de walkietalkie heeft het monster even te leen
   const slot = $('#ov .mslot') || $('#screen .mslot');
   if (!slot) { mon.el.remove(); return; }
   if (mon.el.parentNode !== slot) slot.appendChild(mon.el);
@@ -272,6 +275,44 @@ router.on('roles.shuffle', () => { say('Ik heb de rollen geschud. Kijk maar eens
 router.on('plan_b', () => say('Eén telefoon is in slaap gevallen. Ik verdeel de talenten opnieuw.'));
 router.on('gps.skip', p => { if (p.stop_id === state.activeStop()?.id && sync.isLoggedIn()) arrive(p.stop_id); });
 router.on('badge.awarded', p => { const me = state.me().find(x => x.id === p.player_id); if (me) toast(`🏅 ${me.name} krijgt de badge ${p.badge}!`); });
+
+/* ================================================================ walkietalkie (js/walkie.js)
+   Per groep één walkietalkie: alleen de spreektelefoon (die ook hardop praat) krijgt de knop. */
+function speakerNames() {
+  const ps = S().players || [], ids = [...new Set(ps.filter(p => p.online && p.device_id).map(p => p.device_id))].sort();
+  return ps.filter(p => p.device_id === ids[0]).map(p => p.name).join(' & ');
+}
+function walkieContext() {
+  const g = S().game || {}, st = state.activeStop(), route = state.route(), got = g.parts || [];
+  const cfg = st?.puzzles?.[S().puzzle?.variant ?? 0] || st?.puzzles?.[0] || {};
+  return {
+    jarige: birthday()?.name || 'de jarige',
+    spelers: (S().players || []).map(p => p.name).join(', '),
+    fase: { lobby: 'nog niet begonnen', onderweg: 'onderweg naar de volgende plek', puzzel: 'bij een puzzel', finale: 'bijna thuis, de finale', klaar: 'klaar, alles gevonden' }[g.phase] || g.phase || '',
+    stop_naam: st?.name || '', stop_nummer: st ? route.indexOf(st) + 1 : '', stops_totaal: route.length || '',
+    aanwijzing: st?.clue || '',
+    puzzel_vraag: g.phase === 'puzzel' ? (cfg.question || '') : '',
+    puzzel_hint: g.phase === 'puzzel' ? (cfg.hint || '') : '',
+    delen_gevonden: got.map(k => PARTS[k]?.label || k).join(', ') || 'nog niks',
+    delen_nog: Object.keys(PARTS).filter(k => !got.includes(k)).map(k => PARTS[k].label).join(', ') || 'niks meer',
+    hints_gebruikt: g.hints ?? 0,
+  };
+}
+function startWalkie() {
+  if (walkie?.open) return;
+  walkie = openWalkie({ mon, context: walkieContext, onClose: () => { walkie = null; placeMonster(); } });
+}
+// Wat er in het spel gebeurt, hoort het monster ook (zonder dat het hoeft te antwoorden).
+router.on('*', (p, ev) => {
+  if (!walkie?.open) return;
+  const t = {
+    'stop.arrived': () => `De kinderen zijn aangekomen bij ${state.stop(p.stop_id)?.name || 'de volgende plek'}. Er staat nu een puzzel klaar.`,
+    'stop.solved': () => `De kinderen hebben de puzzel opgelost en ${PARTS[p.part]?.label || 'een deel'} gevonden!`,
+    'hint.given': () => `Er is een hint gegeven${p.text ? ': ' + p.text : ''}.`,
+    'game.start': () => 'Het spel is net begonnen.',
+  }[ev.type];
+  if (t) walkie.update(t());
+});
 
 /* ================================================================ overlays */
 let ovTimer = null;
@@ -472,6 +513,7 @@ function renderBar() {
     <div class="chips">${me.map(p => { const x = guard(p); return `<span class="chip" style="--acc:${x.color}"><i>${x.icon}</i>${esc(p.name)}</span>`; }).join('') || '<span class="eyebrow">Pannenkoekenmonster</span>'}</div>
     ${g && g.phase !== 'lobby' ? `<span class="drops" title="stroopdruppels">💧${g.drops || 0}</span>` : ''}
     ${conn(S().conn)}${sync.outboxSize() ? `<span class="note">${sync.outboxSize()}</span>` : ''}
+    ${me.length && g ? (isSpeakerPhone() ? '<button class="iconbtn" data-b="walkie" aria-label="Walkietalkie met het monster">📻</button>' : `<span class="note" title="De walkietalkie zit op één telefoon per groep">📻 bij ${esc(speakerNames() || 'een ander')}</span>`) : ''}
     <button class="iconbtn" data-b="mute" aria-label="Geluid">${muted ? '🔇' : '🔊'}</button>
     <button class="iconbtn" data-b="tray" aria-label="Begeleider">⚙︎</button></div>
     ${g && g.phase !== 'lobby' ? `<div class="parts">${Object.keys(PARTS).map(k => `<span class="part ${got.includes(k) ? 'got' : ''}" title="${esc(PARTS[k].label)}">${got.includes(k) ? PARTS[k].icon : ''}</span>`).join('')}</div>` : ''}`;
@@ -480,6 +522,7 @@ $('#bar').addEventListener('click', e => {
   const b = e.target.closest('[data-b]')?.dataset.b;
   if (b === 'mute') { muted = !muted; store.set('pkm2_muted', muted); renderBar(); }
   if (b === 'tray') openTray();
+  if (b === 'walkie') startWalkie();
 });
 
 /* ---------- boot */
