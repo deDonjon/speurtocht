@@ -3,19 +3,18 @@
 // Gebruik: const m = createMap(); host.appendChild(m.el); m.update({...}); m.fit();
 // Leaflet (window.L) moet al geladen zijn; zonder Leaflet geeft createMap() null.
 
-const TILES = {
-  dag:   'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png',
-  avond: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',
-};
-const ATTR = '&copy; OpenStreetMap &copy; CARTO';
+// OpenStreetMap-tegels (geen sleutel nodig; CARTO vraagt sinds kort wel een API-sleutel).
+// De wonderlandkleuren komen uit CSS-filters op de tegels: overdag warm beslag, 's avonds omgekeerd tot chocolade.
+const TILES = { dag: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', avond: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png' };
+const ATTR = '&copy; OpenStreetMap';
 const TRAIL_KEY = 'pkm2_trail';
 const AVOND_UUR = 16.5; // vanaf 16:30 de avondkaart (zon onder rond 16:50)
 
 const css = `
 .wmap{position:relative;height:min(44vh,320px);width:100%;z-index:0;background:#F6E3BC}
 .wmap.avond{background:#2A1A10}
-.wmap .leaflet-tile-pane{filter:sepia(.55) saturate(1.7) hue-rotate(-12deg) brightness(1.04) contrast(.92)}
-.wmap.avond .leaflet-tile-pane{filter:sepia(.7) saturate(1.6) hue-rotate(-18deg) brightness(1.15) contrast(1.05)}
+.wmap .leaflet-tile-pane{filter:sepia(.5) saturate(1.35) hue-rotate(-10deg) brightness(1.05) contrast(.9)}
+.wmap.avond .leaflet-tile-pane{filter:invert(.92) hue-rotate(180deg) sepia(.55) saturate(1.5) brightness(.95) contrast(.95)}
 .wmap::after{content:'';position:absolute;inset:0;z-index:401;pointer-events:none;
   background:radial-gradient(circle at 20% 30%,rgba(255,255,255,.18) 0 2px,transparent 3px) 0 0/38px 38px,
              radial-gradient(circle at 70% 60%,rgba(180,110,30,.10) 0 2px,transparent 3px) 0 0/52px 52px,
@@ -63,7 +62,7 @@ export function createMap() {
     const a = isAvond(); if (a === avond) return; avond = a;
     el.classList.toggle('avond', a);
     if (tiles) tiles.remove();
-    tiles = L.tileLayer(a ? TILES.avond : TILES.dag, { maxZoom: 19, subdomains: 'abcd', attribution: ATTR, detectRetina: true }).addTo(map);
+    tiles = L.tileLayer(a ? TILES.avond : TILES.dag, { maxZoom: 19, attribution: ATTR }).addTo(map);
     if (layers.trail) layers.trail.setStyle({ color: a ? '#F3C24E' : '#C7861E' });
   }
 
