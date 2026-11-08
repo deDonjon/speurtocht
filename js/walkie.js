@@ -11,7 +11,7 @@
 // `monster-token`, zodat de API-sleutel nooit in de app staat. De microfoon staat standaard dicht; alleen zolang
 // de knop ingedrukt is gaat hij open. Zo hoort het monster geen wind of geschreeuw van de rest.
 // Animatie: de mond volgt het echte uitgaande volume (getOutputVolume), dus het klopt bij elke zin.
-import { audio, setRecording } from './audio.js?v=4';
+import { audio, setRecording } from './audio.js?v=5';
 import { SUPABASE_URL, SUPABASE_KEY } from './sync.js';
 
 const SDK = [
@@ -72,10 +72,18 @@ function injectCss() {
 #walkie .wk-ptt.down{transform:translateY(8px) scale(.97);box-shadow:0 2px 0 #8f1f17,0 6px 16px rgba(0,0,0,.5);background:radial-gradient(circle at 50% 35%,#ff9a6c,#ff4a35 70%)}
 #walkie .wk-ptt:disabled{filter:grayscale(.8) brightness(.7)}
 #walkie .wk-ptt small{display:block;font:800 .8rem Nunito,sans-serif;opacity:.85;margin-top:4px}
+#walkie .wk-diag{font:600 .72rem ui-monospace,Menlo,monospace;opacity:.45;text-align:center}
 #walkie .wk-err{color:#FFB4A8;text-align:center;max-width:420px}
 #walkie .wk-retry{margin-top:8px;background:#F6C35B;color:#3a2412;border:0;border-radius:999px;padding:12px 20px;font:800 1rem Nunito,sans-serif}
 @media (prefers-reduced-motion:reduce){#walkie .wk-ptt{transition:none}}`;
   document.head.appendChild(s);
+}
+
+// iPhone: het geluid van het monster speelt via een <audio>-element van de SDK. Safari start dat soms pas na een
+// echte tik, dus bij elke tik op de walkietalkie duwen we het afspelen nog eens aan.
+function kickPlayback(conv) {
+  try { conv?.connection?.getRoom?.()?.startAudio?.().catch?.(() => {}); } catch {}
+  for (const a of document.querySelectorAll('audio')) { try { a.muted = false; if (a.paused) a.play().catch(() => {}); } catch {} }
 }
 
 export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
@@ -85,13 +93,14 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
   el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Walkietalkie met het Pannenkoekenmonster');
   el.innerHTML = `
     <div class="wk-top"><span class="wk-led" aria-hidden="true"></span><h2>Monster-walkietalkie</h2><button class="wk-x" data-a="close">Ophangen</button></div>
-    <div class="wk-mid"><div class="mslot" data-size="lg"></div><div class="wk-state" aria-live="polite">Verbinden…</div><div class="wk-said"></div></div>
+    <div class="wk-mid"><div class="mslot" data-size="lg"></div><div class="wk-state" aria-live="polite">Verbinden…</div><div class="wk-said"></div><div class="wk-diag" aria-hidden="true"></div></div>
     <button class="wk-ptt" disabled aria-label="Houd ingedrukt om te praten">Houd vast<small>om te praten</small></button>`;
   document.body.appendChild(el);
   const $ = s => el.querySelector(s);
   const led = $('.wk-led'), stateEl = $('.wk-state'), said = $('.wk-said'), ptt = $('.wk-ptt');
   if (mon) { $('.mslot').appendChild(mon.el); mon.setSize('lg'); }
 
+  const diag = el.querySelector('.wk-diag'); let diagN = 0, conn = 'verbinden';
   let conv = null, closed = false, mode = 'listening', pressing = false, thinkingSince = 0, tailTimer = 0, raf = 0, prevVol = 1;
   const setState = t => { stateEl.textContent = t; };
 
@@ -112,6 +121,7 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
     const mouth = Math.max(0, Math.min(1, (out - 0.12) * 1.7));
     const ear = Math.max(0, Math.min(1, (inp - 0.1) * 1.6));
     mon?.live(phase, { out: mouth, in: ear });
+    if (++diagN % 15 === 0) diag.textContent = conv ? `${conn} · ${mode} · monster ${out.toFixed(2)} · mic ${inp.toFixed(2)} · ${document.querySelectorAll('audio').length}🔈 · ${navigator.audioSession?.type || '-'}` : conn;
     raf = requestAnimationFrame(frame);
   }
 
@@ -120,6 +130,7 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
     if (!conv || pressing) return;
     e?.preventDefault?.();
     pressing = true; clearTimeout(tailTimer);
+    kickPlayback(conv);
     try { ptt.setPointerCapture?.(e.pointerId); } catch {}
     try { prevVol = 1; conv.setVolume({ volume: 0 }); } catch {}  // zenden = niet tegelijk horen (en geen echo)
     try { conv.setMicMuted(false); } catch {}
@@ -161,7 +172,8 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
         connectionType: 'webrtc',
         dynamicVariables: vars(context()),
         useWakeLock: true,
-        onConnect: () => { led.className = 'wk-led on'; },
+        onConnect: () => { led.className = 'wk-led on'; conn = 'verbonden'; },
+        onStatusChange: ({ status }) => { conn = status; },
         onModeChange: ({ mode: m }) => {
           mode = m;
           if (closed || pressing) return;
@@ -172,11 +184,13 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
           if (source === 'user' && message) said.textContent = '“' + message + '”';
           if ((source === 'ai' || source === 'agent') && message) said.textContent = message.replace(/\[[^\]]{1,30}\]\s*/g, '').trim(); // stemregie zoals [playful] niet tonen
         },
-        onError: (msg) => console.warn('[walkie]', msg),
+        onError: (msg) => { console.warn('[walkie]', msg); conn = 'fout: ' + String(msg).slice(0, 60); },
         onDisconnect: () => { if (!closed) fail('De verbinding is verbroken.'); },
       });
       if (closed) { try { await conv.endSession(); } catch {} return; }
       try { conv.setMicMuted(true); } catch {}
+      kickPlayback(conv); setTimeout(() => kickPlayback(conv), 800);
+      el.addEventListener('pointerdown', () => kickPlayback(conv), { capture: true });
       ptt.disabled = false; led.className = 'wk-led on';
       setState('Het monster neemt op…');
       thinkingSince = performance.now(); // het eerste bericht (begroeting) komt vanzelf

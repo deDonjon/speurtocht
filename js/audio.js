@@ -18,7 +18,7 @@ export function muted() {
 
 function context() {
   try {
-    const want = recording ? 'play-and-record' : 'playback'; // walkietalkie open = microfoon nodig
+    const want = recording ? 'auto' : 'playback'; // walkietalkie open: Safari kiest zelf (microfoon + luidspreker)
     if (navigator.audioSession && navigator.audioSession.type !== want) navigator.audioSession.type = want;
     if (!ctx) {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -37,10 +37,11 @@ function context() {
   return ctx;
 }
 let lastState = 'nog niet gestart', unlocks = 0, recording = false;
-/** Walkietalkie aan/uit: iOS staat de microfoon alleen toe in de stand 'play-and-record'. */
+/** Walkietalkie aan/uit. In de stand 'playback' weigert iOS de microfoon; met 'auto' regelt Safari het zelf
+    (microfoon aan, geluid via de luidspreker). 'play-and-record' kan het geluid naar het oorspeakertje sturen. */
 export function setRecording(on) {
   recording = !!on;
-  try { if (navigator.audioSession) navigator.audioSession.type = recording ? 'play-and-record' : 'playback'; } catch {}
+  try { if (navigator.audioSession) navigator.audioSession.type = recording ? 'auto' : 'playback'; } catch {}
 }
 export function unlock() { unlocks++; context(); }
 if (typeof addEventListener === 'function') {
