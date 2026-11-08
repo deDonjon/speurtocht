@@ -165,6 +165,8 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:35}
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync } from './js/sync.js';
 import { createMap } from './js/map.js?v=4'; // ?v ophogen bij elke wijziging: GitHub Pages en Safari bewaren oude bestanden
+import { createMonster, monsterImage } from './js/monster.js?v=1'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
+import { audio } from './js/audio.js?v=1'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -187,29 +189,9 @@ const keyHolder = () => S().players.find(p => p.talent === 'sleutelbewaarder');
 const canSubmit = () => state.hasTalent('sleutelbewaarder') || !!S().game?.settings?.any_can_submit;
 const birthday = () => S().players.find(p => p.is_birthday);
 
-/* ================================================================ geluid, trilling, toast, ballon (chat 3 vervangt door audio.js / monster.js) */
-// iPhone: Web Audio zwijgt standaard als de stil-schakelaar aan staat, en mag pas na een tik starten.
-// audioSession 'playback' laat het geluid door de stil-schakelaar heen; bij elke tik maken we de context weer wakker.
-let actx = null;
-function audio() {
-  try {
-    if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback';
-    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
-    if (actx.state !== 'running') { actx.resume?.(); const b = actx.createBufferSource(); b.buffer = actx.createBuffer(1, 1, 22050); b.connect(actx.destination); b.start(0); }
-  } catch {}
-  return actx;
-}
-addEventListener('pointerdown', audio, { capture: true });
-addEventListener('touchend', audio, { capture: true });
-function chime(notes) {
-  if (muted) return;
-  const a = audio(); if (!a) return;
-  try {
-    notes.forEach((f, i) => { const o = a.createOscillator(), g = a.createGain(), t = a.currentTime + .02 + i * .14; o.type = 'triangle'; o.frequency.value = f;
-      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.45, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + .38);
-      o.connect(g).connect(a.destination); o.start(t); o.stop(t + .42); });
-  } catch {}
-}
+/* ================================================================ geluid, trilling, toast, ballon
+   Geluid: js/audio.js (audio.play('naam'); ontgrendelt zelf bij de eerste tik en volgt de dempknop pkm2_muted).
+   Het monster praat en tekent zijn eigen ballon: js/monster.js. */
 // Trillen: Android heeft navigator.vibrate; Safari op iPhone niet. Daar geeft een verborgen schakelaar (iOS 18+) een tikje,
 // maar alleen direct na een tik van het kind zelf. Een patroon wordt een reeks tikjes.
 function haptic() {
@@ -227,7 +209,7 @@ function toast(text, ms = 3200) { const d = document.createElement('div'); d.tex
 function bubble(text, ms = 6000) { // tekstballon bovenin (reserve als het monster zelf geen ballon tekent)
   document.querySelector('.bubble')?.remove();
   const b = document.createElement('div'); b.className = 'bubble'; b.textContent = text; b.onclick = () => b.remove();
-  document.body.appendChild(b); setTimeout(() => b.remove(), ms); chime([196, 147]);
+  document.body.appendChild(b); setTimeout(() => b.remove(), ms); audio.play('brom');
 }
 const say = (text, opts) => mon.say(text, opts); // het monster praat; zie het monster-blok hieronder
 function confetti() {
@@ -238,25 +220,10 @@ function confetti() {
     if (++t < 260) requestAnimationFrame(step); else c.hidden = true; }; requestAnimationFrame(step);
 }
 
-/* ================================================================ monster (SVG uit 1.0; chat 3 vervangt dit door js/monster.js) */
-function monsterRaw(got, bg) {
-  const hid = p => got.includes(p) ? '' : 'opacity=".12"';
-  return `<svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Het pannenkoekenmonster">${bg ? '<rect width="300" height="300" fill="#FFF4DF"/>' : ''}
-  <ellipse cx="150" cy="282" rx="110" ry="10" fill="#E6D3AE"/>
-  <g ${hid('benen')}><path d="M110 232c-8 20-6 38 6 48 8 7 20 5 24-6" fill="none" stroke="#F3D34A" stroke-width="16" stroke-linecap="round"/><path d="M190 232c8 20 6 38-6 48-8 7-20 5-24-6" fill="none" stroke="#F3D34A" stroke-width="16" stroke-linecap="round"/><path d="M110 232c-8 20-6 38 6 48" fill="none" stroke="#B88E1E" stroke-width="3" stroke-linecap="round"/><path d="M190 232c8 20 6 38-6 48" fill="none" stroke="#B88E1E" stroke-width="3" stroke-linecap="round"/></g>
-  <g ${hid('lijf')}><ellipse cx="150" cy="228" rx="98" ry="22" fill="#D7962A"/><ellipse cx="150" cy="220" rx="98" ry="22" fill="#F6C35B"/><ellipse cx="150" cy="200" rx="100" ry="22" fill="#D7962A"/><ellipse cx="150" cy="192" rx="100" ry="22" fill="#F8CC6B"/><ellipse cx="150" cy="172" rx="96" ry="22" fill="#D7962A"/><ellipse cx="150" cy="164" rx="96" ry="22" fill="#F6C35B"/><ellipse cx="150" cy="144" rx="92" ry="22" fill="#D7962A"/><ellipse cx="150" cy="136" rx="92" ry="22" fill="#F9D27A"/><ellipse cx="150" cy="116" rx="86" ry="21" fill="#D7962A"/><ellipse cx="150" cy="108" rx="86" ry="21" fill="#F6C35B"/><path d="M150 90c-22 0-44 5-58 14 8 6 18 8 28 6 10 6 22 8 30 8s20-2 30-8c10 2 20 0 28-6-14-9-36-14-58-14z" fill="#FBE19C"/></g>
-  <g ${hid('ogen')}><circle cx="118" cy="104" r="16" fill="#fff" stroke="#D7962A" stroke-width="3"/><circle cx="182" cy="104" r="16" fill="#fff" stroke="#D7962A" stroke-width="3"/><circle cx="121" cy="106" r="9" fill="#4B2C8C"/><circle cx="185" cy="106" r="9" fill="#4B2C8C"/><circle cx="124" cy="103" r="3" fill="#fff"/><circle cx="188" cy="103" r="3" fill="#fff"/></g>
-  <g ${hid('neus')}><path d="M150 118c-10 0-16 9-13 18 2 8 8 14 13 14s11-6 13-14c3-9-3-18-13-18z" fill="#E0473C"/><path d="M140 122c4-6 8-8 10-8s6 2 10 8" fill="none" stroke="#3C8F5A" stroke-width="4" stroke-linecap="round"/><circle cx="146" cy="134" r="1.6" fill="#FBE19C"/><circle cx="154" cy="138" r="1.6" fill="#FBE19C"/><circle cx="150" cy="128" r="1.6" fill="#FBE19C"/></g>
-  <g ${hid('mond')}><path d="M112 156c12 16 64 16 76 0" fill="none" stroke="#5A2E12" stroke-width="7" stroke-linecap="round"/><path d="M118 158c8 8 20 11 32 11s24-3 32-11" fill="#8A4A1C"/><path d="M126 160l4 10M148 168l0 12M170 160l-4 10" stroke="#8A4A1C" stroke-width="5" stroke-linecap="round"/></g>
-  <g ${hid('armen')}><path d="M58 160c-20 10-34 30-30 52" fill="none" stroke="#C94C5A" stroke-width="14" stroke-linecap="round"/><path d="M58 160c-20 10-34 30-30 52" fill="none" stroke="#F7B2B2" stroke-width="5" stroke-linecap="round" stroke-dasharray="10 10"/><path d="M242 160c20 10 34 30 30 52" fill="none" stroke="#C94C5A" stroke-width="14" stroke-linecap="round"/><path d="M242 160c20 10 34 30 30 52" fill="none" stroke="#F7B2B2" stroke-width="5" stroke-linecap="round" stroke-dasharray="10 10"/></g>
-  <g ${hid('hoed')}><rect x="124" y="56" width="52" height="36" rx="6" fill="#FFE98A" transform="rotate(-8 150 74)"/><rect x="124" y="56" width="52" height="12" rx="6" fill="#FFF4B8" transform="rotate(-8 150 74)"/><path d="M118 96c20-12 60-14 76-6" fill="none" stroke="#8A4A1C" stroke-width="5" stroke-linecap="round" opacity=".9"/></g>
-</svg>`;
-}
-let monsterUrlCache = null;
-const monsterImage = () => monsterUrlCache ||= 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(monsterRaw(Object.keys(PARTS), true));
-const monsterUrl = monsterImage;
+/* ================================================================ monster (js/monster.js: Zdog, stemmingen, landen, praten) */
+const monsterUrl = () => monsterImage(); // stilstaand plaatje van het complete monster, voor de schuifpuzzel
 
-/* Het monster-contract (chat 3 levert js/monster.js met precies deze vorm en vervangt dan alleen createSvgMonster hieronder):
+/* Het monster-contract (js/monster.js levert precies deze vorm):
      createMonster() → { el,                          // één element; de app verhuist het tussen de schermen
        setParts(parts, { land }),                     // land = deel dat net gevonden is → landingsanimatie
        setMood(mood),                                 // 'slaap' | 'wakker' | 'nieuwsgierig' | 'brutaal' | 'compleet'
@@ -266,18 +233,7 @@ const monsterUrl = monsterImage;
        destroy() }
      monsterImage(parts?) → data-URL                 // stilstaand plaatje, voor de schuifpuzzel
    Schermen zetten alleen <div class="mslot" data-size="sm|md|lg"></div> neer; placeMonster() hangt het monster in de bovenste. */
-function createSvgMonster() {
-  const el = document.createElement('div'); let parts = null, mood = 'slaap', size = 'md';
-  const draw = () => { el.className = `monster ${size} ${mood === 'slaap' ? 'sleep' : ''}`; el.innerHTML = monsterRaw(parts || []); };
-  draw();
-  return { el,
-    setParts(p) { const k = (p || []).join(); if (k !== (parts || []).join() || parts === null) { parts = [...(p || [])]; draw(); } },
-    setMood(m) { if (m !== mood) { mood = m; draw(); } },
-    setSize(z) { if (z !== size) { size = z; draw(); } },
-    say(text, { ms = 6000 } = {}) { bubble(text, ms); return new Promise(r => setTimeout(r, ms)); },
-    react() {}, destroy() { el.remove(); } };
-}
-const mon = createSvgMonster();
+const mon = createMonster();
 function moodFor() {
   const g = S().game, n = g?.parts?.length || 0;
   if (!g || g.phase === 'lobby') return 'slaap';
@@ -303,14 +259,14 @@ const router = {
 };
 state.on('event', ev => { if (!ev || seen.has(ev.id)) return; seen.add(ev.id); if (primed) router.dispatch(ev); });
 
-router.on('game.start', () => { celebrate = null; overlay(`<div class="page"><span class="tab">Dossier geopend</span>${mslot('lg')}<h2>Het monster wordt wakker…</h2><p>Zoek de eerste plek. Het monster kijkt mee.</p></div>`, 2600); mon.setMood('wakker'); mon.react('start'); chime([262, 330, 392, 523]); buzz([80, 60, 120]); });
+router.on('game.start', () => { celebrate = null; overlay(`<div class="page"><span class="tab">Dossier geopend</span>${mslot('lg')}<h2>Het monster wordt wakker…</h2><p>Zoek de eerste plek. Het monster kijkt mee.</p></div>`, 2600); mon.setMood('wakker'); mon.react('start'); audio.play('start'); buzz([80, 60, 120]); });
 router.on('game.reset', () => { celebrate = null; closeOverlay(); toast('Het spel is opnieuw klaargezet.'); });
-router.on('stop.arrived', () => { chime([523, 659, 784]); buzz([80, 40, 80]); });
+router.on('stop.arrived', () => { audio.play('aankomst'); buzz([80, 40, 80]); });
 router.on('stop.solved', p => {
   const st = state.stop(p.stop_id); celebrate = { part: p.part, last: st?.key === 'home', by: p.by };
-  chime([659, 784, 988, 1319]); buzz([60, 40, 60, 40, 120]); if (celebrate.last) confetti(); showCelebrate();
+  audio.play('deel'); buzz([60, 40, 60, 40, 120]); if (celebrate.last) confetti(); showCelebrate();
 });
-router.on('hint.given', p => { chime([440, 554]); if (p.text) say(p.text, 9000); else toast('💡 Er is een hint vrijgegeven.'); });
+router.on('hint.given', p => { audio.play('hint'); if (p.text) say(p.text, 9000); else toast('💡 Er is een hint vrijgegeven.'); });
 router.on('monster.say', p => say(p.text || '…'));
 router.on('roles.shuffle', () => { say('Ik heb de rollen geschud. Kijk maar eens wat je nu kunt.'); buzz([40, 40, 40]); });
 router.on('plan_b', () => say('Eén telefoon is in slaap gevallen. Ik verdeel de talenten opnieuw.'));
@@ -422,7 +378,7 @@ async function placeStop(id, o) {
     if (c.accuracy > 25 && !confirm(`De GPS is nog onnauwkeurig (±${Math.round(c.accuracy)} m). Toch opslaan? (Even wachten en opnieuw proberen geeft vaak beter.)`)) return;
     const moved = haversine(st, { lat: c.latitude, lng: c.longitude });
     await sync.regie.upsertStop({ ...st, lat: +c.latitude.toFixed(7), lng: +c.longitude.toFixed(7) });
-    toast(`📍 ${st.name} vastgelegd (±${Math.round(c.accuracy)} m, ${Math.round(moved)} m verschoven)`); chime([523, 784]);
+    toast(`📍 ${st.name} vastgelegd (±${Math.round(c.accuracy)} m, ${Math.round(moved)} m verschoven)`); audio.play('ok');
   } catch (e) { toast('⚠️ ' + e.message); }
   finally { btn.disabled = false; btn.textContent = '📍 Hier'; setTimeout(() => { const l = $('#stoplist', o); if (l) l.innerHTML = stopRows(); }, 800); }
 }
@@ -550,7 +506,7 @@ screens.login = el => {
   $('form', el).onsubmit = async e => {
     e.preventDefault(); if (inp.value.length !== 4) return; fb.textContent = 'Even kijken…';
     try {
-      const res = await sync.login(inp.value); wantLogin = false; chime([392, 523]);
+      const res = await sync.login(inp.value); wantLogin = false; audio.play('login');
       if (res.mission) showMission(res.mission, res.player.name);
       refresh();
     } catch (err) { fb.textContent = err.code === 'offline' ? 'Geen verbinding. Probeer het zo nog eens.' : 'Die code kennen we niet. Kijk nog eens goed.'; inp.value = ''; buzz(120); }
@@ -640,7 +596,7 @@ screens.puz = (el, id) => {
   // Zet direct lokaal tonen (pending) en naar de server sturen; zodra de server hem terugstuurt valt hij uit pending.
   function move(m) {
     const id = Math.random().toString(36).slice(2, 10), mv = { ...m, id, by: state.me()[0]?.id };
-    pending.push(mv); chime([880]); buzz(15); update(true);
+    pending.push(mv); audio.play('plop'); buzz(15); update(true);
     sync.move({ ...m, id }, st.id).catch(e => { pending = pending.filter(x => x !== mv); toast('⚠️ ' + e.message); update(true); });
   }
   async function submit() {
@@ -708,7 +664,7 @@ async function boot() {
   } catch (e) { bootError = e.message || 'Geen verbinding'; }
   refresh('remount');
 }
-window.pkm = { state, sync, router, PARTS, TALENTS, mon, monsterSvg: monsterRaw, monsterUrl, monsterImage, toast, say, bubble, chime, buzz, refresh };
+window.pkm = { state, sync, router, PARTS, TALENTS, mon, monsterUrl, monsterImage, audio, toast, say, bubble, chime: audio.chime, buzz, refresh };
 renderBar(); refresh('remount'); boot();
 </script>
 </body>
