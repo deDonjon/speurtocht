@@ -164,7 +164,7 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:35}
 <script type="module">
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync } from './js/sync.js';
-import { createMap } from './js/map.js';
+import { createMap } from './js/map.js?v=4'; // ?v ophogen bij elke wijziging: GitHub Pages en Safari bewaren oude bestanden
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -620,7 +620,8 @@ screens.nav = (el, id) => {
 
 /* ---------- puzzel bij de actieve stop (ook de finale thuis) */
 const modCache = {};
-const loadPuzzle = type => modCache[type] ||= import(`./js/puzzles/${type}.js`).then(m => m.default);
+const PUZZLE_V = 4; // ophogen bij wijzigingen in js/puzzles/
+const loadPuzzle = type => modCache[type] ||= import(`./js/puzzles/${type}.js?v=${PUZZLE_V}`).then(m => m.default);
 screens.puz = (el, id) => {
   const st = state.stop(id), { n, total } = stopNo(st);
   let mod = null, modErr = '', pending = [], sig = '', askedArrive = false, submitting = false;
