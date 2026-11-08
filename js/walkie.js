@@ -168,7 +168,7 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
         },
         onMessage: ({ source, message }) => {
           if (source === 'user' && message) said.textContent = '“' + message + '”';
-          if ((source === 'ai' || source === 'agent') && message) said.textContent = message;
+          if ((source === 'ai' || source === 'agent') && message) said.textContent = message.replace(/\[[^\]]{1,30}\]\s*/g, '').trim(); // stemregie zoals [playful] niet tonen
         },
         onError: (msg) => console.warn('[walkie]', msg),
         onDisconnect: () => { if (!closed) fail('De verbinding is verbroken.'); },
