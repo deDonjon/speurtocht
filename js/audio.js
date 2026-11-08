@@ -1,7 +1,7 @@
 // audio.js — het geluidspalet van het Pannenkoekenmonster, helemaal uit Web Audio (geen bestanden).
 //   import { audio } from './js/audio.js';
 //   audio.play('plop')            // naam uit SOUNDS hieronder
-//   audio.hum()  → { pulse(strength), stop() }   // lage brom onder de stem van het monster
+//   audio.hum()  → { pulse(strength), stop() }   // funky wah-baslijn onder de stem van het monster
 //   audio.buzz(patroon)           // trillen via pkm.buzz (iPhone: alleen een tikje direct na een tik)
 //   audio.muted()                 // dempknop (localStorage pkm2_muted, gezet door index.html)
 //   audio.chime([freq…])          // oude toonreeks, voor wie nog chime gebruikt
@@ -125,22 +125,28 @@ export const audio = {
     if (muted() || !context()) return;
     try { notes(fs, 0.14, { dur: 0.38, vol: 0.45 }); } catch {}
   },
-  /** Lage brom onder de stem: draait zacht door, pulse() geeft per woord een duwtje. */
+  /** Funky baslijn onder de stem: zachte wah-bas die per woord een noot uit de pentatonische toonladder pakt. */
   hum() {
     if (muted() || !context()) return { pulse() {}, stop() {} };
     const t = ctx.currentTime;
+    const NOTES = [55, 65.41, 73.42, 82.41, 98, 110]; // A-mineur pentatonisch (A1 … A2)
     const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
-    o1.type = 'sawtooth'; o1.frequency.value = 74; o2.type = 'sine'; o2.frequency.value = 37;
-    lp.type = 'lowpass'; lp.frequency.value = 260; lp.Q.value = 2;
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.03, t + 0.2);
+    o1.type = 'sawtooth'; o1.frequency.value = NOTES[0]; o2.type = 'square'; o2.frequency.value = NOTES[0] / 2;
+    lp.type = 'lowpass'; lp.frequency.value = 280; lp.Q.value = 7;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.025, t + 0.2);
     o1.connect(lp); o2.connect(lp); lp.connect(g).connect(master); o1.start(t); o2.start(t);
-    let stopped = false;
+    let stopped = false, step = 0;
+    const RIFF = [0, 0, 3, 2, 0, 4, 3, 1]; // klein loopje, met af en toe een sprongetje
     return {
       pulse(s = 1) {
         if (stopped) return; const n = ctx.currentTime;
+        const f = NOTES[(RIFF[step++ % RIFF.length] + (Math.random() < 0.15 ? 5 : 0)) % NOTES.length];
+        o1.frequency.cancelScheduledValues(n); o1.frequency.setTargetAtTime(f, n, 0.015);
+        o2.frequency.cancelScheduledValues(n); o2.frequency.setTargetAtTime(f / 2, n, 0.015);
+        lp.frequency.cancelScheduledValues(n); lp.frequency.setValueAtTime(260, n);
+        lp.frequency.exponentialRampToValueAtTime(900 + 500 * s, n + 0.05); lp.frequency.exponentialRampToValueAtTime(280, n + 0.3); // wah
         g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), n);
-        g.gain.exponentialRampToValueAtTime(0.03 + 0.11 * s, n + 0.03); g.gain.exponentialRampToValueAtTime(0.03, n + 0.28);
-        o1.frequency.setValueAtTime(70 + Math.random() * 10, n);
+        g.gain.exponentialRampToValueAtTime(0.025 + 0.08 * s, n + 0.02); g.gain.exponentialRampToValueAtTime(0.025, n + 0.26);
       },
       stop() {
         if (stopped) return; stopped = true; const n = ctx.currentTime;

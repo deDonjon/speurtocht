@@ -79,6 +79,16 @@ textarea{min-height:70px}
   </section>
 
   <section>
+    <h2>Stem kiezen (dit toestel)</h2>
+    <p class="note">Kies op de telefoon die hardop praat. Automatisch = beste Nederlandse stem, naar het midden tussen man en vrouw geschoven. Tip iPhone: download bij Instellingen → Toegankelijkheid → Gesproken materiaal → Stemmen → Nederlands een "Verbeterde" of "Premium" stem; die klinkt veel minder robot.</p>
+    <select id="vsel" style="width:100%"></select>
+    <label class="note" style="display:block;margin-top:8px">Toonhoogte <b id="vpo"></b><input type="range" id="vp" min="0.5" max="1.6" step="0.05" style="width:100%"></label>
+    <label class="note" style="display:block">Tempo <b id="vro"></b><input type="range" id="vr" min="0.7" max="1.3" step="0.02" style="width:100%"></label>
+    <label class="note" style="display:block">Funk (toon op en neer) <b id="vso"></b><input type="range" id="vs" min="0" max="0.35" step="0.01" style="width:100%"></label>
+    <div class="row" style="margin-top:8px"><button id="vtry">🎤 Probeer</button><button id="vsave">💾 Bewaar</button><button id="vauto" class="alt">↺ Automatisch</button></div>
+  </section>
+
+  <section>
     <h2>React</h2>
     <div class="row" id="reacts"></div>
   </section>
@@ -100,9 +110,9 @@ textarea{min-height:70px}
   </section>
 </main>
 <script type="module">
-import { createMonster, monsterImage, ready, PART_KEYS, MOODS, speechStatus } from '../js/monster.js?v=2';
-import { audio } from '../js/audio.js?v=2';
-import { LINES } from '../js/monster-lines.js?v=2';
+import { createMonster, monsterImage, ready, PART_KEYS, MOODS, speechStatus, dutchVoices, middlePitch, setVoicePref, getVoicePref, VOICE_DEFAULT } from '../js/monster.js?v=3';
+import { audio } from '../js/audio.js?v=3';
+import { LINES } from '../js/monster-lines.js?v=3';
 
 const $ = s => document.querySelector(s);
 const ICON = { lijf: '🥞', ogen: '🫐', neus: '🍓', mond: '🍯', armen: '🥓', benen: '🍌', hoed: '🧈' };
@@ -177,6 +187,24 @@ function voices() {
   $('#voice').textContent = globalThis.speechSynthesis ? (vs.length ? 'Nederlandse stemmen: ' + vs.map(v => `${v.name} (${v.lang})`).join(', ') : 'Geen Nederlandse stem gevonden (nog). Op iPhone: Instellingen → Toegankelijkheid → Gesproken materiaal → Stemmen.') : 'Deze browser kan niet praten; alleen de ballon.';
 }
 voices(); globalThis.speechSynthesis?.addEventListener?.('voiceschanged', voices);
+// stem kiezen
+function fillVoices() {
+  const vs = dutchVoices(), pref = getVoicePref() || {};
+  $('#vsel').innerHTML = vs.length ? vs.map(v => `<option value="${v.voiceURI}">${v.name} (${v.lang})</option>`).join('') : '<option value="">geen Nederlandse stem</option>';
+  if (pref.uri && vs.some(v => v.voiceURI === pref.uri)) $('#vsel').value = pref.uri;
+  const v = vs.find(x => x.voiceURI === $('#vsel').value);
+  $('#vp').value = pref.uri === v?.voiceURI && pref.pitch != null ? pref.pitch : middlePitch(v);
+  $('#vr').value = pref.rate ?? VOICE_DEFAULT.rate; $('#vs').value = pref.swing ?? VOICE_DEFAULT.swing; outs();
+}
+function outs() { $('#vpo').textContent = (+$('#vp').value).toFixed(2); $('#vro').textContent = (+$('#vr').value).toFixed(2); $('#vso').textContent = (+$('#vs').value).toFixed(2); }
+['vp', 'vr', 'vs'].forEach(id => $('#' + id).oninput = outs);
+$('#vsel').onchange = () => { const v = dutchVoices().find(x => x.voiceURI === $('#vsel').value); $('#vp').value = middlePitch(v); outs(); };
+const curPref = () => ({ uri: $('#vsel').value, pitch: +$('#vp').value, rate: +$('#vr').value, swing: +$('#vs').value });
+let saved = null;
+$('#vtry').onclick = () => { saved = getVoicePref(); setVoicePref(curPref()); mon.say($('#text').value, { voice: true }).then(() => setVoicePref(saved)); };
+$('#vsave').onclick = () => { setVoicePref(curPref()); status('stem bewaard: ' + $('#vsel').selectedOptions[0]?.text); };
+$('#vauto').onclick = () => { setVoicePref(null); fillVoices(); status('stem: automatisch'); };
+fillVoices(); globalThis.speechSynthesis?.addEventListener?.('voiceschanged', fillVoices);
 let frames = 0, t0 = performance.now();
 (function fps(t) { frames++; if (t - t0 > 1000) { $('#status').dataset.fps = Math.round(frames * 1000 / (t - t0)); frames = 0; t0 = t; } requestAnimationFrame(fps); })(t0);
 </script>

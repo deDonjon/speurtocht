@@ -8,12 +8,12 @@
 //
 // - Eén exemplaar dat de app tussen schermen verhuist; animeert alleen als het in beeld is.
 // - prefers-reduced-motion: geen ademen, wiebelen of vallen; alleen wat het kind zelf doet beweegt.
-// - Praten: ballon met tikmachinetekst, stem via Web Speech (nl-NL, laag) met een brom eronder.
+// - Praten: ballon met tikmachinetekst, stem via Web Speech (nl-NL, tussen man en vrouw, zingerig) met een funky baslijn eronder.
 //   Hardop alleen op de telefoon met het laagste device-id dat online is; de rest toont alleen de ballon.
 // - Luistert zelf naar pkm.router / pkm.state (als die er zijn): aankomst, hints, foute antwoorden, stilte.
 // ?v=… tegen oude bestanden in de cache (GitHub Pages/Safari). Ophogen bij een wijziging, ook in index.html en test/monster.html.
-import { audio } from './audio.js?v=2';
-import { LINES, NAAM_JARIGE } from './monster-lines.js?v=2';
+import { audio } from './audio.js?v=3';
+import { LINES, NAAM_JARIGE } from './monster-lines.js?v=3';
 
 const ZDOG_SRC = [
   'https://cdn.jsdelivr.net/npm/zdog@1.1.3/dist/zdog.dist.min.js',
@@ -338,15 +338,51 @@ function injectCss() {
 }
 
 // ---------------------------------------------------------------- spraak (Web Speech)
+// Stem: het midden tussen man en vrouw. Een vrouwenstem iets omlaag (of een mannenstem iets omhoog) klinkt
+// genderneutraal; "funky" komt van een zingerige melodie per zinsdeel en een wah-baslijn eronder (audio.hum).
+// Op test/monster.html kies je per toestel een stem en toonhoogte; die keuze staat in localStorage (pkm2_voice).
 const synth = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null;
+const VOICE_KEY = 'pkm2_voice';
+const FEM = /claire|fenna|colette|ellen|lotte|femke|flo|sandy|shelley|grandma|google|female|vrouw/i;
+const MAN = /xander|frank|daan|willem|maarten|arnaud|eddy|reed|rocko|grandpa|male|\bman\b/i;
+export const VOICE_DEFAULT = { rate: 1.02, swing: 0.16 }; // swing: hoeveel de toon per zinsdeel op en neer gaat
 let nlVoice = null, speechUnlocked = false;
+function voicePref() { try { return JSON.parse(localStorage.getItem(VOICE_KEY)) || null; } catch { return null; } }
+/** Alle Nederlandse stemmen op dit toestel, beste eerst. */
+export function dutchVoices() {
+  if (!synth) return [];
+  const score = v => (/nl[-_]NL/i.test(v.lang) ? 4 : 0) + (/premium|enhanced|verbeterd|natural|neural|online/i.test(v.name) ? 3 : 0) + (FEM.test(v.name) ? 2 : 0) + (v.localService ? 1 : 0);
+  return synth.getVoices().filter(v => /^nl([-_]|$)/i.test(v.lang)).sort((a, b) => score(b) - score(a));
+}
+/** Basistoon die een stem naar het midden tussen man en vrouw duwt. */
+export function middlePitch(v) { return !v ? 1 : FEM.test(v.name) ? 0.8 : MAN.test(v.name) ? 1.25 : 1; }
 function pickVoice() {
   if (!synth) return null;
-  const vs = synth.getVoices().filter(v => /^nl([-_]|$)/i.test(v.lang));
-  const nl = vs.filter(v => /nl[-_]NL/i.test(v.lang));
-  const pool = nl.length ? nl : vs;
-  nlVoice = pool.find(v => /xander|frank|daan|willem|maarten|male|man/i.test(v.name)) || pool.find(v => v.localService) || pool[0] || null;
+  const pref = voicePref(), vs = dutchVoices();
+  nlVoice = (pref?.uri && vs.find(v => v.voiceURI === pref.uri)) || vs[0] || null;
   return nlVoice;
+}
+function voiceSettings() {
+  const v = nlVoice || pickVoice(), pref = voicePref() || {};
+  const own = pref.uri && v && pref.uri === v.voiceURI;
+  return { voice: v, pitch: own && pref.pitch != null ? +pref.pitch : middlePitch(v), rate: pref.rate != null ? +pref.rate : VOICE_DEFAULT.rate, swing: pref.swing != null ? +pref.swing : VOICE_DEFAULT.swing };
+}
+/** Bewaar de stemkeuze voor dit toestel (test/monster.html). null = terug naar automatisch. */
+export function setVoicePref(p) { try { p ? localStorage.setItem(VOICE_KEY, JSON.stringify(p)) : localStorage.removeItem(VOICE_KEY); } catch {} pickVoice(); }
+export function getVoicePref() { return voicePref(); }
+// Zin in zinsdelen, elk met een eigen toon: zo klinkt het monster zingerig in plaats van vlak.
+function phrases(text) {
+  const raw = (text.match(/[^.!?…,;:]+[.!?…,;:]*/g) || [text]).map(t => t.trim()).filter(Boolean);
+  const out = [];
+  for (const r of raw) { if (out.length && out[out.length - 1].split(/\s+/).length < 3) out[out.length - 1] += ' ' + r; else out.push(r); }
+  return out.length ? out : [text];
+}
+const MELODY = [0, 1, -0.6, 0.7, -0.2, 1.2];
+function phraseTone(t, i, base, swing, rate) {
+  let p = base + MELODY[i % MELODY.length] * swing, r = rate;
+  if (/\?$/.test(t)) p += swing * 1.3;
+  if (/!$/.test(t)) { p += swing * 0.8; r *= 1.06; }
+  return { pitch: clamp(p, 0.3, 1.9), rate: clamp(r, 0.6, 1.5) };
 }
 if (synth) {
   pickVoice();
@@ -360,7 +396,7 @@ if (synth) {
 }
 /** Voor de geluidscheck op test/monster.html. */
 export function speechStatus() {
-  return { stem: synth ? 'ja' : 'nee (browser kan niet praten)', ontgrendeld: speechUnlocked, nlStem: (nlVoice || pickVoice())?.name || 'geen', praatHardop: isSpeakerPhone(), bezig: !!synth?.speaking };
+  return { stem: synth ? 'ja' : 'nee (browser kan niet praten)', ontgrendeld: speechUnlocked, nlStem: (nlVoice || pickVoice())?.name || 'geen', toon: +voiceSettings().pitch.toFixed(2), praatHardop: isSpeakerPhone(), bezig: !!synth?.speaking };
 }
 // Schatting van de woordmomenten (in seconden) als boundary-events niet komen.
 function wordTimes(text, rate) {
@@ -738,7 +774,7 @@ export function createMonster() {
     talking = null;
     c.timers.forEach(clearTimeout); clearInterval(c.typer);
     c.hum?.stop();
-    if (c.utt && synth) { c.utt.onend = c.utt.onerror = c.utt.onboundary = c.utt.onstart = null; try { synth.cancel(); } catch {} }
+    if (c.utts?.length && synth) { for (const u of c.utts) u.onend = u.onerror = u.onboundary = u.onstart = null; try { synth.cancel(); } catch {} }
     if (bubbleOwner === el && bubbleEl) { bubbleEl.classList.remove('show'); bubbleEl.hidden = true; cancelAnimationFrame(bubbleRaf); bubbleRaf = 0; }
     c.resolve(result);
   }
@@ -755,7 +791,7 @@ export function createMonster() {
     const voice = wantVoice && !muteNow && !!synth;
     const minMs = opts.ms ?? clamp(text.length * 60 + 1800, 3200, 12000);
     return new Promise(resolve => {
-      const c = talking = { id, resolve, timers: [], typer: 0, utt: null, hum: null, auto: !!opts.auto, typed: false, spoken: !voice, shownAt: now() };
+      const c = talking = { id, resolve, timers: [], typer: 0, utts: [], hum: null, auto: !!opts.auto, typed: false, spoken: !voice, shownAt: now() };
       // ballon
       const b = bubble(); if (!b.isConnected) document.body.appendChild(b);
       b.onclick = () => { if (talking === c) stopTalking(true); };
@@ -777,18 +813,25 @@ export function createMonster() {
       if (!voice && wantVoice && !muteNow) audio.play('brom'); // wel spreker, maar geen stem op dit toestel
       // stem
       if (voice) {
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'nl-NL'; if (nlVoice || pickVoice()) u.voice = nlVoice; u.pitch = 0.6; u.rate = 0.9; u.volume = 1;
-        c.utt = u; let boundary = false, started = false;
-        const est = () => { if (boundary || talking !== c) return; const { times } = wordTimes(text, 0.9); times.forEach(s => c.timers.push(setTimeout(() => { if (!boundary && talking === c) { mouthPulse(1); c.hum?.pulse(0.8); } }, s * 1000))); };
-        u.onstart = () => { started = true; c.hum = audio.hum(); c.timers.push(setTimeout(est, 450)); };
-        u.onboundary = e => { if (e.name && e.name !== 'word') return; boundary = true; mouthPulse(1); c.hum?.pulse(1); };
-        u.onend = u.onerror = () => { if (talking !== c) return; c.hum?.stop(); c.hum = null; c.spoken = true; maybeDone(); };
+        const vs = voiceSettings(), parts = phrases(text);
+        let boundary = false, started = false;
+        const detach = () => { for (const x of c.utts) x.onend = x.onerror = x.onboundary = x.onstart = null; };
+        const est = () => { if (boundary || talking !== c) return; const { times } = wordTimes(text, vs.rate); times.forEach(s => c.timers.push(setTimeout(() => { if (!boundary && talking === c) { mouthPulse(1); c.hum?.pulse(0.8); } }, s * 1000))); };
+        parts.forEach((t, i) => {
+          const u = new SpeechSynthesisUtterance(t), tone = phraseTone(t, i, vs.pitch, vs.swing, vs.rate);
+          u.lang = 'nl-NL'; if (vs.voice) u.voice = vs.voice; u.pitch = tone.pitch; u.rate = tone.rate; u.volume = 1;
+          if (i === 0) u.onstart = () => { started = true; c.hum = audio.hum(); c.timers.push(setTimeout(est, 450)); };
+          u.onboundary = e => { if (e.name && e.name !== 'word') return; boundary = true; mouthPulse(1); c.hum?.pulse(1); };
+          const last = i === parts.length - 1;
+          u.onend = () => { if (last && talking === c) { c.hum?.stop(); c.hum = null; c.spoken = true; maybeDone(); } };
+          u.onerror = () => { if (talking !== c) return; detach(); try { synth.cancel(); } catch {} c.hum?.stop(); c.hum = null; c.spoken = true; maybeDone(); };
+          c.utts.push(u);
+        });
         // iOS: soms komt onstart nooit (spraak niet ontgrendeld) → val terug op een stille mond.
-        c.timers.push(setTimeout(() => { if (!started && talking === c) { c.utt.onend = c.utt.onerror = c.utt.onboundary = c.utt.onstart = null; try { synth.cancel(); } catch {} c.spoken = true; const { times } = wordTimes(text, 1.1); times.forEach(s => c.timers.push(setTimeout(() => talking === c && mouthPulse(0.8), s * 1000))); maybeDone(); } }, 1600));
-        const go = () => { if (talking === c) { try { synth.speak(u); } catch { c.spoken = true; } } };
+        c.timers.push(setTimeout(() => { if (!started && talking === c) { detach(); try { synth.cancel(); } catch {} c.spoken = true; const { times } = wordTimes(text, 1.1); times.forEach(s => c.timers.push(setTimeout(() => talking === c && mouthPulse(0.8), s * 1000))); maybeDone(); } }, 1600));
+        const go = () => { if (talking !== c) return; try { for (const u of c.utts) synth.speak(u); } catch { c.spoken = true; } };
         if (synth.speaking || synth.pending) { try { synth.cancel(); } catch {} c.timers.push(setTimeout(go, 80)); } else go();
-        c.timers.push(setTimeout(() => { if (talking === c) { c.spoken = true; maybeDone(); } }, 20000)); // vangnet
+        c.timers.push(setTimeout(() => { if (talking === c) { c.spoken = true; maybeDone(); } }, 30000)); // vangnet
       }
       function maybeDone() {
         if (talking !== c || !c.typed || !c.spoken || c.closing) return;
