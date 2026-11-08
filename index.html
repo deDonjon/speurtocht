@@ -76,7 +76,9 @@ input.big::placeholder{letter-spacing:.05em;font-family:var(--body);font-size:1.
 .stamp{position:absolute;top:10px;right:12px;transform:rotate(8deg);border:3px solid var(--straw);color:var(--straw);font-family:var(--display);font-size:.95rem;letter-spacing:.12em;padding:2px 8px;border-radius:6px;opacity:.85}
 .monster{display:flex;justify-content:center}
 .monster svg{width:min(66vw,250px);height:auto}
-.monster.big svg{width:min(80vw,320px)}
+.monster.lg svg{width:min(80vw,320px)}
+.monster.md svg{width:min(62vw,240px)}
+.mslot{display:flex;justify-content:center;min-height:40px}
 .monster.sm svg{width:110px}
 .monster.sleep svg{filter:grayscale(1) opacity(.7)}
 
@@ -100,15 +102,7 @@ input.big::placeholder{letter-spacing:.05em;font-family:var(--body);font-size:1.
 .status{font-size:.9rem;color:var(--muted);font-weight:800}
 .status.bad{color:var(--straw)}
 .mapwrap{position:relative;border-radius:14px;overflow:hidden;border:2px solid var(--line);background:#EFE1C5}
-.map{height:min(42vh,300px);width:100%;z-index:0}
-.leaflet-container{font-family:var(--body);background:#EFE1C5}
-.leaflet-control-attribution{font-size:9px}
 .mapbtn{position:absolute;right:10px;bottom:24px;z-index:2;width:46px;min-height:46px;border-radius:50%;padding:0;font-size:20px}
-.pin-target{position:relative;width:46px;height:46px}
-.pin-target .ring{position:absolute;inset:0;border-radius:50%;background:rgba(200,55,45,.35);animation:pulse 1.6s ease-out infinite}
-.pin-target .pdot{position:absolute;inset:7px;border-radius:50%;background:var(--straw);border:3px solid #fff;display:grid;place-items:center;font-size:16px}
-@keyframes pulse{0%{transform:scale(.5);opacity:.9}100%{transform:scale(1.6);opacity:0}}
-.pin-me{width:22px;height:22px;border-radius:50%;background:#2F7BF5;border:3px solid #fff;box-shadow:0 0 0 2px rgba(47,123,245,.4)}
 
 /* ---------- puzzels (gedeeld door js/puzzles/*.js) */
 .question{font-size:1.25rem;font-weight:900;line-height:1.35}
@@ -137,8 +131,8 @@ input.big::placeholder{letter-spacing:.05em;font-family:var(--body);font-size:1.
 .submit{border-top:2px dashed var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px}
 
 /* ---------- overlays */
-.overlay{position:fixed;inset:0;z-index:30;background:rgba(46,26,11,.74);display:flex;align-items:center;justify-content:center;padding:max(20px,env(safe-area-inset-top,0px)) 18px max(20px,env(safe-area-inset-bottom,0px));overflow:auto}
-.overlay .page{width:100%;max-width:420px;align-items:center;text-align:center;animation:pop .45s}
+.overlay{position:fixed;inset:0;z-index:30;background:rgba(46,26,11,.74);display:flex;padding:max(20px,env(safe-area-inset-top,0px)) 18px max(20px,env(safe-area-inset-bottom,0px));overflow:auto}
+.overlay .page{margin:auto;width:100%;max-width:420px;align-items:center;text-align:center;animation:pop .45s}
 .overlay .page.left{align-items:stretch;text-align:left}
 .bubble{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 92px);transform:translateX(-50%);z-index:25;width:min(92vw,460px);background:var(--stroop);color:var(--page);
   border-radius:18px 18px 18px 4px;padding:12px 14px 12px 56px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.25);animation:slidein .3s}
@@ -154,6 +148,10 @@ input.big::placeholder{letter-spacing:.05em;font-family:var(--body);font-size:1.
 .tray button{min-height:50px;font-size:.95rem}
 .tray label{display:flex;gap:10px;align-items:center;font-weight:800}
 .tray input[type=checkbox]{width:24px;height:24px}
+.stoprow{display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding:8px 0}
+.stoprow .num{width:28px;height:28px;border-radius:50%;background:var(--gold);display:grid;place-items:center;font-family:var(--display);flex:none}
+.stoprow small{display:block;color:var(--muted);font-size:.78rem}
+.stoprow button{min-height:46px;padding:8px 10px;white-space:nowrap}
 canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:35}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -166,6 +164,7 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:35}
 <script type="module">
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync } from './js/sync.js';
+import { createMap } from './js/map.js';
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -225,11 +224,12 @@ function buzz(p) {
   for (let k = 0; k < Math.min(n, 4); k++) setTimeout(haptic, k * 140);
 }
 function toast(text, ms = 3200) { const d = document.createElement('div'); d.textContent = text; $('#toast').appendChild(d); setTimeout(() => d.remove(), ms); }
-function say(text, ms = 6000) { // tekstballon van het monster
+function bubble(text, ms = 6000) { // tekstballon bovenin (reserve als het monster zelf geen ballon tekent)
   document.querySelector('.bubble')?.remove();
   const b = document.createElement('div'); b.className = 'bubble'; b.textContent = text; b.onclick = () => b.remove();
   document.body.appendChild(b); setTimeout(() => b.remove(), ms); chime([196, 147]);
 }
+const say = (text, opts) => mon.say(text, opts); // het monster praat; zie het monster-blok hieronder
 function confetti() {
   const c = $('#confetti'), ctx = c.getContext('2d'); c.hidden = false; c.width = innerWidth; c.height = innerHeight;
   const cols = ['#E8B04A', '#5B3391', '#C8372D', '#FFE98A', '#2F7D4E'];
@@ -252,9 +252,46 @@ function monsterRaw(got, bg) {
   <g ${hid('hoed')}><rect x="124" y="56" width="52" height="36" rx="6" fill="#FFE98A" transform="rotate(-8 150 74)"/><rect x="124" y="56" width="52" height="12" rx="6" fill="#FFF4B8" transform="rotate(-8 150 74)"/><path d="M118 96c20-12 60-14 76-6" fill="none" stroke="#8A4A1C" stroke-width="5" stroke-linecap="round" opacity=".9"/></g>
 </svg>`;
 }
-const monster = (got, cls = '') => `<div class="monster ${cls}">${monsterRaw(got)}</div>`;
 let monsterUrlCache = null;
-const monsterUrl = () => monsterUrlCache ||= 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(monsterRaw(Object.keys(PARTS), true));
+const monsterImage = () => monsterUrlCache ||= 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(monsterRaw(Object.keys(PARTS), true));
+const monsterUrl = monsterImage;
+
+/* Het monster-contract (chat 3 levert js/monster.js met precies deze vorm en vervangt dan alleen createSvgMonster hieronder):
+     createMonster() → { el,                          // één element; de app verhuist het tussen de schermen
+       setParts(parts, { land }),                     // land = deel dat net gevonden is → landingsanimatie
+       setMood(mood),                                 // 'slaap' | 'wakker' | 'nieuwsgierig' | 'brutaal' | 'compleet'
+       setSize(size),                                 // 'sm' | 'md' | 'lg'
+       say(text, { ms, voice }) → Promise,            // ballon + stem + bewegende mond
+       react(kind),                                   // 'start' | 'goed' | 'fout' | 'hint' | 'tik'
+       destroy() }
+     monsterImage(parts?) → data-URL                 // stilstaand plaatje, voor de schuifpuzzel
+   Schermen zetten alleen <div class="mslot" data-size="sm|md|lg"></div> neer; placeMonster() hangt het monster in de bovenste. */
+function createSvgMonster() {
+  const el = document.createElement('div'); let parts = null, mood = 'slaap', size = 'md';
+  const draw = () => { el.className = `monster ${size} ${mood === 'slaap' ? 'sleep' : ''}`; el.innerHTML = monsterRaw(parts || []); };
+  draw();
+  return { el,
+    setParts(p) { const k = (p || []).join(); if (k !== (parts || []).join() || parts === null) { parts = [...(p || [])]; draw(); } },
+    setMood(m) { if (m !== mood) { mood = m; draw(); } },
+    setSize(z) { if (z !== size) { size = z; draw(); } },
+    say(text, { ms = 6000 } = {}) { bubble(text, ms); return new Promise(r => setTimeout(r, ms)); },
+    react() {}, destroy() { el.remove(); } };
+}
+const mon = createSvgMonster();
+function moodFor() {
+  const g = S().game, n = g?.parts?.length || 0;
+  if (!g || g.phase === 'lobby') return 'slaap';
+  if (g.phase === 'klaar') return 'compleet';
+  return n <= 2 ? 'wakker' : n <= 4 ? 'nieuwsgierig' : 'brutaal';
+}
+function placeMonster() {
+  const slot = $('#ov .mslot') || $('#screen .mslot');
+  if (!slot) { mon.el.remove(); return; }
+  if (mon.el.parentNode !== slot) slot.appendChild(mon.el);
+  mon.setSize(slot.dataset.size || 'md');
+  if (!slot.dataset.parts) { mon.setParts(S().game?.parts || []); mon.setMood(moodFor()); }
+}
+const mslot = (size = 'md', extra = '') => `<div class="mslot" data-size="${size}" ${extra}></div>`;
 
 /* ================================================================ event-router
    Elk event uit de tabel `event` dat binnenkomt ná het laden gaat één keer langs de handlers.
@@ -266,7 +303,7 @@ const router = {
 };
 state.on('event', ev => { if (!ev || seen.has(ev.id)) return; seen.add(ev.id); if (primed) router.dispatch(ev); });
 
-router.on('game.start', () => { celebrate = null; overlay(`<div class="page"><span class="tab">Dossier geopend</span>${monster([], 'big')}<h2>Het monster wordt wakker…</h2><p>Zoek de eerste plek. Het monster kijkt mee.</p></div>`, 2600); chime([262, 330, 392, 523]); buzz([80, 60, 120]); });
+router.on('game.start', () => { celebrate = null; overlay(`<div class="page"><span class="tab">Dossier geopend</span>${mslot('lg')}<h2>Het monster wordt wakker…</h2><p>Zoek de eerste plek. Het monster kijkt mee.</p></div>`, 2600); mon.setMood('wakker'); mon.react('start'); chime([262, 330, 392, 523]); buzz([80, 60, 120]); });
 router.on('game.reset', () => { celebrate = null; closeOverlay(); toast('Het spel is opnieuw klaargezet.'); });
 router.on('stop.arrived', () => { chime([523, 659, 784]); buzz([80, 40, 80]); });
 router.on('stop.solved', p => {
@@ -284,9 +321,9 @@ router.on('badge.awarded', p => { const me = state.me().find(x => x.id === p.pla
 let ovTimer = null;
 function overlay(html, ms) {
   closeOverlay(); const o = document.createElement('div'); o.className = 'overlay'; o.id = 'ov'; o.innerHTML = html; document.body.appendChild(o);
-  if (ms) ovTimer = setTimeout(closeOverlay, ms); return o;
+  if (ms) ovTimer = setTimeout(closeOverlay, ms); placeMonster(); return o;
 }
-function closeOverlay() { clearTimeout(ovTimer); $('#ov')?.remove(); }
+function closeOverlay() { clearTimeout(ovTimer); $('#ov')?.remove(); placeMonster(); }
 let celebrate = null;
 function showCelebrate() {
   if (!celebrate) return;
@@ -296,8 +333,9 @@ function showCelebrate() {
   const o = overlay(`<div class="page"><span class="tab">Deel gevonden</span>
     <div style="font-size:4rem;line-height:1">${p.icon}</div><h2>Gevonden!</h2>
     <p>Jullie hebben <strong>${esc(p.label)}</strong> van het Pannenkoekenmonster terug${by ? ` (ingediend door ${esc(by.name)})` : ''}.</p>
-    ${monster(got)}
+    ${mslot('md', 'data-parts="1"')}
     <button class="ok wide">${celebrate.last ? '🥞 Pannenkoeken!' : 'Op naar de volgende plek ▶'}</button></div>`);
+  mon.setParts(got, { land: celebrate.part }); mon.setMood(moodFor()); mon.react('goed');
   $('button', o).onclick = () => { celebrate = null; closeOverlay(); };
 }
 function showMission(m, name) {
@@ -333,6 +371,9 @@ function openTray() {
       <label><input type="checkbox" data-r="test" ${test ? 'checked' : ''}> Testmodus op deze telefoon (teleportknop, geen GPS)</label>
       <label><input type="checkbox" data-r="any" ${g.settings?.any_can_submit ? 'checked' : ''}> Iedereen mag indienen (niet alleen de Sleutelbewaarder)</label>
       <button class="plain" data-r="deal">🎲 Talenten loten (test)</button></section>
+    <section><h3>Plekken vastleggen</h3>
+      <p class="note">Sta op de plek, wacht tot de GPS rustig is en tik op 📍. Opeenvolgende plekken liefst ${g.settings?.min_gap || 150} m uit elkaar.</p>
+      <div id="stoplist">${stopRows()}</div></section>
     <div class="row"><button class="ghost" data-r="logout">Regie afmelden</button><span class="grow"></span><button class="plain" data-r="close">Sluiten</button></div></div>`);
   const busy = async (fn, ok) => { try { await fn(); if (ok) toast(ok); } catch (e) { toast('⚠️ ' + (e.message || e)); } };
   o.addEventListener('click', async e => {
@@ -344,6 +385,8 @@ function openTray() {
     else if (r === 'skip') { closeOverlay(); await busy(() => sync.regie.event('gps.skip', { stop_id: state.activeStop()?.id }), 'GPS overgeslagen'); }
     else if (r === 'hint') { const t = prompt('Hint-tekst (leeg = de hint van de puzzel)'); if (t !== null) { closeOverlay(); await busy(() => sync.regie.hint(t.trim() || null)); } }
     else if (r === 'approve') { closeOverlay(); await busy(() => sync.regie.approveStop(10)); }
+    else if (r === 'here') await placeStop(e.target.closest('[data-id]').dataset.id, o);
+    else if (r === 'edit') await editStop(e.target.closest('[data-id]').dataset.id, o);
     else if (r === 'deal') {
       const keys = Object.keys(TALENTS).sort(() => Math.random() - .5), talents = {};
       S().players.forEach((p, i) => talents[p.id] = keys[i % keys.length]);
@@ -355,6 +398,40 @@ function openTray() {
     if (r === 'test') { test = e.target.checked; store.set('pkm2_test', test); if (test) stopGps(); else if (inGame()) startGps(); refresh(true); }
     if (r === 'any') await busy(() => sync.regie.patchGame({ settings: { any_can_submit: e.target.checked } }), e.target.checked ? 'Iedereen mag indienen' : 'Alleen de Sleutelbewaarder');
   });
+}
+
+/* ---------- plekken vastleggen: huidige GPS naar de stop (regie_upsert_stop stuurt de hele stop mee) */
+function stopRows() {
+  const all = S().stops, gap = S().game?.settings?.min_gap || 150;
+  return all.map(st => {
+    const near = all.filter(x => x.id !== st.id).map(x => ({ x, d: haversine(st, x) })).sort((a, b) => a.d - b.d)[0];
+    const warn = near && near.d < gap && st.key !== 'home' && near.x.key !== 'home';
+    return `<div class="stoprow" data-id="${st.id}"><span class="num">${st.key === 'home' ? '🏠' : st.key === 'start' ? 'S' : st.seq}</span>
+      <div class="grow"><b>${esc(st.name)}</b> ${PARTS[st.part]?.icon || ''}<small>${near ? `${warn ? '⚠️ ' : ''}${Math.round(near.d)} m tot ${esc(near.x.name)}` : ''}</small></div>
+      <button class="plain" data-r="edit" aria-label="Naam en aanwijzing">✏️</button><button class="ok" data-r="here">📍 Hier</button></div>`;
+  }).join('');
+}
+function gpsOnce() {
+  return new Promise((res, rej) => navigator.geolocation ? navigator.geolocation.getCurrentPosition(p => res(p.coords), e => rej(new Error(e.code === 1 ? 'Locatie geweigerd' : 'Geen GPS-fix, probeer het buiten nog eens')), { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }) : rej(new Error('Geen GPS')));
+}
+async function placeStop(id, o) {
+  const st = state.stop(id); if (!st) return;
+  const btn = $(`[data-id="${id}"] [data-r=here]`, o); btn.disabled = true; btn.textContent = '…';
+  try {
+    const c = await gpsOnce();
+    if (c.accuracy > 25 && !confirm(`De GPS is nog onnauwkeurig (±${Math.round(c.accuracy)} m). Toch opslaan? (Even wachten en opnieuw proberen geeft vaak beter.)`)) return;
+    const moved = haversine(st, { lat: c.latitude, lng: c.longitude });
+    await sync.regie.upsertStop({ ...st, lat: +c.latitude.toFixed(7), lng: +c.longitude.toFixed(7) });
+    toast(`📍 ${st.name} vastgelegd (±${Math.round(c.accuracy)} m, ${Math.round(moved)} m verschoven)`); chime([523, 784]);
+  } catch (e) { toast('⚠️ ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = '📍 Hier'; setTimeout(() => { const l = $('#stoplist', o); if (l) l.innerHTML = stopRows(); }, 800); }
+}
+async function editStop(id, o) {
+  const st = state.stop(id); if (!st) return;
+  const name = prompt('Naam van de plek', st.name); if (name === null) return;
+  const clue = prompt('Aanwijzing (wat de kinderen lezen om de plek te vinden)', st.clue); if (clue === null) return;
+  try { await sync.regie.upsertStop({ ...st, name: name.trim() || st.name, clue: clue.trim() }); toast('✏️ Opgeslagen'); setTimeout(() => { const l = $('#stoplist', o); if (l) l.innerHTML = stopRows(); }, 800); }
+  catch (e) { toast('⚠️ ' + e.message); }
 }
 
 /* ================================================================ GPS en aankomst */
@@ -389,26 +466,17 @@ document.addEventListener('visibilitychange', () => {
   if (booted) sync.reload().catch(() => {}); // iOS laat de websocket op de achtergrond vallen: stand opnieuw ophalen
 });
 
-/* ================================================================ kaart (Leaflet; chat 6 vervangt dit door js/map.js) */
-const hasL = typeof L !== 'undefined';
-const mapEl = document.createElement('div'); mapEl.className = 'map';
-let map = null, mTarget = null, mMe = null, mAcc = null, mLine = null, fittedFor = null;
-function updateMap(st) {
-  if (!hasL || !st) return;
-  if (!map) { map = L.map(mapEl, { zoomControl: false }); L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map); }
-  const t = [st.lat, st.lng], pos = S().pos;
-  if (!mTarget) mTarget = L.marker(t, { interactive: false, icon: L.divIcon({ className: '', html: '<div class="pin-target"><div class="ring"></div><div class="pdot">🥞</div></div>', iconSize: [46, 46], iconAnchor: [23, 23] }) }).addTo(map);
-  else mTarget.setLatLng(t);
-  if (pos) {
-    const p = [pos.lat, pos.lng];
-    if (!mMe) { mMe = L.marker(p, { interactive: false, icon: L.divIcon({ className: '', html: '<div class="pin-me"></div>', iconSize: [22, 22], iconAnchor: [11, 11] }) }).addTo(map);
-      mAcc = L.circle(p, { radius: pos.acc || 20, color: '#2F7BF5', weight: 1, fillOpacity: .08 }).addTo(map); mLine = L.polyline([p, t], { color: '#4A250E', weight: 3, dashArray: '6 8', opacity: .7 }).addTo(map); }
-    else { mMe.setLatLng(p); mAcc.setLatLng(p).setRadius(pos.acc || 20); mLine.setLatLngs([p, t]); }
-  }
-  if (fittedFor !== st.id + !!mMe) { fittedFor = st.id + !!mMe; fitMap(); }
-  requestAnimationFrame(() => map.invalidateSize());
+/* ================================================================ kaart (js/map.js: wonderlandstijl, stroopspoor, avondkaart) */
+const wmap = createMap(); // null zonder Leaflet
+const hasL = !!wmap;
+function updateMap(st, seesTarget) {
+  if (!wmap || !st) return;
+  const g = S().game, r = state.route();
+  const found = r.slice(0, g?.active_index || 0).filter(x => x.part).map(x => ({ id: x.id, lat: x.lat, lng: x.lng, icon: PARTS[x.part]?.icon || '⭐' }));
+  wmap.update({ stop: st, pos: test ? null : S().pos, gameKey: g?.started_at || 'x', seesTarget, found, meIds: S().device.players,
+    players: S().players.map(p => ({ ...p, color: guard(p).color })) });
 }
-function fitMap() { if (!map || !mTarget) return; if (mMe) map.fitBounds(L.latLngBounds([mMe.getLatLng(), mTarget.getLatLng()]), { padding: [40, 40], maxZoom: 18 }); else map.setView(mTarget.getLatLng(), 17); }
+const fitMap = () => wmap?.fit();
 
 /* ================================================================ schermen
    Elk scherm heeft een sleutel; verandert die, dan schuift een nieuw scherm in. Anders roept refresh() alleen update() aan. */
@@ -429,13 +497,14 @@ function mount(key) {
   const el = document.createElement('div'); el.className = 'scr slide-in'; // vers element per scherm: geen oude listeners
   $('#screen').replaceChildren(el);
   cur = { key, ...(screens[name](el, id) || {}) };
+  placeMonster();
   scrollTo({ top: 0 });
 }
 let raf = 0;
 function refresh(force) {
   if (raf && !force) return;
   cancelAnimationFrame(raf);
-  raf = requestAnimationFrame(() => { raf = 0; const k = screenKey(); if (k !== cur.key || force === 'remount') mount(k); else cur.update?.(); renderBar(); syncGps(); });
+  raf = requestAnimationFrame(() => { raf = 0; const k = screenKey(); if (k !== cur.key || force === 'remount') mount(k); else cur.update?.(); placeMonster(); renderBar(); syncGps(); });
 }
 function syncGps() { if (inGame() && !test) startGps(); else if (!inGame()) stopGps(); if (inGame()) keepAwake(); }
 
@@ -459,7 +528,7 @@ $('#bar').addEventListener('click', e => {
 
 /* ---------- boot */
 screens.boot = el => {
-  el.innerHTML = `<div class="center" style="margin-top:12vh">${monster([], 'sleep')}</div>
+  el.innerHTML = `<div class="center" style="margin-top:12vh">${mslot('md')}</div>
     <div class="page center"><span class="tab">Verbinden</span><p id="bootmsg">${bootError ? '⚠️ ' + esc(bootError) : 'Het dossier wordt opgehaald…'}</p>
     ${bootError ? '<button class="wide" id="retry">Opnieuw proberen</button>' : ''}</div>`;
   const r = $('#retry', el); if (r) r.onclick = () => { bootError = ''; refresh('remount'); boot(); };
@@ -468,7 +537,7 @@ screens.boot = el => {
 /* ---------- login met de code van de uitnodiging */
 screens.login = el => {
   const extra = sync.isLoggedIn();
-  el.innerHTML = `${extra ? '' : `<div class="center"><span class="eyebrow">Het feest van ${esc(birthday()?.name || 'de jarige')}</span><h1>${esc(S().game?.title || 'Het Pannenkoekenmonster')}</h1></div>${monster([], 'sleep')}`}
+  el.innerHTML = `${extra ? '' : `<div class="center"><span class="eyebrow">Het feest van ${esc(birthday()?.name || 'de jarige')}</span><h1>${esc(S().game?.title || 'Het Pannenkoekenmonster')}</h1></div>${mslot('md')}`}
     <div class="page"><span class="tab">${extra ? 'Tweede bewaker' : 'Geheim dossier'}</span><span class="stamp">GEHEIM</span>
       <h2>${extra ? 'Wie loopt er met deze telefoon mee?' : 'Wie ben jij?'}</h2>
       <p>Tik de code van vier cijfers van je uitnodiging in.</p>
@@ -493,7 +562,7 @@ screens.login = el => {
 /* ---------- lobby: wie is er, wie ben jij */
 screens.lobby = el => {
   el.innerHTML = `<div class="center"><span class="eyebrow">De bende van ${esc(birthday()?.name || 'de jarige')}</span><h1>Wachten op de start</h1></div>
-    <div id="lmon"></div><div id="mine"></div>
+    ${mslot('md')}<div id="mine"></div>
     <div class="page"><span class="tab">De bewakers</span><div class="guards" id="guards"></div>
       <p class="note center" id="lnote"></p></div>
     <div class="row"><button class="plain grow" id="add">+ Nog een bewaker op deze telefoon</button></div>`;
@@ -501,7 +570,6 @@ screens.lobby = el => {
   el.addEventListener('click', e => { const id = e.target.closest('[data-out]')?.dataset.out; if (id && confirm('Afmelden op deze telefoon?')) { sync.logout(id); refresh(); } });
   const update = () => {
     const ps = S().players, mine = new Set(S().device.players);
-    $('#lmon', el).innerHTML = monster([], 'sleep');
     $('#mine', el).innerHTML = state.me().map(p => { const x = guard(p); return `<div class="page acc" style="--acc:${x.color}"><span class="tab">Jouw dossier</span>
       <div class="row"><span style="font-size:2.4rem">${x.icon}</span><div class="grow"><h2>${esc(p.name)}</h2>
       <p>${x.part ? 'Bewaker van ' + esc(PARTS[x.part].label) : 'Je deel wordt nog geloot…'}</p></div></div>
@@ -519,7 +587,7 @@ screens.lobby = el => {
 screens.nav = (el, id) => {
   const st = state.stop(id), { n, total } = stopNo(st);
   lastDist = null;
-  el.innerHTML = `<div id="nmon"></div>
+  el.innerHTML = `${mslot('sm')}
     <div class="page"><span class="tab">${st.key === 'home' ? 'Laatste plek' : `Plek ${n} van ${total}`}</span>
       <div class="row" style="justify-content:space-between"><span class="eyebrow">${PARTS[st.part]?.icon || ''} ${esc(PARTS[st.part]?.label || '')}</span></div>
       <h2>${esc(st.name)}</h2><p class="clue">${esc(st.clue)}</p>
@@ -528,13 +596,12 @@ screens.nav = (el, id) => {
       <p class="status" id="status"></p>
       <div id="navbtns" class="row"></div>
     </div>`;
-  if (hasL) { $('#mapslot', el).appendChild(mapEl); $('#fit', el).onclick = fitMap; }
+  if (hasL) { $('#mapslot', el).appendChild(wmap.el); $('#fit', el).onclick = fitMap; }
   el.addEventListener('click', e => { const b = e.target.closest('[data-n]')?.dataset.n;
     if (b === 'tele') arrive(id); if (b === 'gps') { gpsError = ''; stopGps(); startGps(); update(); } });
   const update = () => {
     const pos = S().pos, r = radiusOf(st), kl = S().players.find(p => p.talent === 'kaartlezer');
     const seesMeters = !kl || state.hasTalent('kaartlezer');
-    $('#nmon', el).innerHTML = monster(state.partsFound(), 'sm');
     let dist = '…', pct = 0, warm = '', status = gpsError || (test ? 'Testmodus: geen GPS. Gebruik de teleportknop.' : 'GPS zoekt jullie positie…');
     if (pos && !test) {
       const d = haversine(pos, st); pct = Math.max(0, Math.min(100, 100 - ((d - r) / 300) * 100));
@@ -546,9 +613,9 @@ screens.nav = (el, id) => {
     $('.meter i', el).style.width = pct + '%';
     const s = $('#status', el); s.textContent = status; s.classList.toggle('bad', !!gpsError);
     $('#navbtns', el).innerHTML = (test ? '<button class="berry grow" data-n="tele">🛸 Teleporteer naar deze plek</button>' : '') + (gpsError ? '<button class="berry grow" data-n="gps">📡 Locatie opnieuw proberen</button>' : '');
-    updateMap(st); checkArrival();
+    updateMap(st, seesMeters); checkArrival();
   };
-  update(); return { update, destroy: () => mapEl.remove() };
+  update(); return { update, destroy: () => wmap?.el.remove() };
 };
 
 /* ---------- puzzel bij de actieve stop (ook de finale thuis) */
@@ -557,7 +624,7 @@ const loadPuzzle = type => modCache[type] ||= import(`./js/puzzles/${type}.js`).
 screens.puz = (el, id) => {
   const st = state.stop(id), { n, total } = stopNo(st);
   let mod = null, modErr = '', pending = [], sig = '', askedArrive = false, submitting = false;
-  el.innerHTML = `<div id="pmon"></div>
+  el.innerHTML = `${mslot('sm')}
     <div class="page"><span class="tab">📍 Jullie zijn er · ${st.key === 'home' ? 'Finale' : `plek ${n} van ${total}`}</span>
       <h2>${esc(st.name)}</h2>
       <div id="pz" class="col" style="display:flex;flex-direction:column;gap:12px"><p class="note">Puzzel wordt opengevouwen…</p></div>
@@ -585,7 +652,6 @@ screens.puz = (el, id) => {
     // Dit scherm hoort bij één stop; is die al afgerond, dan schuift refresh() zo het volgende scherm in.
     if (state.activeStop()?.id !== st.id || !['puzzel', 'finale'].includes(S().game?.phase)) return;
     const p = ps();
-    $('#pmon', el).innerHTML = monster(state.partsFound(), 'sm');
     if (!p) { if (!askedArrive && sync.isLoggedIn()) { askedArrive = true; arrive(st.id); } return; }
     const type = config(p).type;
     if (type !== modType) { modType = type; mod = null; modErr = '';
@@ -622,7 +688,7 @@ screens.klaar = el => {
   const g = S().game, stops = state.route().length || 7, b = birthday();
   const stack = Math.max(1, Math.min(10, Math.round((g.drops || 0) / (stops * 10) * 10)));
   el.innerHTML = `<div class="center"><span class="eyebrow">Dossier gesloten</span><h1>Het monster is compleet!</h1></div>
-    ${monster(Object.keys(PARTS), 'big')}
+    ${mslot('lg')}
     <div class="page center"><span class="tab">Eindcijfer</span>
       <div class="stack">${Array.from({ length: stack }, (_, i) => `<i style="width:${150 - i * 6}px;animation-delay:${i * .12}s"></i>`).join('')}</div>
       <h2>${stack} van de 10 pannenkoeken hoog</h2>
@@ -641,7 +707,7 @@ async function boot() {
   } catch (e) { bootError = e.message || 'Geen verbinding'; }
   refresh('remount');
 }
-window.pkm = { state, sync, router, PARTS, TALENTS, monsterSvg: monsterRaw, monsterUrl, toast, say, chime, refresh };
+window.pkm = { state, sync, router, PARTS, TALENTS, mon, monsterSvg: monsterRaw, monsterUrl, monsterImage, toast, say, bubble, chime, buzz, refresh };
 renderBar(); refresh('remount'); boot();
 </script>
 </body>
