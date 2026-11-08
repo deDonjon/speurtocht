@@ -45,6 +45,13 @@ textarea{min-height:70px}
   </section>
 
   <section>
+    <h2>Geluidscheck</h2>
+    <p class="note">Hoor je niets? Zet de stil-schakelaar opzij uit (geen oranje streepje), het volume omhoog, en tik hieronder.</p>
+    <div class="row" style="margin-top:8px"><button id="beep">🔔 Kale piep</button><button id="pal" class="alt">🎵 Palet (toonladder)</button><button id="talk" class="alt">🗣️ Stem</button></div>
+    <pre id="diag" class="note" style="white-space:pre-wrap;margin:8px 0 0;font:600 .8rem/1.4 ui-monospace,Menlo,monospace"></pre>
+  </section>
+
+  <section>
     <h2>Delen aan / uit</h2>
     <div class="row" id="parts"></div>
   </section>
@@ -93,9 +100,9 @@ textarea{min-height:70px}
   </section>
 </main>
 <script type="module">
-import { createMonster, monsterImage, ready, PART_KEYS, MOODS } from '../js/monster.js?v=1';
-import { audio } from '../js/audio.js?v=1';
-import { LINES } from '../js/monster-lines.js?v=1';
+import { createMonster, monsterImage, ready, PART_KEYS, MOODS, speechStatus } from '../js/monster.js?v=2';
+import { audio } from '../js/audio.js?v=2';
+import { LINES } from '../js/monster-lines.js?v=2';
 
 const $ = s => document.querySelector(s);
 const ICON = { lijf: '🥞', ogen: '🫐', neus: '🍓', mond: '🍯', armen: '🥓', benen: '🍌', hoed: '🧈' };
@@ -149,6 +156,12 @@ for (const n of audio.names) { const b = btn(n, 'alt'); b.onclick = () => audio.
 const muteLabel = () => $('#mute').textContent = audio.muted() ? '🔇 Geluid uit' : '🔊 Geluid aan';
 $('#mute').onclick = () => { localStorage.setItem('pkm2_muted', JSON.stringify(!audio.muted())); muteLabel(); };
 muteLabel();
+// geluidscheck
+$('#beep').onclick = () => audio.beep();
+$('#pal').onclick = () => audio.play('deel');
+$('#talk').onclick = () => mon.say('Hallo! Hoor je mij?', { voice: true });
+const fmt = o => Object.entries(o).map(([k, v]) => `${k}: ${v}`).join('\n');
+setInterval(() => { $('#diag').textContent = 'geluid\n' + fmt(audio.status()) + '\n\nstem\n' + fmt(speechStatus()); }, 500);
 // plaatje
 function showImg() {
   const url = monsterImage(parts.length ? parts : undefined);

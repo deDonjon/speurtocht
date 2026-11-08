@@ -12,8 +12,8 @@
 //   Hardop alleen op de telefoon met het laagste device-id dat online is; de rest toont alleen de ballon.
 // - Luistert zelf naar pkm.router / pkm.state (als die er zijn): aankomst, hints, foute antwoorden, stilte.
 // ?v=… tegen oude bestanden in de cache (GitHub Pages/Safari). Ophogen bij een wijziging, ook in index.html en test/monster.html.
-import { audio } from './audio.js?v=1';
-import { LINES, NAAM_JARIGE } from './monster-lines.js?v=1';
+import { audio } from './audio.js?v=2';
+import { LINES, NAAM_JARIGE } from './monster-lines.js?v=2';
 
 const ZDOG_SRC = [
   'https://cdn.jsdelivr.net/npm/zdog@1.1.3/dist/zdog.dist.min.js',
@@ -357,6 +357,10 @@ if (synth) {
     removeEventListener('touchend', unlockSpeech, true); removeEventListener('pointerup', unlockSpeech, true); removeEventListener('click', unlockSpeech, true);
   };
   addEventListener('touchend', unlockSpeech, true); addEventListener('pointerup', unlockSpeech, true); addEventListener('click', unlockSpeech, true);
+}
+/** Voor de geluidscheck op test/monster.html. */
+export function speechStatus() {
+  return { stem: synth ? 'ja' : 'nee (browser kan niet praten)', ontgrendeld: speechUnlocked, nlStem: (nlVoice || pickVoice())?.name || 'geen', praatHardop: isSpeakerPhone(), bezig: !!synth?.speaking };
 }
 // Schatting van de woordmomenten (in seconden) als boundary-events niet komen.
 function wordTimes(text, rate) {

@@ -21,22 +21,26 @@ function context() {
     if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback';
     if (!ctx) {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // iOS zet de context op 'interrupted' (bijv. na de stem of een melding): bij de volgende kans weer aanzetten.
+      ctx.onstatechange = () => { lastState = ctx.state; if (ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume?.().catch(() => {}); };
       const comp = ctx.createDynamicsCompressor();
       comp.threshold.value = -14; comp.ratio.value = 6;
       master = ctx.createGain(); master.gain.value = 0.9;
       master.connect(comp).connect(ctx.destination);
     }
     if (ctx.state !== 'running') {
-      ctx.resume?.();
+      ctx.resume?.().catch(() => {});
       const b = ctx.createBufferSource(); b.buffer = ctx.createBuffer(1, 1, 22050); b.connect(ctx.destination); b.start(0);
     }
   } catch { return null; }
   return ctx;
 }
-export function unlock() { context(); }
+let lastState = 'nog niet gestart', unlocks = 0;
+export function unlock() { unlocks++; context(); }
 if (typeof addEventListener === 'function') {
-  addEventListener('pointerdown', unlock, { capture: true, passive: true });
-  addEventListener('touchend', unlock, { capture: true, passive: true });
+  // iPhone: alleen touchend, click, pointerup en keydown tellen als 'echte' tik die geluid mag starten.
+  for (const ev of ['pointerdown', 'touchend', 'pointerup', 'click', 'keydown']) addEventListener(ev, unlock, { capture: true, passive: true });
+  document.addEventListener?.('visibilitychange', () => { if (document.visibilityState === 'visible' && ctx && ctx.state !== 'running') ctx.resume?.().catch(() => {}); });
 }
 
 // ---------------------------------------------------------------- bouwstenen
@@ -102,7 +106,19 @@ export const audio = {
   play(name) {
     if (muted() || !SOUNDS[name]) return;
     if (!context()) return;
-    try { SOUNDS[name](); } catch (e) { console.warn('[audio]', name, e); }
+    const go = () => { try { SOUNDS[name](); } catch (e) { console.warn('[audio]', name, e); } };
+    // Nog niet aan (iPhone vóór de eerste tik, of 'interrupted'): eerst aanzetten, dan pas spelen.
+    if (ctx.state === 'running') go(); else ctx.resume?.().then(go, () => {});
+  },
+  /** Kale testpiep, rechtstreeks naar de luidspreker (zonder palet, compressor of dempknop). */
+  beep() {
+    const c = context(); if (!c) return;
+    const go = () => { const o = c.createOscillator(), g = c.createGain(), t = c.currentTime + 0.02; o.frequency.value = 880; g.gain.setValueAtTime(0.4, t); g.gain.setValueAtTime(0, t + 0.25); o.connect(g).connect(c.destination); o.start(t); o.stop(t + 0.3); };
+    if (c.state === 'running') go(); else c.resume?.().then(go, () => {});
+  },
+  /** Voor de geluidscheck op test/monster.html. */
+  status() {
+    return { context: ctx ? ctx.state : lastState, audioSession: navigator.audioSession?.type ?? '(niet beschikbaar)', muted: muted(), tikken: unlocks, sampleRate: ctx?.sampleRate ?? null };
   },
   /** Oude toonreeks (triangle, 0,14 s per noot). */
   chime(fs) {
