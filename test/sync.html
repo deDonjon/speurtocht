@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test: sync</title>
+<style>
+body{font:16px/1.4 system-ui,sans-serif;margin:0;padding:16px;background:#FFF4DF;color:#3B2410;max-width:560px}
+h1{font-size:1.3rem;margin:0 0 8px}
+.box{background:#fff;border:2px solid #EBD9B8;border-radius:12px;padding:12px;margin:10px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
+input{font:inherit;padding:8px 10px;border:2px solid #EBD9B8;border-radius:8px;width:110px}
+button{font:inherit;padding:10px 12px;border:0;border-radius:8px;background:#F6C35B;font-weight:700;cursor:pointer;min-height:44px}
+button.b{background:#6D3FA6;color:#fff}button.g{background:#3C8F5A;color:#fff}button.r{background:#fff;border:2px solid #E0473C;color:#E0473C}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:#aaa;vertical-align:middle}
+.dot.online{background:#3C8F5A}.dot.offline{background:#E0473C}
+pre{background:#FBF0D8;border-radius:8px;padding:8px;font-size:12px;overflow:auto;max-height:220px;white-space:pre-wrap}
+small{color:#8A6A4A}
+#log div{border-bottom:1px solid #EBD9B8;padding:3px 0;font-size:13px}
+</style>
+</head>
+<body>
+<h1>Test: sync.js <span class="dot" id="conn"></span> <small id="connt">verbinden…</small></h1>
+<small>Open deze pagina op twee telefoons (of twee tabs). Log op elke in met een andere code. Een zet op de ene moet binnen 1 s op de andere staan.</small>
+
+<div class="box">
+  <div class="row"><input id="code" inputmode="numeric" placeholder="code (4)"><button id="login" class="b">Inloggen</button><button id="logout">Uitloggen</button></div>
+  <div id="me"></div>
+  <div>Toestellen online: <b id="phones">?</b> · Spelers: <span id="players"></span></div>
+</div>
+
+<div class="box">
+  <div><b id="phase"></b> · actieve stop: <b id="stop"></b> · delen: <span id="parts"></span> · druppels <b id="drops"></b></div>
+  <div class="row"><button id="arrive" class="g">📍 Aangekomen (arrive)</button><button id="move">🎲 Zet: cijfer</button><button id="hint">💡 Hint</button><button id="solve" class="g">🔑 Indienen (solve)</button></div>
+  <div>Puzzelstand: <pre id="puzzle">—</pre></div>
+</div>
+
+<div class="box">
+  <div class="row"><input id="rkey" placeholder="regiesleutel" style="width:200px"><button id="rlogin">Regie in</button></div>
+  <div class="row"><button id="rstart">▶ Start (schud route)</button><button id="rapprove">✅ Keur stop goed</button><button id="rsay">💬 Monster zegt…</button><button id="rreset" class="r">Reset</button></div>
+  <div id="rstate"></div>
+</div>
+
+<div class="box"><b>Gebeurtenissen</b> <small>(nieuwste boven, met vertraging t.o.v. servertijd)</small><div id="log"></div></div>
+
+<script type="module">
+import { state } from '../js/state.js';
+import { sync } from '../js/sync.js';
+const $ = id => document.getElementById(id);
+const say = (msg) => { const d = document.createElement('div'); d.textContent = msg; $('log').prepend(d); };
+const err = e => say('⚠️ ' + (e?.message || e));
+
+function render() {
+  const s = state.get();
+  $('conn').className = 'dot ' + s.conn; $('connt').textContent = s.conn + (sync.outboxSize() ? ` (${sync.outboxSize()} zetten in buffer)` : '');
+  $('me').textContent = state.me().length ? 'Jij: ' + state.me().map(p => `${p.name}${p.talent ? ' (' + p.talent + ')' : ''}`).join(' + ') : 'Niet ingelogd';
+  $('phones').textContent = state.phones();
+  $('players').innerHTML = s.players.map(p => `<span class="dot ${p.online ? 'online' : ''}"></span> ${p.name}`).join(' · ');
+  $('phase').textContent = s.game?.phase || '—'; $('stop').textContent = state.activeStop()?.name || '—';
+  $('parts').textContent = (s.game?.parts || []).join(', ') || 'nog geen'; $('drops').textContent = s.game?.drops ?? 0;
+  $('puzzle').textContent = s.puzzle ? `stop ${state.stop(s.puzzle.stop_id)?.name} · variant ${s.puzzle.variant} · seed ${s.puzzle.seed} · ${s.puzzle.moves.length} zetten${s.puzzle.solved_at ? ' · OPGELOST' : ''}\n` + s.puzzle.moves.map(m => `${state.player(m.by)?.name || '?'}: ${JSON.stringify({ ...m, by: undefined, at: undefined })}`).join('\n') : '—';
+}
+state.on('change', render);
+state.on('event', e => e && say(`${new Date(e.at).toLocaleTimeString()} ${e.type} (${e.actor}${e.player_id ? ': ' + (state.player(e.player_id)?.name || '?') : ''}) ${JSON.stringify(e.payload)} · +${Math.max(0, Date.now() - Date.parse(e.at))} ms`));
+state.on('puzzle', p => p && say(`puzzel bijgewerkt: ${p.moves.length} zetten · +${Math.max(0, Date.now() - Date.parse(p.updated_at))} ms`));
+
+$('login').onclick = () => sync.login($('code').value).then(r => { say(`Ingelogd als ${r.player.name}` + (r.mission ? ` · geheime opdracht: ${r.mission}` : '')); $('code').value = ''; }).catch(err);
+$('logout').onclick = () => { sync.logout(); render(); };
+$('arrive').onclick = () => sync.arrive().then(() => say('arrive ok')).catch(err);
+$('move').onclick = () => sync.move({ t: 'digit', pos: Math.floor(Math.random() * 4), v: Math.floor(Math.random() * 10) }).then(() => say('zet verstuurd')).catch(err);
+$('hint').onclick = () => sync.hint().then(() => say('hint gevraagd')).catch(err);
+$('solve').onclick = () => sync.solve(10).then(g => say(`ingediend → ${g.phase}, delen: ${g.parts.join(', ')}`)).catch(err);
+$('rlogin').onclick = () => sync.regie.login($('rkey').value).then(() => { say('regie ingelogd'); $('rkey').value = ''; }).catch(err);
+$('rstart').onclick = () => sync.regie.start().then(g => say('gestart; volgorde: ' + g.stop_order.map(id => state.stop(id)?.name).join(' → '))).catch(err);
+$('rapprove').onclick = () => sync.regie.approveStop(5).then(() => say('stop goedgekeurd')).catch(err);
+$('rsay').onclick = () => { const t = prompt('Wat zegt het monster?'); if (t) sync.regie.event('monster.say', { text: t }).catch(err); };
+$('rreset').onclick = () => confirm('Spel resetten?') && sync.regie.reset().then(() => say('gereset')).catch(err);
+if (sync.regie.restore()) say('regiesleutel uit deze sessie hersteld');
+
+sync.connect().then(() => say('verbonden')).catch(err);
+</script>
+</body>
+</html>
