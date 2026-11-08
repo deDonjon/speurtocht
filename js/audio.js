@@ -7,7 +7,7 @@
 //   audio.chime([freq…])          // oude toonreeks, voor wie nog chime gebruikt
 //
 // iPhone: Web Audio zwijgt tot de eerste tik en standaard ook bij de stil-schakelaar.
-// Bij elke tik maken we de context wakker en zetten we audioSession op 'playback'.
+// Bij elke tik maken we de context wakker en zetten we audioSession op 'playback' ('play-and-record' zolang de walkietalkie open is).
 
 const MUTE_KEY = 'pkm2_muted';
 let ctx = null, master = null, noiseBuf = null;
@@ -18,7 +18,8 @@ export function muted() {
 
 function context() {
   try {
-    if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback';
+    const want = recording ? 'play-and-record' : 'playback'; // walkietalkie open = microfoon nodig
+    if (navigator.audioSession && navigator.audioSession.type !== want) navigator.audioSession.type = want;
     if (!ctx) {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
       // iOS zet de context op 'interrupted' (bijv. na de stem of een melding): bij de volgende kans weer aanzetten.
@@ -35,7 +36,12 @@ function context() {
   } catch { return null; }
   return ctx;
 }
-let lastState = 'nog niet gestart', unlocks = 0;
+let lastState = 'nog niet gestart', unlocks = 0, recording = false;
+/** Walkietalkie aan/uit: iOS staat de microfoon alleen toe in de stand 'play-and-record'. */
+export function setRecording(on) {
+  recording = !!on;
+  try { if (navigator.audioSession) navigator.audioSession.type = recording ? 'play-and-record' : 'playback'; } catch {}
+}
 export function unlock() { unlocks++; context(); }
 if (typeof addEventListener === 'function') {
   // iPhone: alleen touchend, click, pointerup en keydown tellen als 'echte' tik die geluid mag starten.
@@ -120,7 +126,7 @@ export const audio = {
   },
   /** Voor de geluidscheck op test/monster.html. */
   status() {
-    return { context: ctx ? ctx.state : lastState, audioSession: navigator.audioSession?.type ?? '(niet beschikbaar)', muted: muted(), tikken: unlocks, sampleRate: ctx?.sampleRate ?? null };
+    return { opnemen: recording, context: ctx ? ctx.state : lastState, audioSession: navigator.audioSession?.type ?? '(niet beschikbaar)', muted: muted(), tikken: unlocks, sampleRate: ctx?.sampleRate ?? null };
   },
   /** Oude toonreeks (triangle, 0,14 s per noot). */
   chime(fs) {

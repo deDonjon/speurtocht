@@ -11,7 +11,7 @@
 // `monster-token`, zodat de API-sleutel nooit in de app staat. De microfoon staat standaard dicht; alleen zolang
 // de knop ingedrukt is gaat hij open. Zo hoort het monster geen wind of geschreeuw van de rest.
 // Animatie: de mond volgt het echte uitgaande volume (getOutputVolume), dus het klopt bij elke zin.
-import { audio } from './audio.js?v=3';
+import { audio, setRecording } from './audio.js?v=4';
 import { SUPABASE_URL, SUPABASE_KEY } from './sync.js';
 
 const SDK = [
@@ -149,11 +149,13 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
 
   // ---- verbinden
   async function connect() {
-    $('.wk-err')?.remove(); $('.wk-retry')?.remove();
+    $('.wk-err')?.remove(); $('.wk-retry')?.remove(); ptt.hidden = false;
     setState('📡 Verbinden met het monster…'); ptt.disabled = true; led.className = 'wk-led';
     try {
+      setRecording(true); // iOS: anders "AudioSession category is not compatible with audio capture"
       const [El, token] = await Promise.all([loadSdk(), getToken()]);
       if (closed) return;
+      setRecording(true);
       conv = await El.Conversation.startSession({
         conversationToken: token,
         connectionType: 'webrtc',
@@ -184,8 +186,8 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
   }
   function fail(msg) {
     conv = null; ptt.disabled = true; pressing = false; ptt.classList.remove('down'); led.className = 'wk-led'; thinkingSince = 0;
-    setState('📵 Geen verbinding');
-    const m = /permission|notallowed|denied/i.test(msg) ? 'De microfoon mag niet. Sta de microfoon toe voor deze website en probeer opnieuw.' : msg;
+    setState('📵 Geen verbinding'); ptt.hidden = true;
+    const m = /audiosession/i.test(msg) ? 'De iPhone gaf de microfoon niet vrij. Tik op Opnieuw proberen.' : /permission|notallowed|denied/i.test(msg) ? 'De microfoon mag niet. Sta de microfoon toe voor deze website en probeer opnieuw.' : msg;
     $('.wk-mid').insertAdjacentHTML('beforeend', `<p class="wk-err">${m.replace(/[<>&]/g, '')}</p><button class="wk-retry" data-a="retry">Opnieuw proberen</button>`);
   }
 
@@ -196,6 +198,7 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
     mon?.live(null);
     const c = conv; conv = null;
     try { await c?.endSession(); } catch {}
+    setRecording(false);
     el.remove();
     onClose?.();
   }
