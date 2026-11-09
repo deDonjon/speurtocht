@@ -118,6 +118,7 @@ export const SOUNDS = {
   login()    { blip(600, 900, 0, 0.24, 0.07); blip(900, 1200, 0.1, 0.24, 0.09); },                                                    // bie-dup
   ok()       { bell(1568, 0, 0.22, 0.8); },                                                                                         // ting! (ovenbel)
   zend()     { hiss({ dur: 0.09, vol: 0.12, from: 3200, to: 2200, q: 0.7 }); tone({ f: 1400, type: 'square', at: 0.05, dur: 0.05, vol: 0.08, filter: 2500 }); }, // walkietalkie: knop in
+  bel()      { [0, 0.42].forEach(at => { tone({ f: 1320, type: 'square', at, dur: 0.16, vol: 0.12, filter: 3000 }); tone({ f: 1660, type: 'square', at: at + 0.18, dur: 0.16, vol: 0.12, filter: 3000 }); }); }, // terugbellen: tring-tring
   over()     { tone({ f: [1300, 900], type: 'square', dur: 0.08, vol: 0.08, filter: 2500 }); hiss({ at: 0.05, dur: 0.22, vol: 0.14, from: 2600, to: 900, q: 0.6 }); }, // knop los: "over!"
 };
 
@@ -176,6 +177,35 @@ export const audio = {
         g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), n); g.gain.exponentialRampToValueAtTime(0.0001, n + 0.25);
         o1.stop(n + 0.3); o2.stop(n + 0.3);
       },
+    };
+  },
+  /** mp3 (ArrayBuffer) → AudioBuffer, voor de monsterstem (js/voice.js). */
+  async decode(arr) {
+    const c = context(); if (!c) throw new Error('geen geluid');
+    return await new Promise((ok, fail) => { const p = c.decodeAudioData(arr, ok, fail); p?.catch?.(fail); });
+  },
+  /** Speel een AudioBuffer af via de luidspreker, met een meter voor de mond.
+      → { done: Promise, level() 0..1, stop() }. Gaat niet via de compressor van het palet: een stem moet schoon klinken. */
+  playBuffer(buf) {
+    const c = context(); if (!c) throw new Error('geen geluid');
+    const src = c.createBufferSource(), an = c.createAnalyser(), g = c.createGain();
+    src.buffer = buf; an.fftSize = 512; g.gain.value = 1;
+    src.connect(an); an.connect(g).connect(c.destination);
+    const data = new Uint8Array(an.fftSize);
+    let stopped = false, end;
+    const done = new Promise(r => { end = r; src.onended = () => { stopped = true; r(true); }; });
+    const go = () => { try { src.start(); } catch { end(false); } };
+    if (c.state === 'running') go(); else c.resume?.().then(go, () => end(false));
+    return {
+      done,
+      duration: buf.duration,
+      level() {
+        if (stopped) return 0;
+        an.getByteTimeDomainData(data);
+        let sum = 0; for (let i = 0; i < data.length; i++) { const x = (data[i] - 128) / 128; sum += x * x; }
+        return Math.min(1, Math.sqrt(sum / data.length) * 4.5); // spraak ≈ 0,1–0,25 rms → 0,45–1
+      },
+      stop() { if (stopped) return; stopped = true; try { src.stop(); } catch {} end(false); },
     };
   },
   /** Trillen. Via pkm.buzz van index.html (die kent de iPhone-truc), anders navigator.vibrate. */

@@ -8,12 +8,14 @@
 //
 // - Eén exemplaar dat de app tussen schermen verhuist; animeert alleen als het in beeld is.
 // - prefers-reduced-motion: geen ademen, wiebelen of vallen; alleen wat het kind zelf doet beweegt.
-// - Praten: ballon met tikmachinetekst, stem via Web Speech (nl-NL, tussen man en vrouw, zingerig) met een funky baslijn eronder.
+// - Praten: ballon met tikmachinetekst en de echte stem van Mecha-Pof (ElevenLabs, js/voice.js). Lukt dat niet (geen internet),
+//   dan de stem van de telefoon (Web Speech, nl-NL, zingerig) met een funky baslijn eronder.
 //   Hardop alleen op de telefoon met het laagste device-id dat online is; de rest toont alleen de ballon.
 // - Luistert zelf naar pkm.router / pkm.state (als die er zijn): aankomst, hints, foute antwoorden, stilte.
 // ?v=… tegen oude bestanden in de cache (GitHub Pages/Safari). Ophogen bij een wijziging, ook in index.html en test/monster.html.
-import { audio } from './audio.js?v=6';
-import { LINES, NAAM_JARIGE } from './monster-lines.js?v=3';
+import { audio } from './audio.js?v=7';
+import { LINES, NAAM_JARIGE } from './monster-lines.js?v=4';
+import { voice as monsterVoice, uitspraak } from './voice.js?v=1';
 
 const ZDOG_SRC = [
   'https://cdn.jsdelivr.net/npm/zdog@1.1.3/dist/zdog.dist.min.js',
@@ -779,7 +781,7 @@ export function createMonster() {
     const c = talking; if (!c) return;
     talking = null;
     c.timers.forEach(clearTimeout); clearInterval(c.typer);
-    c.hum?.stop();
+    c.hum?.stop(); c.player?.stop(); cancelAnimationFrame(c.raf);
     if (c.utts?.length && synth) { for (const u of c.utts) u.onend = u.onerror = u.onboundary = u.onstart = null; try { synth.cancel(); } catch {} }
     if (bubbleOwner === el && bubbleEl) { bubbleEl.classList.remove('show'); bubbleEl.hidden = true; cancelAnimationFrame(bubbleRaf); bubbleRaf = 0; }
     c.resolve(result);
@@ -795,7 +797,7 @@ export function createMonster() {
     const id = ++talkSeq;
     const muteNow = audio.muted();
     const wantVoice = opts.voice === true ? true : opts.voice === false ? false : isSpeakerPhone();
-    const voice = wantVoice && !muteNow && !!synth;
+    const voice = wantVoice && !muteNow && (!!synth || monsterVoice.enabled());
     const minMs = opts.ms ?? clamp(text.length * 60 + 1800, 3200, 12000);
     return new Promise(resolve => {
       const c = talking = { id, resolve, timers: [], typer: 0, utts: [], hum: null, auto: !!opts.auto, typed: false, spoken: !voice, shownAt: now() };
@@ -818,14 +820,16 @@ export function createMonster() {
       };
       c.typer = setInterval(typeTick, 1000 / 30); typeTick();
       if (!voice && wantVoice && !muteNow) audio.play('brom'); // wel spreker, maar geen stem op dit toestel
-      // stem
-      if (voice) {
+      // stem: eerst de echte monsterstem (ElevenLabs, js/voice.js), anders de stem van de telefoon
+      const speakWeb = () => {
+        if (talking !== c) return;
+        if (!synth) { c.spoken = true; audio.play('brom'); maybeDone(); return; }
         const vs = voiceSettings(), parts = phrases(text);
         let boundary = false, started = false;
         const detach = () => { for (const x of c.utts) x.onend = x.onerror = x.onboundary = x.onstart = null; };
         const est = () => { if (boundary || talking !== c) return; const { times } = wordTimes(text, vs.rate); times.forEach(s => c.timers.push(setTimeout(() => { if (!boundary && talking === c) { mouthPulse(1); c.hum?.pulse(0.8); } }, s * 1000))); };
         parts.forEach((t, i) => {
-          const u = new SpeechSynthesisUtterance(t), tone = phraseTone(t, i, vs.pitch, vs.swing, vs.rate);
+          const u = new SpeechSynthesisUtterance(uitspraak(t)), tone = phraseTone(t, i, vs.pitch, vs.swing, vs.rate);
           u.lang = 'nl-NL'; if (vs.voice) u.voice = vs.voice; u.pitch = tone.pitch; u.rate = tone.rate; u.volume = 1;
           if (i === 0) u.onstart = () => { started = true; c.hum = audio.hum(); c.timers.push(setTimeout(est, 450)); };
           u.onboundary = e => { if (e.name && e.name !== 'word') return; boundary = true; mouthPulse(1); c.hum?.pulse(1); };
@@ -839,7 +843,17 @@ export function createMonster() {
         const go = () => { if (talking !== c) return; try { for (const u of c.utts) synth.speak(u); } catch { c.spoken = true; } };
         if (synth.speaking || synth.pending) { try { synth.cancel(); } catch {} c.timers.push(setTimeout(go, 80)); } else go();
         c.timers.push(setTimeout(() => { if (talking === c) { c.spoken = true; maybeDone(); } }, 30000)); // vangnet
-      }
+      };
+      if (voice && monsterVoice.enabled()) {
+        monsterVoice.speak(text).then(pl => {
+          if (talking !== c) { pl.stop(); return; }
+          c.player = pl; c.hum = null;
+          const meter = () => { if (talking !== c || c.spoken) return; const lv = pl.level(); if (lv > 0.08) mouthPulse(Math.min(1, lv * 1.1)); c.raf = requestAnimationFrame(meter); };
+          c.raf = requestAnimationFrame(meter);
+          pl.done.then(() => { if (talking === c) { c.spoken = true; maybeDone(); } });
+          c.timers.push(setTimeout(() => { if (talking === c) { c.spoken = true; maybeDone(); } }, (pl.duration || 20) * 1000 + 3000)); // vangnet
+        }, err => { console.warn('[monster] stem → telefoonstem:', err?.message || err); speakWeb(); });
+      } else if (voice) speakWeb();
       function maybeDone() {
         if (talking !== c || !c.typed || !c.spoken || c.closing) return;
         c.closing = true;

@@ -1,4 +1,4 @@
-// walkie.js — walkietalkie met het Pannenkoekenmonster: knop ingedrukt houden = praten, loslaten = het monster antwoordt.
+// walkie.js — walkietalkie met Mecha-Pof: knop ingedrukt houden = praten, loslaten = het monster antwoordt.
 //
 // Contract:
 //   openWalkie({ mon, context, onClose }) → { update(text), close() }
@@ -11,8 +11,16 @@
 // `monster-token`, zodat de API-sleutel nooit in de app staat. De microfoon staat standaard dicht; alleen zolang
 // de knop ingedrukt is gaat hij open. Zo hoort het monster geen wind of geschreeuw van de rest.
 // Animatie: de mond volgt het echte uitgaande volume (getOutputVolume), dus het klopt bij elke zin.
-import { audio, setRecording } from './audio.js?v=6';
+//
+// Walkietalkie-regels (ook in de prompt van de agent, zie MONSTER-AGENT.md):
+//   • Elk bericht eindigt met "over". Zonder "over" antwoordt het monster niet op de vraag, maar vraagt het om "over".
+//   • Ophangen = "over en sluiten". Het monster zegt gedag en de app hangt daarna zelf op.
+//   • Wie op Ophangen tikt zonder "over en sluiten", wordt meteen teruggebeld (één keer; daarna hangt de knop echt op).
+// De begroeting wisselt: de app kiest een zin uit monster-lines.js (walkie.hallo) en stuurt hem mee als {{begroeting}}.
+import { audio, setRecording } from './audio.js?v=7';
 import { SUPABASE_URL, SUPABASE_KEY } from './sync.js';
+import { LINES, NAAM_JARIGE } from './monster-lines.js?v=4';
+import { uitspraak } from './voice.js?v=1';
 
 const SDK = [
   'https://cdn.jsdelivr.net/npm/@elevenlabs/client@1.29.0/dist/lib.iife.js',
@@ -43,10 +51,25 @@ async function getToken() {
   return j.token;
 }
 // Alle waarden als korte tekst: ontbrekende variabelen laten de agent haperen.
+// Namen gaan in uitspraak-spelling mee (Evy → Eevie), zodat de stem ze goed zegt.
+const KEYS = ['begroeting', 'jarige', 'spelers', 'fase', 'stop_naam', 'stop_nummer', 'stops_totaal', 'aanwijzing', 'puzzel_vraag', 'puzzel_hint', 'delen_gevonden', 'delen_nog', 'hints_gebruikt'];
 function vars(ctx = {}) {
-  const keys = ['jarige', 'spelers', 'fase', 'stop_naam', 'stop_nummer', 'stops_totaal', 'aanwijzing', 'puzzel_vraag', 'puzzel_hint', 'delen_gevonden', 'delen_nog', 'hints_gebruikt'];
-  return Object.fromEntries(keys.map(k => [k, String(ctx[k] ?? '').trim() || '-']));
+  return Object.fromEntries(KEYS.map(k => [k, uitspraak(String(ctx[k] ?? '').trim()) || '-']));
 }
+// "Hannah, Elin, Isa" → "Hannah, Elin en Isa"
+function namen(list) { const a = String(list || '').split(/\s*,\s*/).filter(Boolean); return a.length > 1 ? a.slice(0, -1).join(', ') + ' en ' + a[a.length - 1] : a[0] || 'speurders'; }
+const lastGreet = {};
+function greeting(kind, ctx) {
+  const list = LINES.walkie?.[kind] || [];
+  const fresh = list.length > 1 ? list.filter(l => l !== lastGreet[kind]) : list;
+  const l = fresh[Math.floor(Math.random() * fresh.length)] || 'Mecha-Pof hier. Zeg het maar. Over!';
+  lastGreet[kind] = l;
+  return l.replace(/\{spelers\}/g, namen(ctx.spelers)).replace(/\{jarige\}/g, ctx.jarige && ctx.jarige !== 'de jarige' ? ctx.jarige : NAAM_JARIGE);
+}
+// Eindigt dit bericht met "over en sluiten" (of "over en uit")? Spraakherkenning schrijft het soms los of met streepjes.
+const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
+export const saysSluiten = t => /\bover\s*(en\s*)?(sluiten|sluit|uit)$/.test(norm(t));
+export const saysOver = t => /\bover$/.test(norm(t)) || saysSluiten(t);
 
 function injectCss() {
   if (document.getElementById('walkie-css')) return;
@@ -72,6 +95,8 @@ function injectCss() {
 #walkie .wk-ptt.down{transform:translateY(8px) scale(.97);box-shadow:0 2px 0 #8f1f17,0 6px 16px rgba(0,0,0,.5);background:radial-gradient(circle at 50% 35%,#ff9a6c,#ff4a35 70%)}
 #walkie .wk-ptt:disabled{filter:grayscale(.8) brightness(.7)}
 #walkie .wk-ptt small{display:block;font:800 .8rem Nunito,sans-serif;opacity:.85;margin-top:4px}
+#walkie .wk-rules{font:700 .9rem Nunito,sans-serif;color:#BFEFFF;text-align:center;margin:6px 0 12px;opacity:.9}
+#walkie .wk-rules b{color:#7FE8FF}
 #walkie .wk-diag{font:600 .72rem ui-monospace,Menlo,monospace;opacity:.45;text-align:center}
 #walkie .wk-err{color:#FFB4A8;text-align:center;max-width:420px}
 #walkie .wk-retry{margin-top:8px;background:#F2BE62;color:#3A1C06;border:0;border-radius:999px;padding:12px 20px;font:800 1rem Nunito,sans-serif}
@@ -92,8 +117,9 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
   const el = document.createElement('div'); el.id = 'walkie';
   el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Walkietalkie met het Pannenkoekenmonster');
   el.innerHTML = `
-    <div class="wk-top"><span class="wk-led" aria-hidden="true"></span><h2>Monster-walkietalkie</h2><button class="wk-x" data-a="close">Ophangen</button></div>
+    <div class="wk-top"><span class="wk-led" aria-hidden="true"></span><h2>Mecha-Pof · walkietalkie</h2><button class="wk-x" data-a="close">Ophangen</button></div>
     <div class="wk-mid"><div class="mslot" data-size="lg"></div><div class="wk-state" aria-live="polite">Verbinden…</div><div class="wk-said"></div><div class="wk-diag" aria-hidden="true"></div></div>
+    <div class="wk-rules">Eindig met <b>“over”</b> · klaar? Zeg <b>“over en sluiten”</b></div>
     <button class="wk-ptt" disabled aria-label="Houd ingedrukt om te praten">Houd vast<small>om te praten</small></button>`;
   document.body.appendChild(el);
   const $ = s => el.querySelector(s);
@@ -102,6 +128,8 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
 
   const diag = el.querySelector('.wk-diag'); let diagN = 0, conn = 'verbinden';
   let conv = null, closed = false, mode = 'listening', pressing = false, thinkingSince = 0, tailTimer = 0, raf = 0, prevVol = 1;
+  // over en sluiten: ending = kind zei het, het monster zegt nog gedag; daarna ophangen. calledBack = al een keer teruggebeld.
+  let sessId = 0, ending = false, endSpoke = false, endTimer = 0, everConnected = false, calledBack = false, callbackMode = false;
   const setState = t => { stateEl.textContent = t; };
 
   // ---- elk frame: fase + volumes naar het monster
@@ -157,6 +185,7 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
   const onKey = e => { if (e.code === 'Space' && !e.repeat) { e.type === 'keydown' ? down(e) : up(e); } };
   addEventListener('keydown', onKey); addEventListener('keyup', onKey);
   el.addEventListener('click', e => { const a = e.target.closest('[data-a]')?.dataset.a; if (a === 'close') close(); if (a === 'retry') { connect(); } });
+  // (close() zonder force belt terug als er niet met "over en sluiten" is afgesloten; zie callBack())
 
   // ---- verbinden
   async function connect() {
@@ -167,32 +196,45 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
       const [El, token] = await Promise.all([loadSdk(), getToken()]);
       if (closed) return;
       setRecording(true);
+      const id = ++sessId; ending = false; endSpoke = false;
+      const live = () => id === sessId; // oude sessie (na terugbellen) mag niets meer doen
+      const ctx = context() || {};
+      const begroeting = greeting(callbackMode ? 'terugbel' : 'hallo', ctx);
       conv = await El.Conversation.startSession({
         conversationToken: token,
         connectionType: 'webrtc',
-        dynamicVariables: vars(context()),
+        dynamicVariables: vars({ ...ctx, begroeting }),
         useWakeLock: true,
         onConnect: () => { led.className = 'wk-led on'; conn = 'verbonden'; },
         onStatusChange: ({ status }) => { conn = status; },
         onModeChange: ({ mode: m }) => {
+          if (!live()) return;
           mode = m;
+          if (ending) { if (m === 'speaking') endSpoke = true; else if (endSpoke) { clearTimeout(endTimer); endTimer = setTimeout(() => close({ force: true }), 700); } }
           if (closed || pressing) return;
-          if (m === 'speaking') setState('🥞 Het monster praat…');
+          if (m === 'speaking') setState('🤖 Mecha-Pof praat…');
           else if (!thinkingSince) setState('Houd de knop vast om iets te zeggen');
         },
         onMessage: ({ source, message }) => {
-          if (source === 'user' && message) said.textContent = '“' + message + '”';
-          if ((source === 'ai' || source === 'agent') && message) said.textContent = message.replace(/\[[^\]]{1,30}\]\s*/g, '').trim(); // stemregie zoals [playful] niet tonen
+          if (!live()) return;
+          if (source === 'user' && message) {
+            said.textContent = '“' + message + '”';
+            if (saysSluiten(message) && !ending) { // netjes afgesloten: monster zegt gedag, dan hangen we op
+              ending = true; endSpoke = false; ptt.disabled = true; setState('👋 Over en sluiten…');
+              clearTimeout(endTimer); endTimer = setTimeout(() => close({ force: true }), 9000); // vangnet als er geen gedag komt
+            }
+          }
+          if ((source === 'ai' || source === 'agent') && message) said.textContent = message.replace(/\[[^\]]{1,30}\]\s*/g, '').replace(/\bEevie\b/g, 'Evy').replace(/\bMekka-Pof\b/g, 'Mecha-Pof').trim(); // stemregie zoals [playful] niet tonen; namen weer in gewone spelling
         },
         onError: (msg) => { console.warn('[walkie]', msg); conn = 'fout: ' + String(msg).slice(0, 60); },
-        onDisconnect: () => { if (!closed) fail('De verbinding is verbroken.'); },
+        onDisconnect: () => { if (!live() || closed || ending || switching) return; fail('De verbinding is verbroken.'); },
       });
       if (closed) { try { await conv.endSession(); } catch {} return; }
       try { conv.setMicMuted(true); } catch {}
       kickPlayback(conv); setTimeout(() => kickPlayback(conv), 800);
       el.addEventListener('pointerdown', () => kickPlayback(conv), { capture: true });
-      ptt.disabled = false; led.className = 'wk-led on';
-      setState('Het monster neemt op…');
+      ptt.disabled = false; led.className = 'wk-led on'; everConnected = true;
+      setState(callbackMode ? '📞 Mecha-Pof belt terug…' : 'Mecha-Pof neemt op…');
       thinkingSince = performance.now(); // het eerste bericht (begroeting) komt vanzelf
     } catch (err) {
       fail(err?.message || String(err));
@@ -205,8 +247,24 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
     $('.wk-mid').insertAdjacentHTML('beforeend', `<p class="wk-err">${m.replace(/[<>&]/g, '')}</p><button class="wk-retry" data-a="retry">Opnieuw proberen</button>`);
   }
 
-  async function close() {
-    if (closed) return; closed = true;
+  // Ophangen zonder "over en sluiten": meteen terugbellen (één keer). De tweede keer hangt de knop echt op.
+  let switching = false;
+  async function callBack() {
+    calledBack = true; callbackMode = true; switching = true; sessId++;
+    const c = conv; conv = null; thinkingSince = 0; pressing = false; ptt.classList.remove('down');
+    try { await c?.endSession(); } catch {}
+    switching = false;
+    if (closed) return;
+    ptt.disabled = true; led.className = 'wk-led tx';
+    setState('📞 Tring tring… Mecha-Pof belt terug!'); said.textContent = 'Ophangen doe je met “over en sluiten”.';
+    audio.play('bel'); audio.buzz([200, 120, 200]);
+    setTimeout(() => { if (!closed) { audio.play('bel'); audio.buzz([200, 120, 200]); } }, 1100);
+    setTimeout(() => { if (!closed) connect(); }, 1900);
+  }
+  async function close({ force = false } = {}) {
+    if (closed) return;
+    if (!force && !ending && everConnected && !calledBack && conv) { callBack(); return; }
+    closed = true; clearTimeout(endTimer);
     cancelAnimationFrame(raf); clearTimeout(tailTimer);
     removeEventListener('keydown', onKey); removeEventListener('keyup', onKey);
     mon?.live(null);
@@ -221,7 +279,7 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
   raf = requestAnimationFrame(frame);
   return {
     update(text) { try { conv?.sendContextualUpdate(String(text)); } catch {} },
-    close,
+    close: () => close({ force: true }), // de app zelf (bijv. bij een nieuw scherm) hangt altijd echt op
     get open() { return !closed; },
   };
 }

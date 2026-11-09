@@ -69,7 +69,7 @@ textarea{min-height:70px}
 
   <section>
     <h2>Praten</h2>
-    <textarea id="text">Zes speurders? Ik heb wel eens slimmere pannenkoeken gezien. Bewijs maar dat ik ongelijk heb.</textarea>
+    <textarea id="text">Bzzzt. Hallo Hannah, Elin, Isa, Evy, Lauren en Julia! Mecha-Pof hier. Mijn stroopmeter staat in het rood.</textarea>
     <div class="row" style="margin-top:8px"><button id="sayv">🗣️ Zeg met stem</button><button id="sayb" class="alt">💬 Alleen ballon</button></div>
     <div class="row" style="margin-top:8px">
       <select id="sit" style="flex:1"></select><button id="sayl" class="alt">Zin uit de lijst</button>
@@ -79,7 +79,15 @@ textarea{min-height:70px}
   </section>
 
   <section>
-    <h2>Stem kiezen (dit toestel)</h2>
+    <h2>Robotstem (ElevenLabs)</h2>
+    <p class="note">Alles wat het monster zegt, gaat met de stem van Mecha-Pof. Elke zin wordt één keer opgenomen en bewaard (Supabase, bucket <code>monster/tts</code>); daarna speelt hij meteen. Lukt het niet (geen internet), dan praat de telefoon zelf (stem hieronder).</p>
+    <label class="chk"><input type="checkbox" id="elon"> Robotstem aan op dit toestel</label>
+    <div class="row" style="margin-top:8px"><button id="prewarm">🎙️ Neem alle vaste zinnen op</button></div>
+    <p class="note" id="prestat"></p>
+  </section>
+
+  <section>
+    <h2>Telefoonstem (reserve, dit toestel)</h2>
     <p class="note">Kies op de telefoon die hardop praat. Automatisch = beste Nederlandse stem, naar het midden tussen man en vrouw geschoven. Tip iPhone: download bij Instellingen → Toegankelijkheid → Gesproken materiaal → Stemmen → Nederlands een "Verbeterde" of "Premium" stem; die klinkt veel minder robot.</p>
     <select id="vsel" style="width:100%"></select>
     <label class="note" style="display:block;margin-top:8px">Toonhoogte <b id="vpo"></b><input type="range" id="vp" min="0.5" max="1.6" step="0.05" style="width:100%"></label>
@@ -116,10 +124,11 @@ textarea{min-height:70px}
   </section>
 </main>
 <script type="module">
-import { createMonster, monsterImage, ready, PART_KEYS, MOODS, speechStatus, dutchVoices, middlePitch, setVoicePref, getVoicePref, VOICE_DEFAULT } from '../js/monster.js?v=7';
-import { audio } from '../js/audio.js?v=6';
-import { openWalkie } from '../js/walkie.js?v=7';
-import { LINES } from '../js/monster-lines.js?v=3';
+import { createMonster, monsterImage, ready, PART_KEYS, MOODS, speechStatus, dutchVoices, middlePitch, setVoicePref, getVoicePref, VOICE_DEFAULT } from '../js/monster.js?v=8';
+import { audio } from '../js/audio.js?v=7';
+import { openWalkie } from '../js/walkie.js?v=8';
+import { LINES } from '../js/monster-lines.js?v=4';
+import { voice } from '../js/voice.js?v=1';
 
 const $ = s => document.querySelector(s);
 const ICON = { lijf: '🥞', ogen: '🫐', neus: '🍓', mond: '🍯', armen: '🥓', benen: '🍌', hoed: '🧈' };
@@ -158,10 +167,33 @@ moodBtns[1].classList.add('on');
 $('#sayv').onclick = () => mon.say($('#text').value, { voice: true }).then(ok => status('say klaar: ' + ok));
 $('#sayb').onclick = () => mon.say($('#text').value, { voice: false }).then(ok => status('say klaar: ' + ok));
 for (const k of Object.keys(LINES)) {
+  if (k === 'walkie') continue; // walkiezinnen zegt de agent zelf
   if (k === 'deel' || k === 'finaleHints') for (const sub of Object.keys(LINES[k])) $('#sit').add(new Option(`${k} · ${sub}`, `${k}|${sub}`));
   else $('#sit').add(new Option(k, k));
 }
 $('#sayl').onclick = () => { const [sit, sub] = $('#sit').value.split('|'); mon.line(sit, sub); };
+// robotstem: aan/uit en alle vaste zinnen vooraf opnemen
+$('#elon').checked = voice.enabled();
+$('#elon').onchange = e => { voice.setEnabled(e.target.checked); status('robotstem ' + (e.target.checked ? 'aan' : 'uit')); };
+const WOORDEN = ['nul', 'een', 'twee', 'drie', 'vier', 'vijf', 'zes', 'zeven', 'acht', 'negen', 'tien'];
+function allLines() {
+  const j = $('#jarige').value || 'Hannah', out = [];
+  const add = l => {
+    if (l.includes('{Hints}') || l.includes('{hints}')) { for (let n = 2; n <= 8; n++) add(l.replace(/\{Hints\}/g, WOORDEN[n][0].toUpperCase() + WOORDEN[n].slice(1)).replace(/\{hints\}/g, WOORDEN[n])); return; }
+    out.push(l.replace(/\{jarige\}|\{naam\}/g, j));
+  };
+  const walk = v => Array.isArray(v) ? v.forEach(add) : v && typeof v === 'object' && Object.values(v).forEach(walk);
+  for (const [k, v] of Object.entries(LINES)) if (k !== 'walkie') walk(v);
+  // vaste zinnen uit index.html
+  ['Ik heb de rollen geschud. Kijk maar eens wat je nu kunt.', 'Eén telefoon is in slaap gevallen. Ik verdeel de talenten opnieuw.'].forEach(add);
+  return out;
+}
+$('#prewarm').onclick = async () => {
+  $('#prewarm').disabled = true;
+  const r = await voice.prewarm(allLines(), (i, n, t, ok) => { $('#prestat').textContent = `${i}/${n} ${ok ? '✓' : '✗'} ${t}`; });
+  $('#prestat').textContent = `Klaar: ${r.ok} van ${r.total} zinnen staan klaar.` + (r.ok < r.total ? ' Sommige mislukten; kijk in de console of probeer later opnieuw.' : '');
+  $('#prewarm').disabled = false;
+};
 // react
 for (const r of ['start', 'goed', 'fout', 'hint', 'tik']) { const b = btn(r, 'alt'); b.onclick = () => mon.react(r); $('#reacts').appendChild(b); }
 // grootte
@@ -219,7 +251,7 @@ $('#walkie').onclick = () => {
     jarige: $('#jarige').value || 'Hannah', spelers: 'Hannah, Elin, Isa, Evy, Lauren, Julia', fase: 'bij een puzzel',
     stop_naam: 'De speeltuin', stop_nummer: 2, stops_totaal: 7, aanwijzing: 'Zoek de plek waar je het hoogst kunt klimmen.',
     puzzel_vraag: 'Hoeveel letters heeft het woord PANNENKOEKENMONSTER?', puzzel_hint: 'Tel de letters één voor één, met je vinger erbij.',
-    delen_gevonden: 'de pannenkoekenstapel (het lijf)', delen_nog: 'de bosbessenogen, de aardbeienneus, de stroopgrijns, de spekarmen, de bananenbenen, het boterhoedje', hints_gebruikt: 1,
+    delen_gevonden: 'het pannenkoekenpantser', delen_nog: 'de ledogen in de koekenpanhelm, de aardbei-knop, het luidsprekerrooster, de spatel en de garde, de zuigerbenen, de boterknop en de stroop-jetpack', hints_gebruikt: 1,
   }) });
 };
 let frames = 0, t0 = performance.now();
