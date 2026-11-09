@@ -277,6 +277,8 @@ stops gaat er nog steeds niet in.
 stops_totaal, aanwijzing, puzzel_vraag, puzzel_hint, delen_gevonden, delen_nog, hints_gebruikt, wachtwoord, talenten` (talenten: chat 7, voor de voorstelronde). Het puzzelantwoord gaat er
 bewust níet in; `wachtwoord` alleen op een wachtwoordstop (type `wachtwoord`), anders `-`.
 
+**Eerste zin zonder onderbreking (9 nov).** In elk gesprek blijft de microfoon dicht (praatknop uit, "🤫 Luister eerst") tot Mecha-Pof zijn openingszin af heeft (0,9 s stil na `speaking`); dan een piepje en "Jullie beurt". Vangnet: vrij na 12 s als hij niet begint, na 60 s altijd.
+
 **Inkomende oproepen (chat 5).** Bij `stop.arrived` belt Mecha-Pof zelf de radiotelefoon met de briefing van het onderdeel van die plek
 (`walkie.briefing.<deel>`) als `{{begroeting}}`; de aankomstzin uit monster-lines zwijgt dan. Bij `monster.call {player_id, message_id, text?}`
 (regie.html → Mecha-Pof → Bel) belt hij met `text` (met `{naam}`) of een zin uit `walkie.oproep`; is de speelster op een andere telefoon,
