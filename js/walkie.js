@@ -6,7 +6,8 @@
 //                             zelf en onderbreekt zichzelf als jij begint. De grote knop is dan een microfoon aan/uit-knop.
 //
 // Contract:
-//   openWalkie({ mon, context, onClose, greeting?, tools?, incoming? }) → { update(text), close(), open }
+//   openWalkie({ mon, context, onClose, greeting?, tools?, incoming?, zeg? }) → { update(text), close(), open }
+//     zeg      vast antwoord dat groot in beeld staat (briefing bij aankomst: "Begrepen, over en sluiten")
 //     mon      het monster uit monster.js (de walkie hangt mon.el in zijn eigen .mslot en roept elk frame mon.live() aan)
 //     context  () → { jarige, spelers, ... }  spelstand voor de agent (dynamic variables, zie MONSTER-AGENT.md)
 //     onClose  wordt aangeroepen na het ophangen (index.html hangt het monster dan terug)
@@ -14,7 +15,8 @@
 //     tools    { naam: async (params) → string }  client tools van de agent (ElevenLabs "Client" tools, bijv. unlock_stop); de sleutel is de toolnaam
 //     incoming true = het gesprek begon met een oproep van Mecha-Pof (andere statustekst)
 //   update(text)  vertel de agent iets dat net gebeurde (bijv. "Ze hebben de neus gevonden"), zonder dat het monster hoeft te antwoorden
-//   incomingCall({ mon, context, greeting, title?, sub?, tools?, timeout?, onAnswer?, onMissed?, onClose? }) → { close(), open }
+//   incomingCall({ mon, context, greeting, title?, sub?, tools?, timeout?, zeg?, gemist?, onAnswer?, onMissed?, onClose? }) → { close(), open }
+//     gemist   tekst die de app zelf zegt als niemand opneemt (zonder 'zeg dan …'); anders greeting
 //     De radiotelefoon gaat over (belgeluid + trillen, knop Opnemen). Opnemen = openWalkie met `greeting` als {{begroeting}}.
 //     Niet opgenomen binnen `timeout` ms (40 s) → onMissed(greeting): index.html laat Mecha-Pof de tekst dan zelf zeggen.
 //
@@ -32,7 +34,7 @@
 // De begroeting wisselt: de app kiest een zin uit monster-lines.js (walkie.hallo) en stuurt hem mee als {{begroeting}}.
 import { audio, setRecording } from './audio.js?v=9';
 import { SUPABASE_URL, SUPABASE_KEY } from './sync.js';
-import { LINES, NAAM_JARIGE } from './monster-lines.js?v=7';
+import { LINES, NAAM_JARIGE } from './monster-lines.js?v=8';
 import { uitspraak } from './voice.js?v=3';
 
 const SDK = [
@@ -87,10 +89,20 @@ function greeting(kind, ctx) {
 }
 /** Openingszin voor een oproep van Mecha-Pof: de briefing van een onderdeel (walkie.briefing.<deel>), of een algemene
     oproepzin (walkie.oproep, met {naam}). Voor index.html en de testpagina. */
-export function callGreeting({ part, naam, text } = {}) {
+export function callGreeting({ part, naam, text, type } = {}) {
   if (text) return fillGreeting(text, { naam });
-  if (part && LINES.walkie?.briefing?.[part]?.length) { const l = LINES.walkie.briefing[part]; return fillGreeting(l[Math.floor(Math.random() * l.length)], { naam }); }
+  if (part && LINES.walkie?.briefing?.[part]?.length) return arrivalCall({ part, type, naam }).greeting;
   return greeting('oproep', { naam });
+}
+/** Oproep bij aankomst: briefing van het onderdeel + een duidelijk slot (walkie.briefingSlot): wat ze nu moeten doen en wat ze
+    terugzeggen. type = puzzeltype van de stop ('wachtwoord' krijgt een eigen slot), part 'hoed' = thuis.
+    → { greeting (zin voor de walkie), zeg (staat groot in beeld), gemist (wat de app zelf zegt als niemand opneemt) } */
+export function arrivalCall({ part, type, naam } = {}) {
+  const list = LINES.walkie?.briefing?.[part] || LINES.walkie?.briefing?.bonus || [];
+  const body = fillGreeting(list[Math.floor(Math.random() * list.length)] || 'Bzzzt! Mecha-Pof hier. Jullie zijn er!', { naam });
+  const slots = LINES.walkie?.briefingSlot || {};
+  const slot = (part === 'hoed' && slots.hoed) || (type === 'wachtwoord' && slots.wachtwoord) || slots.werkbank || { tekst: 'Begrepen? Zeg dan: begrepen, over en sluiten. Over!', zeg: 'Begrepen, over en sluiten', gemist: '' };
+  return { greeting: body + ' ' + slot.tekst, zeg: slot.zeg, gemist: (body + ' ' + (slot.gemist || '')).trim() };
 }
 // Eindigt dit bericht met "over en sluiten" (of "over en uit")? Spraakherkenning schrijft het soms los of met streepjes.
 const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -213,7 +225,7 @@ function kickPlayback(conv, unmute = true) {
 }
 const fmtTime = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
 
-export function openWalkie({ mon, context = () => ({}), onClose, greeting: firstGreeting = null, tools = null, incoming = false } = {}) {
+export function openWalkie({ mon, context = () => ({}), onClose, greeting: firstGreeting = null, tools = null, incoming = false, zeg = '' } = {}) {
   injectCss();
   document.querySelector('#walkie[role=dialog]')?.remove(); document.getElementById('wk-ring')?.remove(); // (niet de knop #walkie van test/monster.html)
   const el = document.createElement('div'); el.id = 'walkie';
@@ -273,7 +285,8 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
       ptt.innerHTML = 'Houd vast<small>om te praten</small>';
       ptt.setAttribute('aria-label', 'Houd ingedrukt om te praten');
     }
-    $('.wk-rules').innerHTML = o ? 'Gewoon praten · eindig met <b>“over”</b> · klaar? <b>“over en sluiten”</b>' : 'Eindig met <b>“over”</b> · klaar? Zeg <b>“over en sluiten”</b>';
+    $('.wk-rules').innerHTML = zeg ? `Zeg nu: <b>“${String(zeg).replace(/[<>&]/g, '')}”</b>` // oproep met een vast antwoord (briefing bij aankomst)
+      : o ? 'Gewoon praten · eindig met <b>“over”</b> · klaar? <b>“over en sluiten”</b>' : 'Eindig met <b>“over”</b> · klaar? Zeg <b>“over en sluiten”</b>';
     if (conv && !ending) {
       if (o) { try { conv.setMicMuted(!micOn); } catch {} duck(false); setState(micOn ? '🎧 De lijn staat open. Praat maar!' : 'Tik op de knop om je microfoon aan te zetten'); }
       else { pressing = false; clearTimeout(tailTimer); try { conv.setMicMuted(true); } catch {} duck(false); setState('Houd de knop vast om iets te zeggen'); }
@@ -489,7 +502,7 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
 // Mecha-Pof wiebelt in beeld, grote knop Opnemen. Opnemen → openWalkie met `greeting` als {{begroeting}}.
 // Later → onClose(); niets gezegd. Niet opgenomen binnen `timeout` → onMissed(greeting): de app zegt de tekst dan zelf.
 const RING_MS = 1700;
-export function incomingCall({ mon, context = () => ({}), greeting: text, title = 'Mecha-Pof belt!', sub = '', tools = null, timeout = 40_000, onAnswer, onMissed, onClose } = {}) {
+export function incomingCall({ mon, context = () => ({}), greeting: text, title = 'Mecha-Pof belt!', sub = '', tools = null, timeout = 40_000, zeg = '', gemist = '', onAnswer, onMissed, onClose } = {}) {
   injectCss();
   document.getElementById('wk-ring')?.remove();
   if (document.querySelector('#walkie[role=dialog]')) { // de walkie is al open: niet bellen (index.html geeft de tekst dan als context mee)
@@ -511,14 +524,14 @@ export function incomingCall({ mon, context = () => ({}), greeting: text, title 
   let closed = false, answered = false;
   const ring = () => { if (closed) return; audio.play('bel'); audio.buzz([220, 120, 220]); };
   ring(); const ringTimer = setInterval(ring, RING_MS);
-  const missTimer = setTimeout(() => { if (!closed) { finish(); onMissed?.(text); } }, timeout);
+  const missTimer = setTimeout(() => { if (!closed) { finish(); onMissed?.(gemist || text); } }, timeout); // gemist: zonder 'zeg dan …', want er luistert niemand
   function finish() { if (closed) return; closed = true; clearInterval(ringTimer); clearTimeout(missTimer); el.remove(); }
   el.addEventListener('click', e => {
     const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
     if (a === 'later') { finish(); onClose?.(); }
     if (a === 'answer') {
       answered = true; finish(); audio.play('zend');
-      const w = openWalkie({ mon, context, greeting: text, tools, incoming: true, onClose });
+      const w = openWalkie({ mon, context, greeting: text, tools, incoming: true, zeg, onClose });
       onAnswer?.(w);
     }
   });

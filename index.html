@@ -246,7 +246,7 @@ import { createMap } from './js/map.js?v=5'; // ?v ophogen bij elke wijziging: G
 import { createMonster, monsterImage, lineText } from './js/monster.js?v=14'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
 import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole } from './js/roles.js?v=1'; // radio / kaart / werkbank, roterend per stop
 import { createInstall } from './js/install.js?v=2'; // installatieritueel: monteur schudt, deel klikt vast
-import { openWalkie, incomingCall, callGreeting } from './js/walkie.js?v=14'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
+import { openWalkie, incomingCall, callGreeting, arrivalCall } from './js/walkie.js?v=15'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
 import { createNavVoice } from './js/navvoice.js?v=1'; // gesproken navigatie zodra de LED-ogen terug zijn (radiotelefoon)
 import { createSurprises } from './js/surprises.js?v=2'; // Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens
 import { audio } from './js/audio.js?v=9'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
@@ -432,11 +432,11 @@ function startWalkie() {
    walkie.oproep met {naam}. Is de walkie al open, dan krijgt de agent de tekst als context. Niet opgenomen (40 s) → Mecha-Pof zegt de tekst zelf. */
 const seenCalls = new Set();
 const callRinging = () => !!ring?.open;
-function ringCall({ greeting, title = 'Mecha-Pof belt!', sub = '' }) {
+function ringCall({ greeting, title = 'Mecha-Pof belt!', sub = '', zeg = '', gemist = '' }) {
   if (!greeting || !sync.isLoggedIn() || !hasRole('radio')) return false;
   if (walkie?.open) { walkie.update(greeting); return true; }
   if (ring?.open) ring.close();
-  ring = incomingCall({ mon, context: walkieContext, greeting, title, sub, tools: walkieTools(),
+  ring = incomingCall({ mon, context: walkieContext, greeting, title, sub, zeg, gemist, tools: walkieTools(),
     onAnswer: w => { walkie = w; ring = null; },
     onMissed: text => { ring = null; placeMonster(); toast('📵 Gemiste oproep van Mecha-Pof'); say(text, { ms: 14000 }); },
     onClose: () => { ring = null; placeMonster(); } });
@@ -444,7 +444,9 @@ function ringCall({ greeting, title = 'Mecha-Pof belt!', sub = '' }) {
 }
 router.on('stop.arrived', p => {
   const st = state.stop(p.stop_id); if (!st) return;
-  setTimeout(() => { if (state.activeStop()?.id === st.id) ringCall({ greeting: callGreeting({ part: st.part || 'bonus' }), sub: `Signaal van ${st.name}` }); }, 300); // vóór de aankomstzin van monster.js (600 ms), die dan zwijgt
+  const cfg = st.puzzles?.[S().puzzle?.stop_id === st.id ? S().puzzle.variant ?? 0 : 0] || st.puzzles?.[0] || {};
+  const call = arrivalCall({ part: st.part || 'bonus', type: cfg.type }); // briefing + duidelijk slot: wat nu, en wat ze terugzeggen
+  setTimeout(() => { if (state.activeStop()?.id === st.id) ringCall({ ...call, sub: `Signaal van ${st.name}` }); }, 300); // vóór de aankomstzin van monster.js (600 ms), die dan zwijgt
 });
 router.on('monster.call', p => {
   if (!p.message_id || seenCalls.has(p.message_id)) return; seenCalls.add(p.message_id);
