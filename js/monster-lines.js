@@ -23,11 +23,125 @@ export const NAAM_JARIGE = 'Hannah';
 export const LINES = {
   // Het spel begint en het monster wordt wakker.
   start: [
-    'Bzzzt. Systeem opgestart. Waar is de rest van mij? O nee. Overal verspreid. Zoek mijn onderdelen. Als je durft.',
-    'Goedemorgen, speurders! Mijn vizier, mijn spatel, mijn jetpack: allemaal kwijt. Aan de slag!',
-    'Zes speurders gedetecteerd. Slimheid: onbekend. Bewijs maar dat jullie slimmer zijn dan een broodrooster.',
-    '{jarige}, jij bent jarig, dus jij mag vooroplopen. Ik kijk mee. Zodra ik weer ogen heb.',
+    'Bzzzt. Systeem opgestart. Processor: aan. Radio: aan. De rest van mij: kwijt. Reparatieteam, aan de slag!',
+    'Piep! Zes monteurs gedetecteerd. Ik had om zeven gevraagd, maar goed. Zoek mijn onderdelen. Alle zeven.',
+    'Hier spreekt Mecha-Pof. Of wat er van mij over is. Een praatdoos met een stroopvlek. Help me, alsjeblieft. Een beetje snel.',
+    '{jarige}, ik wilde voor jou de perfecte verjaardagspannenkoek bakken. Toen ontplofte ik. Lang verhaal. Ga maar zoeken.',
+    'Reparatieteam, luister. Mijn stroopmeter staat in het rood en mijn jetpack is op hol geslagen. Zet mij weer in elkaar, dan bak ik pannenkoeken. Beloofd. Bliep.',
   ],
+
+  // Een onderdeel is net vastgeklikt (na het installatieritueel). Per deel: welk vermogen hij terugkrijgt.
+  installatie: {
+    lijf: [
+      'Pantser vastgeklikt. Klik, klak, klonk. Ik sta! Wankel, maar ik sta. Jullie kunnen mij nu zien, als hologram. Zwaai maar. Bliep.',
+      'Pannenkoekenpantser gemonteerd. Vier lagen, zestien klinknagels, nul kruimels. Ik voel me weer een echte robot.',
+    ],
+    ogen: [
+      'Vizier online. Ik kan weer zien! O. Jullie zijn kleiner dan ik dacht. Vanaf nu zeg ik hoe ver het nog is. Warmer, kouder. Let op mijn radio.',
+      'LED-ogen aan. Scannen links, scannen rechts. Gevonden: zes speurders en een kat die mij raar aankijkt. Ik help jullie nu navigeren.',
+    ],
+    neus: [
+      'Aardbei-knop erin. Snuif, snuif. Ik ruik weer! Ik ruik stroop, ik ruik modder, en ik ruik... hints. Vanaf nu mag je mij om een hint vragen.',
+      'Neus gemonteerd. Niet op drukken, dan nies ik stoom. Mijn hintsensor werkt weer. Vraag maar, als jullie vastzitten.',
+    ],
+    mond: [
+      'Test, test, één twee. Luidspreker werkt! Nu kan ik alarm slaan als er iets geks gebeurt. En ik kan weer brutaal zijn. Daar heb ik zin in.',
+      'Rooster vastgeschroefd. Eindelijk geen theezeefstem meer. Pas op, speurders: ik heb weer heel veel te zeggen.',
+    ],
+    armen: [
+      'Spatel links, garde rechts. Ik kan weer vastpakken! Als iemand een onderdeel van mij pikt, pak ik het gewoon terug. Hup.',
+      'Armen erop. Even testen: zwaai, draai, klop. Perfect. Klaar om pannenkoeken om te draaien. En om mijn spullen terug te grijpen.',
+    ],
+    benen: [
+      'Zuigers ingeplugd. Pssst, pssst. Ik kan weer lopen! Kijk op de kaart, daar loop ik nu met jullie mee. Op mijn pannetjes.',
+      'Benen geïnstalleerd. Pomp, pomp, pomp. Vanaf nu loop ik mee. Maar mijn jetpack wordt warm, dus de klok tikt. Snel naar huis!',
+    ],
+    hoed: [
+      'Boterknop ingedrukt. Jetpack: ontsteking. Drie, twee, één... ik zweef! Ik vlieg! Kijk mij eens! Bliep bliep bliep!',
+    ],
+  },
+
+  // Alle zeven delen zitten vast: de aankondiging van Mega-Mecha-Pof (fase klaar). In stukjes, zodat het spannend blijft.
+  mega: [
+    'Systeemcontrole. Pantser: check. Ogen: check. Neus: check. Mond: check. Spatel en garde: check. Benen: check. Jetpack: check.',
+    'Stroopmeter... honger... nee wacht. De wijzer gaat voorbij honger. Voorbij heel veel honger. Hij staat op... MEGA.',
+    'Krrrrr... bzzzzt... BLIEP! Dames en heren, speurders en de jarige: hier is hij. Groter, sterker, plakkeriger. MEGA-MECHA-POF!',
+  ],
+
+  // Het verjaardagsvers voor de finale. Mecha-Pof zegt het in één keer (eigen vers, geen bestaand lied).
+  vers: [
+    'Bzzzt, mijn lampjes knipperen rood en goud, want {jarige} is vandaag tien jaar oud! Mijn garde draait, mijn spatel zwaait in het rond, de stroop loopt bijna uit mijn luidsprekermond. Zes speurders zochten mij bij elkaar, stuk voor stuk, van pantser tot jetpack: wat een reuzengeluk. Dus hiep hiep hoera, en een piep piep erbij: voor {jarige} de grootste pannenkoek. Van mij!',
+  ],
+
+  // ---------------------------------------------------------------- verrassingen (zie MECHA-POF-SPEL.md)
+  // De Kruimelaar: een klein kruimelrobotje pikt een onderdeel en rent ermee weg (thief.*).
+  kruimelaar: {
+    start: [
+      'Alarm! Alarm! Een kruimelrobot! Het is de Kruimelaar. Hij heeft een onderdeel van mij gepikt. Kijk op de kaart, achter hem aan!',
+      'Bzzzt! Iets kriebelt aan mijn bouten. De Kruimelaar! Dat kleine stofzuigertje rent weg met mijn onderdeel. Pak hem!',
+    ],
+    sprong: [
+      'Hij is gesprongen! Kijk op de kaart, hij zit nu ergens anders. Wat een kruimelaar.',
+      'Piep, hij glipt weg. Hij is klein en snel. Maar jullie zijn slimmer.',
+    ],
+    gevangen: [
+      'Gevangen! Hup, spatel erin, onderdeel eruit. Sorry Kruimelaar, ga maar ergens anders kruimels zoeken.',
+      'Ha! Mijn garde heeft hem te pakken. Onderdeel terug. Kruimelaar, foei. Jullie: heel goed.',
+    ],
+    weg: [
+      'Hij is ontsnapt met zijn kruimelstaartje. Geeft niks, ik heb dat onderdeel nog in mijn reservelaatje. Doorlopen!',
+    ],
+  },
+  // Kortsluiting: 30 tellen zo snel mogelijk vonken wegtikken op alle telefoons (storm.*).
+  kortsluiting: {
+    start: [
+      'Krrrzzzt! Kortsluiting! Er springen vonken uit mijn draadjes. Tik ze weg, allemaal tegelijk, snel snel snel!',
+      'Bliep blap blop! Mijn stroop is in mijn stopcontact gelopen. Vonken! Tikken, speurders, tikken!',
+    ],
+    eind: [
+      'Pfffff. Alle vonken gedoofd. Mijn draadjes ruiken een beetje naar geroosterde pannenkoek, maar ik leef nog.',
+      'Kortsluiting opgelost. Teamwerk! Ik doe alsof ik niet onder de indruk ben. Lukt niet.',
+    ],
+  },
+  // Dubbel signaal: twee kanten op, de telefoons stemmen (fork.*).
+  dubbelSignaal: {
+    start: [
+      'Bliep? Ik ontvang twee signalen tegelijk. Mijn processor wil twee kanten op. Kies jij maar, ik word er duizelig van. Stem per telefoon!',
+      'Krrr, dubbel signaal! Links of rechts? Pannenkoek of poffertje? Stem snel, voordat mijn antenne in de knoop raakt.',
+    ],
+    uitslag: [
+      'De stemmen zijn geteld. Mijn processor kiest... wat jullie kozen. Natuurlijk. Ik ben een democratische robot.',
+      'Besluit genomen! Signaal opgeslagen. Die kant op, Reparatieteam.',
+    ],
+  },
+  // Jetpack oververhit: de finaletimer tikt (finale.timer).
+  oververhit: {
+    start: [
+      'Waarschuwing! Mijn jetpack wordt heet. Heel heet. Pannenkoek-in-de-pan-heet. Snel naar huis, voordat ik ga sissen!',
+      'Piep piep piep! Temperatuur stijgt. Ik moet thuis afkoelen. Rennen hoeft niet, stevig doorlopen wel!',
+    ],
+    bijna: [
+      'Nog maar even! Ik begin te sissen. Sssssst. Dat was ik, niet een slang.',
+    ],
+    gered: [
+      'Pfffoe. Thuis. Jetpack koelt af. Jullie hebben mij gered van een gesmolten bodem.',
+    ],
+  },
+  // Verjaardagswens: alleen de jarige, één keer (wish.used).
+  wens: {
+    gebruikt: [
+      'Bliep! {jarige} doet een verjaardagswens. Dat mag maar één keer per jaar, en vandaag is het zover. Wens toegestaan!',
+    ],
+    overslaan: [
+      'Wens vervuld: deze puzzel slaan we over. Niet verder vertellen aan de andere keukenrobots.',
+    ],
+    hint: [
+      'Wens vervuld: een gratis hint. Zonder dat het in mijn logboek komt. Speciaal voor de jarige.',
+    ],
+    dansje: [
+      'Wens vervuld: een dansje! Spatel omhoog, garde rondjes, zuigers op en neer. Robotdans! Doe maar mee!',
+    ],
+  },
 
   // Ze zijn bij een plek aangekomen.
   aankomst: [
@@ -163,6 +277,31 @@ export const LINES = {
       'Piep piep, ik bel terug! Jullie hingen op zonder over en sluiten. Dat mag niet van de robotregels. Zeg aan het eind van een bericht over, en als je klaar bent: over en sluiten. Over!',
       'Krrr, verbinding hersteld. Afspraak is afspraak, speurders: na elk bericht zeg je over, en om op te hangen zeg je over en sluiten. Nu jullie. Over!',
     ],
+    // Briefing als ze bij een plek aankomen: Mecha-Pof belt zelf en zegt welk onderdeel hier ligt en wie de monteur is.
+    // Wordt als begroeting meegestuurd (stop.arrived), per deel van de stop.
+    briefing: {
+      lijf: [
+        'Krrrk, piep! Signaal sterk. Hier ergens ligt mijn pannenkoekenpantser. Vier lagen, met klinknagels. Zonder lijf ben ik maar een pratend doosje. Dit is de eerste klus, dus iedereen helpt mee. Lukt het, dan kunnen jullie mij eindelijk zien. Over!',
+      ],
+      ogen: [
+        'Bzzzt, Mecha-Pof hier. Alles is zwart. Ik heb net sorry gezegd tegen een lantaarnpaal. Mijn LED-ogen liggen bij deze plek. Speurneus, jij bent de monteur. Krijg ik ze terug, dan zeg ik voortaan hoe ver het nog is. Over!',
+      ],
+      neus: [
+        'Piep piep, snuf... niks. Ik ruik helemaal niks. Mijn aardbei-knop ligt hier. Kaartlezer, jij bent de monteur. Zonder neus kan ik geen hints ruiken, en hints ruiken naar warme stroop. Over!',
+      ],
+      mond: [
+        'Krrr... hoor je dat? Ik praat door een theezeefje. Mijn luidsprekerrooster ligt hier. Codekraker, jij bent de monteur. Met een mond kan ik alarm slaan. En nog brutaler doen. Sorry, niet sorry. Over!',
+      ],
+      armen: [
+        'Bliep. Ik wil zwaaien, maar er gebeurt niks. Mijn spatel en mijn garde liggen hier. Rekenmeester, jij bent de monteur. Met armen kan ik weer vastpakken. Handig, want er loopt hier een kruimelrobot rond die dingen pikt. Over!',
+      ],
+      benen: [
+        'Pssst... pssst... niks. Mijn zuigerbenen liggen hier, met de pannetjes eraan. Tijdbewaker, jij bent de monteur. Als ik kan lopen, loop ik met jullie mee op de kaart. Maar dan begint ook de klok te tikken. Over!',
+      ],
+      hoed: [
+        'Bzzzt! Thuis! Mijn kern ligt hier, en het laatste stuk ook: mijn boterknop en mijn stroop-jetpack. Sleutelbewaarder, dit is jouw moment. Druk op de knop, dan vlieg ik. Klaar? Over!',
+      ],
+    },
   },
 };
 

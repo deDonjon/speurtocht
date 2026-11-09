@@ -516,19 +516,19 @@ begin
   end loop;
 
   insert into stop (game_id, seq, key, name, clue, lat, lng, part, puzzles) values
-  (gid, 1, 'start', 'De speeltuin', 'Loop naar de speeltuin om de hoek. Zoek de plek waar je het hoogst kunt klimmen.', home_lat+0.0010, home_lng+0.0008, 'lijf',
-    '[{"type":"code","question":"Hoeveel letters heeft het woord PANNENKOEKENMONSTER? Tel goed!","answer":"19","hint":"Tel de letters één voor één, met je vinger erbij."}]'),
-  (gid, 2, null, 'De grote boom', 'Ga naar de grote boom aan het einde van de straat.', home_lat+0.0018, home_lng-0.0006, 'ogen',
-    '[{"type":"vraag","question":"Raadsel: wat wordt natter terwijl het droogt?","answer":"handdoek|een handdoek|de handdoek|theedoek","hint":"Je gebruikt het na het douchen."}]'),
-  (gid, 3, null, 'Het bankje bij het water', 'Zoek het bankje bij het water.', home_lat+0.0008, home_lng-0.0020, 'neus',
-    '[{"type":"keuze","question":"Welk ingrediënt hoort NIET in pannenkoekenbeslag?","options":["Melk","Eieren","Bloem","Kaas"],"answer":"Kaas","hint":"Het is iets wat je er misschien wel OP legt..."}]'),
-  (gid, 4, null, 'De brievenbus', 'Loop naar de brievenbus op de hoek.', home_lat-0.0008, home_lng-0.0022, 'mond',
-    '[{"type":"code","question":"Het Pannenkoekenmonster eet elke dag 3 pannenkoeken. Hoeveel eet het in een hele week?","answer":"21","hint":"Een week heeft 7 dagen."}]'),
-  (gid, 5, null, 'Het lantaarnpaaltje', 'Ga naar het lantaarnpaaltje bij het voetpad.', home_lat-0.0016, home_lng-0.0004, 'armen',
-    '[{"type":"memory","pairs":6,"question":"De spekarmen liggen door elkaar. Vind alle paren!"}]'),
-  (gid, 6, null, 'Het hekje', 'Loop naar het hekje van het grasveld.', home_lat-0.0010, home_lng+0.0014, 'benen',
-    '[{"type":"schuif","question":"Het monster is door elkaar geschud. Schuif het weer in elkaar!"}]'),
-  (gid, 7, 'home', 'Thuis', 'Het monster is bijna compleet! Loop terug naar huis. Daar wacht het boterhoedje... en de pannenkoeken!', home_lat, home_lng, 'hoed',
-    '[{"type":"opdracht","question":""}]');
+  (gid, 1, 'start', 'De speeltuin', 'Piep! Mijn pannenkoekenpantser is in de speeltuin geland. Zoek de plek waar je het hoogst kunt klimmen. Daar ruikt het naar verbrande stroop.', home_lat+0.0010, home_lng+0.0008, 'lijf',
+    '[{"type":"code","question":"Mijn borstpaneel heeft een meter die altijd op honger staat. Hoeveel letters heeft het woord STROOPMETER? Tel goed!","answer":"11","hint":"Tel de letters één voor één, met je vinger erbij. Dubbele letters tellen twee keer."}]'),
+  (gid, 2, null, 'De grote boom', 'Mijn LED-ogen zijn in de grote boom aan het einde van de straat blijven hangen. Daar knippert iets cyaans tussen de takken. Speurneus, ga voorop!', home_lat+0.0018, home_lng-0.0006, 'ogen',
+    '[{"type":"vraag","question":"Raadsel van Mecha-Pof: wat wordt natter terwijl het droogt?","answer":"handdoek|een handdoek|de handdoek|theedoek","hint":"Je gebruikt het na het douchen. Of na de afwas."}]'),
+  (gid, 3, null, 'Het bankje bij het water', 'Snuf snuf... mijn aardbei-knop is bij het bankje bij het water gerold. Kaartlezer, jij weet de weg.', home_lat+0.0008, home_lng-0.0020, 'neus',
+    '[{"type":"keuze","question":"Mijn neus ruikt het meteen: welk ingrediënt hoort NIET in pannenkoekenbeslag?","options":["Melk","Eieren","Bloem","Kaas"],"answer":"Kaas","hint":"Het is iets wat je er misschien wel OP legt..."}]'),
+  (gid, 4, null, 'De brievenbus', 'Krrr... mijn luidsprekerrooster is bij de brievenbus op de hoek beland. Hij praat nu tegen de post. Codekraker, haal hem terug!', home_lat-0.0008, home_lng-0.0022, 'mond',
+    '[{"type":"code","question":"Mecha-Pof bakt elke dag 3 pannenkoeken. Hoeveel bakt hij in een hele week?","answer":"21","hint":"Een week heeft 7 dagen."}]'),
+  (gid, 5, null, 'Het lantaarnpaaltje', 'Mijn spatel en mijn garde hangen bij het lantaarnpaaltje bij het voetpad. Ze zwaaien naar elkaar. Rekenmeester, aan het werk!', home_lat-0.0016, home_lng-0.0004, 'armen',
+    '[{"type":"memory","pairs":6,"question":"Mijn keukenla is omgevallen! Alles ligt door elkaar. Vind alle paren!"}]'),
+  (gid, 6, null, 'Het hekje', 'Pssst, pssst... mijn zuigerbenen pompen nog een beetje bij het hekje van het grasveld. Tijdbewaker, let op de klok!', home_lat-0.0010, home_lng+0.0014, 'benen',
+    '[{"type":"schuif","question":"Mecha-Pof is door elkaar geschud. Schuif hem weer in elkaar!"}]'),
+  (gid, 7, 'home', 'Thuis', 'Bijna compleet! Mijn jetpack wordt warm. Loop terug naar huis, daar wachten mijn boterknop en mijn stroop-jetpack. En pannenkoeken!', home_lat, home_lng, 'hoed',
+    '[{"type":"opdracht","question":"Sleutelbewaarder: druk op de boterknop! Het hele Reparatieteam telt hardop af van tien naar nul. Begeleider vinkt af als de jetpack gestart is."}]');
   insert into stop_secret (stop_id, geheim) select id, '{}'::jsonb from stop where game_id = gid;
 end $$;
