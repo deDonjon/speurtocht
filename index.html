@@ -379,7 +379,9 @@ document.addEventListener('click', e => { // foto's inzoomen, overal
   const z = document.createElement('div'); z.className = 'zoomov'; z.innerHTML = `<img src="${esc(img.getAttribute('src'))}" alt="">`; z.onclick = () => z.remove(); document.body.appendChild(z);
 });
 
-/* ================================================================ begeleider (regiesleutel; chat 8 bouwt het echte regie.html) */
+/* ================================================================ begeleider (regiesleutel)
+   De ⚙︎-lade doet alleen nog: inloggen met de regiesleutel en Plekken vastleggen (GPS van deze telefoon naar een stop).
+   Alle andere regie (start, reset, hint, GPS overslaan, goedkeuren, Mecha-Pof, verrassingen, spelers, stops) zit in regie.html (chat 4). */
 function openTray() {
   if (!sync.regie.restore()) {
     const o = overlay(`<div class="page left tray"><span class="tab">Begeleider</span><h2>Regiesleutel</h2>
@@ -392,40 +394,24 @@ function openTray() {
   }
   const g = S().game || {}, act = state.activeStop();
   const o = overlay(`<div class="page left tray"><span class="tab">Begeleider</span>
-    <h2>Regie</h2><p class="note">Fase: <b>${esc(g.phase)}</b>${act ? ` · actieve stop: <b>${esc(act.name)}</b>` : ''} · telefoons online: ${state.phones()}</p>
-    <section><h3>Spel</h3><div class="grid2"><button class="ok" data-r="start">▶ Start (schudt route)</button><button class="danger" data-r="reset">↺ Reset</button></div></section>
-    <section><h3>Huidige stop</h3><div class="grid2"><button class="plain" data-r="skip">📡 GPS overslaan</button><button class="plain" data-r="hint">💡 Hint geven</button></div>
-      <button data-r="approve">✅ Stop goedkeuren (+10)</button></section>
-    <section><h3>Testen</h3>
-      <label><input type="checkbox" data-r="test" ${test ? 'checked' : ''}> Testmodus op deze telefoon (teleportknop, geen GPS)</label>
-      <label><input type="checkbox" data-r="any" ${g.settings?.any_can_submit ? 'checked' : ''}> Iedereen mag indienen (niet alleen de Sleutelbewaarder)</label>
-      <button class="plain" data-r="deal">🎲 Talenten loten (test)</button></section>
+    <h2>Begeleider</h2><p class="note">Fase: <b>${esc(g.phase)}</b>${act ? ` · actieve stop: <b>${esc(act.name)}</b>` : ''} · telefoons online: ${state.phones()}</p>
+    <section><a class="plain" href="./regie.html" style="display:grid;place-items:center;min-height:56px;border-radius:14px;text-decoration:none;color:var(--ink);font-weight:900;background:linear-gradient(180deg,#3A4356,#2A3142);border:2px solid var(--line2);box-shadow:0 3px 0 #10141C">🎛️ Open het regiescherm (regie.html)</a>
+      <p class="note">Start, reset, hints, goedkeuren, Mecha-Pof laten praten of bellen, verrassingen, spelers en stops: dat zit allemaal daar.</p></section>
+    <section><h3>Deze telefoon</h3>
+      <label><input type="checkbox" data-r="test" ${test ? 'checked' : ''}> Testmodus (teleportknop, geen GPS)</label></section>
     <section><h3>Plekken vastleggen</h3>
       <p class="note">Sta op de plek, wacht tot de GPS rustig is en tik op 📍. Opeenvolgende plekken liefst ${g.settings?.min_gap || 150} m uit elkaar.</p>
       <div id="stoplist">${stopRows()}</div></section>
     <div class="row"><button class="ghost" data-r="logout">Regie afmelden</button><span class="grow"></span><button class="plain" data-r="close">Sluiten</button></div></div>`);
-  const busy = async (fn, ok) => { try { await fn(); if (ok) toast(ok); } catch (e) { toast('⚠️ ' + (e.message || e)); } };
   o.addEventListener('click', async e => {
     const r = e.target.closest('[data-r]')?.dataset.r; if (!r || e.target.type === 'checkbox') return;
     if (r === 'close') closeOverlay();
     else if (r === 'logout') { sync.regie.logout(); closeOverlay(); }
-    else if (r === 'start') { closeOverlay(); await busy(() => sync.regie.start()); }
-    else if (r === 'reset') { if (confirm('Spel terugzetten naar de lobby? Voortgang gaat verloren.')) { closeOverlay(); await busy(() => sync.regie.reset(false)); } }
-    else if (r === 'skip') { closeOverlay(); await busy(() => sync.regie.event('gps.skip', { stop_id: state.activeStop()?.id }), 'GPS overgeslagen'); }
-    else if (r === 'hint') { const t = prompt('Hint-tekst (leeg = de hint van de puzzel)'); if (t !== null) { closeOverlay(); await busy(() => sync.regie.hint(t.trim() || null)); } }
-    else if (r === 'approve') { closeOverlay(); await busy(() => sync.regie.approveStop(10)); }
     else if (r === 'here') await placeStop(e.target.closest('[data-id]').dataset.id, o);
     else if (r === 'edit') await editStop(e.target.closest('[data-id]').dataset.id, o);
-    else if (r === 'deal') {
-      const keys = Object.keys(TALENTS).sort(() => Math.random() - .5), talents = {};
-      S().players.forEach((p, i) => talents[p.id] = keys[i % keys.length]);
-      await busy(() => sync.regie.event('roles.shuffle', { talents }), 'Talenten verdeeld');
-    }
   });
-  o.addEventListener('change', async e => {
-    const r = e.target.dataset.r;
-    if (r === 'test') { test = e.target.checked; store.set('pkm2_test', test); if (test) stopGps(); else if (inGame()) startGps(); refresh(true); }
-    if (r === 'any') await busy(() => sync.regie.patchGame({ settings: { any_can_submit: e.target.checked } }), e.target.checked ? 'Iedereen mag indienen' : 'Alleen de Sleutelbewaarder');
+  o.addEventListener('change', e => {
+    if (e.target.dataset.r === 'test') { test = e.target.checked; store.set('pkm2_test', test); if (test) stopGps(); else if (inGame()) startGps(); refresh(true); }
   });
 }
 
