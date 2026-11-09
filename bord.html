@@ -41,6 +41,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--led);outline-of
 input[type=range]{width:100%;accent-color:var(--gold);height:30px}
 .osm{font-size:.82rem;color:var(--muted)}
 .osm b{color:var(--ink)}
+.osmerr{margin:0;max-height:22vh;overflow:auto;white-space:pre-wrap;font:600 .74rem/1.4 var(--hud);color:#FFB4AC;background:var(--visor);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
 .pill{font-family:var(--hud);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:var(--visor);color:var(--led)}
 body.kern .dock .row.tools,body.kern .osm{display:none}
 body.kern .next{font-size:clamp(1.2rem,2.4vw,2rem)}
@@ -71,16 +72,16 @@ body.kern .next{font-size:clamp(1.2rem,2.4vw,2rem)}
     </div>
     <div class="row osm" id="osmrow">
       <span class="grow">Kaart: <b id="osm">laden…</b></span>
-      <button class="plain" id="refetch">Kaart opnieuw ophalen</button>
-      <button class="plain" id="save">Kaartbestand bewaren</button>
+      <button class="plain" id="refetch">Kaart ophalen</button>
     </div>
+    <pre class="osmerr" id="osmerr" hidden></pre>
   </section>
 </div>
 <div id="toast" role="status"></div>
 <script type="module">
 import { state, PARTS } from './js/state.js';
 import { sync } from './js/sync.js';
-import { createBoard } from './js/board.js?v=1';
+import { createBoard } from './js/board.js?v=2';
 import { ROUTE, TIMES, SUNSET } from './js/board-data.js?v=1';
 
 const $ = s => document.querySelector(s);
@@ -92,9 +93,9 @@ const PART_KEYS = ['lijf', 'ogen', 'neus', 'mond', 'armen', 'benen', 'hoed'];
 $('#parts').innerHTML = PART_KEYS.map(k => `<span data-p="${k}" title="${PARTS[k].label}">${PARTS[k].icon}</span>`).join('');
 const toast = (t, ms = 3200) => { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), ms); };
 const fmt = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(Math.round(m % 60)).padStart(2, '0')}`;
-const OSM_LABEL = { bestand: 'echte kaart (bestand in de app)', cache: 'echte kaart (bewaard op dit toestel)', live: 'echte kaart (net opgehaald)', ophalen: 'echte kaart ophalen…', geen: 'getekend bord (nog geen kaartdata)' };
+const OSM_LABEL = { server: 'echte kaart (voor iedereen bewaard)', bestand: 'echte kaart (bestand in de app)', cache: 'echte kaart (bewaard op dit toestel)', live: 'echte kaart (alleen op dit toestel)', ophalen: 'echte kaart ophalen…', geen: 'getekend bord (nog geen kaartdata)' };
 
-const board = await createBoard($('#board'), { mode, onStatus: s => { $('#osm').textContent = OSM_LABEL[s] || s; } }).catch(e => { $('#next').textContent = e.message; throw e; });
+const board = await createBoard($('#board'), { mode, onStatus: (s, d) => { $('#osm').textContent = (OSM_LABEL[s] || s) + (s === 'ophalen' && d?.trying ? ` (${d.trying})` : ''); } }).catch(e => { $('#next').textContent = e.message; throw e; });
 
 function syncButtons() {
   document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === mode));
@@ -110,13 +111,15 @@ let lastT = performance.now();
   if (playing) { prog = Math.min(7, prog + dt * 0.18); $('#prog').value = prog; render(); if (prog >= 7) { playing = false; $('#play').textContent = '▶ Speel af'; } }
   requestAnimationFrame(tick); })(lastT);
 
-$('#refetch').onclick = async () => { toast('Kaart wordt opgehaald bij OpenStreetMap…', 6000); const s = await board.refetchOsm(); toast(s === 'live' ? 'Echte kaart opgehaald en bewaard op dit toestel.' : 'Ophalen lukte niet. Probeer het zo nog eens.'); };
-$('#save').onclick = () => {
-  const d = board.osmData(); if (!d) return toast('Er is nog geen echte kaart. Tik eerst op "Kaart opnieuw ophalen".');
-  const url = URL.createObjectURL(new Blob([JSON.stringify(d)], { type: 'application/json' }));
-  const a = Object.assign(document.createElement('a'), { href: url, download: 'osm.json' }); document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 4000);
-  toast('osm.json bewaard. Stuur het naar Claude, dan komt het als vast bestand in de app.', 6000);
+$('#refetch').onclick = async () => {
+  const btn = $('#refetch'); btn.disabled = true; $('#osmerr').hidden = true;
+  toast('Kaart wordt opgehaald bij OpenStreetMap… dit kan een halve minuut duren.', 8000);
+  const r = await board.refetchOsm(); btn.disabled = false;
+  if (r?.ok && r.saved) toast(`Echte kaart opgehaald (${r.counts?.gebouwen ?? '?'} gebouwen) en voor alle telefoons bewaard.`, 6000);
+  else if (r?.ok) toast('Echte kaart opgehaald, maar alleen op dit toestel bewaard.', 6000);
+  else toast('Ophalen lukte niet. De details staan onder de knop.', 6000);
+  const lines = [...(r?.details || []), r?.saveError].filter(Boolean);
+  if (lines.length && !(r?.ok && r.saved)) { $('#osmerr').textContent = lines.join('\n'); $('#osmerr').hidden = false; }
 };
 
 function render() {

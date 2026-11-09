@@ -83,6 +83,18 @@ console.log('— bord.html?regie (laptop, live stand, kaart via Overpass)');
   ok('geen JS-fouten', !errors.length, errors.join(' | '));
   await page.close(); }
 
+console.log('— buiten het bord (groep 300 m ten westen van de route)');
+{ const w = world(); w.player.forEach(p => { p.lat = 51.6140; p.lng = 5.5560; });
+  const { page, errors, until } = await open('bord.html?kern', w, { overpass: false });
+  ok('bord gebouwd', await until(() => window.__board?.info().cells > 300));
+  await sleep(1500);
+  const inf = await page.evaluate(() => window.__board.info());
+  ok('buiten het bord herkend', inf.offBoard && inf.offRoute > 150, JSON.stringify(inf));
+  ok('oranje melding zichtbaar', await page.evaluate(() => { const w = document.querySelector('.pkb-warn'); return w && !w.hidden && /oranje lijn/.test(w.textContent); }));
+  await sleep(1500); await page.screenshot({ path: path.join(OUT, 'bord-buiten.png') });
+  ok('geen JS-fouten', !errors.length, errors.join(' | '));
+  await page.close(); }
+
 console.log('— bord.html?demo (telefoon, spelers, geen Overpass)');
 { const { page, errors, until } = await open('bord.html?demo', world(), { overpass: false });
   ok('bord gebouwd zonder kaart', await until(() => window.__board?.info().cells > 300 && window.__board.info().osm === 'geen'));

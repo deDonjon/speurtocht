@@ -11,6 +11,7 @@
 //            regie = alles, met bonus, reserve, verrassingen, buitenprints en antwoorden; kern = als spel, met een langzaam draaiende camera.
 import { ROUTE, HOME, BBOX, EXTRAS, CRUMBS, STOP_INFO, TIMES, SUNSET } from './board-data.js?v=1';
 import { PARTS } from './state.js';
+import { SUPABASE_URL, SUPABASE_KEY } from './sync.js';
 
 let T = null, OrbitControls = null, merge = null;
 async function loadThree() {
@@ -54,27 +55,70 @@ export function compactOsm(j) {
   }
   return out;
 }
-/** Haalt de kaart live op bij Overpass (alleen in de browser; geen sleutel nodig). */
-export async function fetchOsmLive(timeoutMs = 25000) {
-  let last;
-  for (const url of OVERPASS) {
-    const ac = new AbortController(), tm = setTimeout(() => ac.abort(), timeoutMs);
-    try {
-      const r = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(overpassQuery()), headers: { 'content-type': 'application/x-www-form-urlencoded' }, signal: ac.signal });
-      if (!r.ok) throw new Error('Overpass ' + r.status);
-      const c = compactOsm(await r.json());
-      if (!c.b.length && !c.r.length) throw new Error('Overpass gaf een lege kaart');
-      return c;
-    } catch (e) { last = e; } finally { clearTimeout(tm); }
+/** OSM-API-XML (api.openstreetmap.org/api/0.6/map) → dezelfde vorm als een Overpass-antwoord. */
+export function osmXmlToElements(xml) {
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('kaart-XML onleesbaar');
+  const tags = el => Object.fromEntries([...el.querySelectorAll(':scope > tag')].map(t => [t.getAttribute('k'), t.getAttribute('v')]));
+  const nodes = new Map(), elements = [];
+  for (const n of doc.querySelectorAll('osm > node')) {
+    const lat = +n.getAttribute('lat'), lon = +n.getAttribute('lon'); nodes.set(n.getAttribute('id'), { lat, lon });
+    if (n.querySelector(':scope > tag')) elements.push({ type: 'node', lat, lon, tags: tags(n) });
   }
-  throw last || new Error('Overpass niet bereikbaar');
+  for (const w of doc.querySelectorAll('osm > way')) {
+    const geometry = [...w.querySelectorAll(':scope > nd')].map(nd => nodes.get(nd.getAttribute('ref'))).filter(Boolean);
+    if (geometry.length > 1) elements.push({ type: 'way', tags: tags(w), geometry });
+  }
+  return { elements };
+}
+// Bronnen in volgorde: vier Overpass-servers (POST, dan GET) en als laatste de gewone OSM-API (XML, ook zonder Overpass).
+function sources() {
+  const q = overpassQuery(), b = BBOX, out = [];
+  for (const url of OVERPASS) {
+    out.push({ name: new URL(url).host, req: () => fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'content-type': 'application/x-www-form-urlencoded' } }), parse: r => r.json() });
+    out.push({ name: new URL(url).host + ' (GET)', req: () => fetch(url + '?data=' + encodeURIComponent(q)), parse: r => r.json() });
+  }
+  out.push({ name: 'api.openstreetmap.org', req: () => fetch(`https://api.openstreetmap.org/api/0.6/map?bbox=${b.w},${b.s},${b.e},${b.n}`), parse: async r => osmXmlToElements(await r.text()) });
+  return out;
+}
+/** Haalt de kaart live op (alleen in de browser; geen sleutel nodig). Gooit een fout met per bron wat er misging. */
+export async function fetchOsmLive(timeoutMs = 20000, onTry) {
+  const errs = [];
+  for (const s of sources()) {
+    onTry?.(s.name);
+    let tm;
+    try {
+      const r = await Promise.race([s.req(), new Promise((_, rej) => { tm = setTimeout(() => rej(new Error('geen antwoord binnen ' + timeoutMs / 1000 + ' s')), timeoutMs); })]);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const c = compactOsm(await s.parse(r));
+      if (!c.b.length && !c.r.length) throw new Error('lege kaart');
+      c.src = s.name; return c;
+    } catch (e) { errs.push(`${s.name}: ${e.message || e}`); } finally { clearTimeout(tm); }
+  }
+  const e = new Error('Kaart ophalen lukte bij geen enkele bron'); e.details = errs; throw e;
 }
 export function cacheOsm(data) { try { localStorage.setItem(OSM_CACHE, JSON.stringify(data)); return true; } catch { return false; } }
-/** Eerst data/osm.json uit de repo, dan de eigen cache. Live ophalen doet createBoard zelf op de achtergrond. */
+/** Eerst de kaart in Supabase (tabel board_data, gevuld door de Edge Function board-osm), dan data/osm.json uit de repo,
+ *  dan de eigen cache. Ophalen bij OpenStreetMap doet createBoard zelf op de achtergrond als er nog niets is. */
 export async function loadOsm() {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/board_data?key=eq.osm&select=data`, { headers: { apikey: SUPABASE_KEY } });
+    if (r.ok) { const j = (await r.json())?.[0]?.data; if (j?.v) { cacheOsm(j); return { data: j, source: 'server' }; } }
+  } catch {}
   try { const r = await fetch(new URL('../data/osm.json', import.meta.url), { cache: 'no-cache' }); if (r.ok) { const j = await r.json(); if (j?.v) return { data: j, source: 'bestand' }; } } catch {}
   try { const j = JSON.parse(localStorage.getItem(OSM_CACHE)); if (j?.v) return { data: j, source: 'cache' }; } catch {}
   return { data: null, source: 'geen' };
+}
+/** Laat de Edge Function board-osm de kaart ophalen en voor iedereen bewaren. Geeft { data, saved, src, counts } of gooit met details. */
+export async function fetchOsmServer(timeoutMs = 90000) {
+  let tm;
+  try {
+    const r = await Promise.race([fetch(`${SUPABASE_URL}/functions/v1/board-osm`, { method: 'POST', headers: { apikey: SUPABASE_KEY, 'content-type': 'application/json' }, body: '{}' }),
+      new Promise((_, rej) => { tm = setTimeout(() => rej(new Error('server gaf geen antwoord binnen ' + timeoutMs / 1000 + ' s')), timeoutMs); })]);
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j?.data?.v) { const e = new Error(j?.error || 'server: HTTP ' + r.status); e.details = j?.details || []; throw e; }
+    return j;
+  } finally { clearTimeout(tm); }
 }
 
 /* ================================================================ meetkunde */
@@ -144,6 +188,8 @@ const CSS = `
 .pkb-card .chips span{font:700 11px/1 'Chakra Petch',ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;padding:4px 7px;border-radius:6px;background:#0E1B2E;color:#7FE8FF}
 .pkb-card p{margin:0}.pkb-card p+p{margin-top:5px;color:#93A0B8;font-size:13px}
 .pkb-card button{position:absolute;top:8px;right:8px;width:30px;height:30px;min-height:0;padding:0;border-radius:50%;border:0;background:#2A3142;color:#EAF2FF;font-size:18px;cursor:pointer;box-shadow:none}
+.pkb-warn{position:absolute;left:10px;right:10px;top:10px;z-index:3;max-width:440px;margin:0 auto;background:#F59E2E;color:#2A1300;border-radius:12px;padding:9px 12px;font:800 13.5px/1.35 Nunito,system-ui,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.45);text-align:center}
+.pkb-warn b{font-weight:900}
 .pkb-msg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:20px;color:#93A0B8;font:700 14px/1.4 Nunito,system-ui,sans-serif}
 `;
 
@@ -157,6 +203,7 @@ export async function createBoard(host, opts = {}) {
   const canvas = document.createElement('canvas'); root.appendChild(canvas);
   const labelsEl = document.createElement('div'); labelsEl.className = 'pkb-labels'; root.appendChild(labelsEl);
   const card = document.createElement('div'); card.className = 'pkb-card'; card.hidden = true; root.appendChild(card);
+  const warn = document.createElement('div'); warn.className = 'pkb-warn'; warn.hidden = true; warn.setAttribute('role', 'status'); root.appendChild(warn);
   let renderer;
   try { renderer = new T.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' }); }
   catch (e) { canvas.remove(); msg.textContent = 'Dit toestel kan geen 3D tonen (WebGL staat uit). De gewone kaart werkt nog.'; throw e; }
@@ -420,9 +467,11 @@ export async function createBoard(host, opts = {}) {
       const jet = new T.Mesh(new T.CylinderGeometry(1, 1, 3.4, 8), flat('#D9822B', { roughness: 0.3 })); jet.position.set(0, 3, -3.4);
       [body, pan, handle, eyeL, eyeR, jet].forEach(m => { m.castShadow = true; pawn.add(m); }); }
     pawn.scale.setScalar(1.8); world.add(pawn);
+    // losse tegel onder Mecha-Pof als de groep buiten het bord staat
+    const stone = new T.Mesh(new T.CylinderGeometry(R * 0.97, R * 0.97, 14.3, 6), flat('#8E979F', { emissive: '#F59E2E', emissiveIntensity: 0.25 })); stone.position.y = -4.85; stone.visible = false; stone.castShadow = stone.receiveShadow = true; world.add(stone);
     const pinGeo = new T.SphereGeometry(2, 12, 10), pins = new Map();
 
-    B = { cloudMat, cells, cellAt, colMesh, topMesh, clouds, bMesh, bInfo, decoMeshes: [houseBody, houseRoof, trees, trunks, flowers], drops, dropMesh, dropMat, stopObjs, extras, crumbs, bonusCoin, beacon, pulse, line, link, arrows, pawn, pinGeo, pins, R };
+    B = { cloudMat, cells, cellAt, colMesh, topMesh, clouds, bMesh, bInfo, decoMeshes: [houseBody, houseRoof, trees, trunks, flowers], drops, dropMesh, dropMat, stopObjs, extras, crumbs, bonusCoin, beacon, pulse, line, link, arrows, pawn, stone, pinGeo, pins, R };
     [houseBody, houseRoof, trees, trunks, flowers, clouds, dropMesh, colMesh, topMesh].forEach(m => { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; });
     fogKey = ''; dyn.groupPos = null;
     applyDynamic(true);
@@ -472,7 +521,11 @@ export async function createBoard(host, opts = {}) {
     // groepspositie: GPS van dit toestel, anders het gemiddelde van de online telefoons, anders de laatste stop
     let gp = o.pos?.lat != null ? toXZ(o.pos.lat, o.pos.lng) : null;
     if (!gp) { const on = (o.players || []).filter(p => p.online && p.lat != null); if (on.length) { const a = on.reduce((s, p) => ({ lat: s.lat + p.lat / on.length, lng: s.lng + p.lng / on.length }), { lat: 0, lng: 0 }); gp = toXZ(a.lat, a.lng); } }
-    if (gp) { const np = path.nearest(gp.x, gp.z, sPrev - 40, Math.max(sTgt, sPrev) + 10); out.groupS = np.d < 70 ? np.s : sPrev; out.groupXZ = gp; }
+    if (gp) {
+      const np = path.nearest(gp.x, gp.z, sPrev - 40, Math.max(sTgt, sPrev) + 10);
+      out.groupS = np.d < 70 ? np.s : sPrev; out.groupXZ = gp; out.joinS = np.s; out.offRoute = np.d; // joinS: waar de groep weer op de route komt
+      out.offBoard = !!B && !B.cellAt(gp.x, gp.z);
+    }
     else out.groupS = out.phase === 'puzzel' && out.targetSeq ? sTgt : sPrev;
     if (out.finished) out.groupS = path.total;
     return out;
@@ -533,7 +586,8 @@ export async function createBoard(host, opts = {}) {
     if (force || lineKey !== dyn.lineKey) {
       dyn.lineKey = lineKey;
       let pts = [];
-      if (D.targetSeq && sTgt > D.groupS + 1) pts = path.slice(D.groupS, sTgt);
+      const s0 = D.groupXZ && D.joinS != null ? D.joinS : D.groupS;
+      if (D.targetSeq && sTgt > s0 + 1) pts = path.slice(s0, sTgt);
       else if (D.targetLL) { const from = D.groupXZ || path.at(D.groupS); pts = [from, D.targetLL]; }
       dyn.linePts = pts; dyn.lineLen = 0; for (let i = 1; i < pts.length; i++) dyn.lineLen += dist(pts[i - 1], pts[i]);
       B.line.geometry.dispose();
@@ -543,11 +597,21 @@ export async function createBoard(host, opts = {}) {
       } else B.line.geometry = new T.BufferGeometry();
       // dun lijntje van de echte GPS-positie naar de route als je ernaast loopt
       B.link.geometry.dispose(); B.link.geometry = new T.BufferGeometry();
-      if (D.groupXZ && D.targetSeq) { const np = path.at(D.groupS), d = dist(np, D.groupXZ); if (d > 10) { const c = new T.LineCurve3(new T.Vector3(D.groupXZ.x, H.pad + 1.6, D.groupXZ.z), new T.Vector3(np.x, H.pad + 1.6, np.z)); B.link.geometry = new T.TubeGeometry(c, 8, 0.5, 5, false); } }
+      // terugweg: van de echte positie naar het punt waar de LED-lijn begint; oranje en dikker als de groep ver weg of buiten het bord is
+      if (D.groupXZ && D.targetSeq && !D.finished) { const np = path.at(s0), d = dist(np, D.groupXZ); if (d > 10) { const far = D.offBoard || d > 35;
+        B.link.material.color.set(far ? '#F59E2E' : '#EAF2FF'); B.link.material.opacity = far ? 1 : 0.8;
+        const c = new T.LineCurve3(new T.Vector3(D.groupXZ.x, H.pad + 1.6, D.groupXZ.z), new T.Vector3(np.x, H.pad + 1.6, np.z)); B.link.geometry = new T.TubeGeometry(c, Math.max(8, Math.ceil(d / 4)), far ? 1 : 0.5, 6, false); } }
+      dyn.linkLen = D.groupXZ && D.targetSeq ? Math.round(dist(path.at(s0), D.groupXZ)) : 0;
     }
     // pion
     const pp = D.groupXZ && !D.finished ? { ...D.groupXZ, dir: path.at(D.groupS).dir } : path.at(D.groupS);
     dyn.pawnTo = pp; dyn.mega = D.finished; dyn.D = D;
+    B.stone.visible = !!D.offBoard && !D.finished; if (B.stone.visible) B.stone.position.set(D.groupXZ.x, -4.85, D.groupXZ.z);
+    // melding als de groep van het bord af is (of ver van de route)
+    const lost = !D.finished && D.groupXZ && (D.offBoard || D.offRoute > 60);
+    warn.hidden = !lost;
+    if (lost) { const m = Math.round(D.offRoute / 5) * 5; warn.innerHTML = mode === 'regie' ? `De groep is <b>±${m} m</b> van de route${D.offBoard ? ', buiten het bord' : ''}.`
+      : `Oeps, jullie zijn van het speelbord gelopen! Volg de <b>oranje lijn</b> terug naar de route (±${m} m).`; }
     // telefoons als bessen (regie/kern; in spel alleen de anderen)
     const want = new Set();
     for (const p of last.players || []) {
@@ -579,7 +643,7 @@ export async function createBoard(host, opts = {}) {
     if (!B) return;
     const D = dyn.D; let pts;
     if (mode === 'spel' && D && !D.finished) { pts = [path.at(D.groupS)]; if (D.groupXZ) pts.push(D.groupXZ); if (dyn.linePts?.length) pts.push(...dyn.linePts); }
-    else pts = path.pts;
+    else { pts = path.pts.slice(); if (D?.groupXZ && !D.finished) pts.push(D.groupXZ); } // groep buiten het bord blijft in beeld
     const bb = bboxOf(pts), cx = (bb.x0 + bb.x1) / 2, cz = (bb.z0 + bb.z1) / 2;
     const span = Math.max(bb.x1 - bb.x0, bb.z1 - bb.z0) + (mode === 'spel' ? 70 : 40);
     const fit = span / (2 * Math.tan(T.MathUtils.degToRad(camera.fov / 2))) / Math.min(1, camera.aspect * 1.15);
@@ -668,14 +732,26 @@ export async function createBoard(host, opts = {}) {
   });
 
   /* ---------------------------------------------------------------- kaartdata en eerste opbouw */
-  const status = s => { osmSource = s; opts.onStatus?.(s); };
+  const status = (s, detail) => { osmSource = s; opts.onStatus?.(s, detail); };
   const got = await loadOsm(); osm = got.data; status(got.source);
   build();
-  let liveTried = false;
-  async function tryLive() {
-    if (liveTried || osm || opts.live === false) return; liveTried = true; status('ophalen');
-    try { const d = await fetchOsmLive(); cacheOsm(d); osm = d; if (!disposed) { build(); status('live'); } }
-    catch (e) { console.warn('[board] OSM', e); status('geen'); }
+  let liveTried = false, lastFetch = null;
+  // Ophalen: eerst via de server (bewaart de kaart voor iedereen), anders rechtstreeks vanuit deze browser (alleen voor dit toestel).
+  async function tryLive(force = false) {
+    if (!force && (liveTried || osm || opts.live === false)) return lastFetch; liveTried = true;
+    const prev = osmSource; status('ophalen');
+    const details = [];
+    try {
+      const j = await fetchOsmServer(); cacheOsm(j.data); osm = j.data;
+      lastFetch = { ok: true, source: 'server', saved: j.saved, src: j.src, counts: j.counts, details: j.skipped || [], saveError: j.saveError };
+      if (!disposed) build(); status('server', lastFetch); return lastFetch;
+    } catch (e) { details.push(e.message, ...(e.details || [])); console.warn('[board] board-osm', e); }
+    try {
+      const d = await fetchOsmLive(20000, n => status('ophalen', { trying: n })); cacheOsm(d); osm = d;
+      lastFetch = { ok: true, source: 'live', saved: false, src: d.src, details };
+      if (!disposed) build(); status('live', lastFetch); return lastFetch;
+    } catch (e) { details.push(...(e.details || [e.message])); console.warn('[board] OSM', e); }
+    lastFetch = { ok: false, details }; status(osm ? prev : 'geen', lastFetch); return lastFetch;
   }
   tryLive();
 
@@ -690,9 +766,10 @@ export async function createBoard(host, opts = {}) {
     },
     setMode(m) { if (m === mode) return; mode = m; follow = m !== 'regie'; controls.autoRotate = false; card.hidden = true; applyDynamic(true); fitCamera(); },
     recenter() { follow = true; card.hidden = true; fitCamera(); },
-    info() { const D = dyn.D || {}; return { mode, osm: osmSource, lineMeters: Math.round(dyn.lineLen || 0), minutes: dyn.minutes, dusk: dyn.dusk, reached: D.reached, targetSeq: D.targetSeq, finished: !!D.finished, cells: B?.cells.length || 0, buildings: B?.bInfo.length || 0 }; },
+    info() { const D = dyn.D || {}; return { offBoard: !!D.offBoard, offRoute: D.offRoute != null ? Math.round(D.offRoute) : null, backMeters: dyn.linkLen || 0, mode, osm: osmSource, lineMeters: Math.round(dyn.lineLen || 0), minutes: dyn.minutes, dusk: dyn.dusk, reached: D.reached, targetSeq: D.targetSeq, finished: !!D.finished, cells: B?.cells.length || 0, buildings: B?.bInfo.length || 0 }; },
     osmData: () => osm,
-    async refetchOsm() { liveTried = false; osm = null; try { localStorage.removeItem(OSM_CACHE); } catch {} await tryLive(); return osmSource; },
+    /** Kaart opnieuw ophalen (server, dan browser). Geeft { ok, source, saved, src, counts, details }. Het huidige bord blijft staan als het mislukt. */
+    refetchOsm() { return tryLive(true); },
     destroy() { disposed = true; renderer.setAnimationLoop(null); ro.disconnect(); clearWorld(); controls.dispose(); renderer.dispose(); root.remove(); },
   };
 }

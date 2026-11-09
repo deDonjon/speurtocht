@@ -620,7 +620,7 @@ const fitMap = () => wmap?.fit();
 let board = null, boardP = null, bordOn = store.get('pkm2_bord', false);
 async function ensureBoard(slot) {
   if (board) { if (board.el.parentNode !== slot) slot.appendChild(board.el); return board; }
-  if (!boardP) boardP = import('./js/board.js?v=1').then(m => m.createBoard(slot, { mode: 'spel' })).then(b => (board = b)).catch(e => { console.warn('[bord]', e); boardP = null; bordOn = false; store.set('pkm2_bord', false); toast('Het 3D-bord laadt niet op deze telefoon; de gewone kaart blijft.', 3600); return null; });
+  if (!boardP) boardP = import('./js/board.js?v=2').then(m => m.createBoard(slot, { mode: 'spel' })).then(b => (board = b)).catch(e => { console.warn('[bord]', e); boardP = null; bordOn = false; store.set('pkm2_bord', false); toast('Het 3D-bord laadt niet op deze telefoon; de gewone kaart blijft.', 3600); return null; });
   return boardP;
 }
 function updateBoard() {
