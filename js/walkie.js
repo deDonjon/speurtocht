@@ -1,8 +1,8 @@
 // walkie.js — videobellen met Mecha-Pof: een FaceTime-achtig scherm (het monster groot in beeld, jij klein in de hoek)
 // met een walkietalkie-knop eronder. Twee standen, te wisselen met de knop linksonder (onthouden op deze telefoon):
-//   • Houd vast  (standaard)  knop ingedrukt houden = praten, loslaten = het monster antwoordt. De microfoon staat
+//   • Houd vast  (uitwijk)    knop ingedrukt houden = praten, loslaten = het monster antwoordt. De microfoon staat
 //                             alleen open zolang de knop ingedrukt is en het monster zwijgt zolang je zendt (echt gedempt, ook op iPhone).
-//   • Vrij praten (test)      de lijn staat open zoals bij een gewoon telefoongesprek: gewoon praten, het monster luistert
+//   • Vrij praten (standaard) de lijn staat open zoals bij een gewoon telefoongesprek: gewoon praten, het monster luistert
 //                             zelf en onderbreekt zichzelf als jij begint. De grote knop is dan een microfoon aan/uit-knop.
 //
 // Contract:
@@ -42,10 +42,10 @@ const SDK = [
 const TOKEN_URL = SUPABASE_URL + '/functions/v1/monster-token';
 const TAIL_MS = 450;          // na loslaten nog even luisteren, anders valt het laatste woord weg
 const THINK_MAX_MS = 9000;    // zo lang mag het monster "denken" voordat we zeggen dat het niet antwoordt
-const MODE_KEY = 'pkm2_walkie_mode'; // 'hold' (knop vasthouden) | 'open' (vrij praten)
+const MODE_KEY = 'pkm2_walkie_mode'; // 'open' (vrij praten, standaard) | 'hold' (knop vasthouden)
 const TALK_LEVEL = 0.22;      // vrij praten: vanaf dit microfoonvolume "luistert" het monster zichtbaar
 
-export const getWalkieMode = () => { try { return localStorage.getItem(MODE_KEY) === 'open' ? 'open' : 'hold'; } catch { return 'hold'; } };
+export const getWalkieMode = () => { try { return localStorage.getItem(MODE_KEY) === 'hold' ? 'hold' : 'open'; } catch { return 'open'; } };
 export const setWalkieMode = m => { try { localStorage.setItem(MODE_KEY, m === 'open' ? 'open' : 'hold'); } catch {} };
 
 let sdkPromise = null;
