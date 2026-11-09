@@ -102,9 +102,28 @@ export const LINES = {
     'Krrrrr... bzzzzt... BLIEP! Dames en heren, speurders en de jarige: hier is hij. Groter, sterker, plakkeriger. MEGA-MECHA-POF!',
   ],
 
-  // Het verjaardagsvers voor de finale. Mecha-Pof zegt het in één keer (eigen vers, geen bestaand lied).
+  // Het verjaardagsvers voor de finale: een rapje op het dansmuziekje (audio.dance, eigen deuntje, geen bestaand lied).
+  // Volgorde in finale.js: dj → muziek → vers (één regel per keer, muziek zachter) → hiep (de meiden roepen HOERA in de
+  // pauze) → dans → dansstuk met confetti → muziek uit → finale.
+  dj: [
+    'Bzzzt! Muziek aan! DJ Mecha-Pof draait plaatjes. Maak wat ruimte, speurders!',
+  ],
   vers: [
-    'Bzzzt, mijn lampjes knipperen rood en goud, want {jarige} is vandaag tien jaar oud! Mijn garde draait, mijn spatel zwaait in het rond, de stroop loopt bijna uit mijn luidsprekermond. Zes speurders zochten mij bij elkaar, stuk voor stuk, van pantser tot jetpack: wat een reuzengeluk. Dus hiep hiep hoera, en een piep piep erbij: voor {jarige} de grootste pannenkoek. Van mij!',
+    [
+      'Mijn lampjes knipperen rood en goud, want {jarige} is vandaag tien jaar oud!',
+      'Mijn spatel zwaait, mijn garde draait, de stroop spuit rond, mijn jetpack laait!',
+      'Zes speurders vonden stuk voor stuk mijn lijf, mijn ogen, mijn neus. Wat een geluk!',
+      'Mijn mond, mijn armen, mijn benen erbij. De grootste pannenkoek is van mij. Voor jou, {jarige}!',
+    ],
+  ],
+  // Roep-en-antwoord: Mecha-Pof zegt het begin, de meiden roepen HOERA in de pauze die erna komt.
+  hiep: [
+    'Iedereen! Hiep hiep...',
+    'Nog een keer! Hiep hiep...',
+    'En nu voor de robot! Piep piep...',
+  ],
+  dans: [
+    'Robotdans! Armen hoekig, knieën slap, doe mij maar na. Bliep, bloep, stap!',
   ],
 
   // ---------------------------------------------------------------- verrassingen (zie MECHA-POF-SPEL.md)

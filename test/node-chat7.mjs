@@ -19,7 +19,8 @@ t('zinnen: wek, loting per talent, kern, bonus, afscheid, teamfoto, eind per tal
 });
 t('fillLine: jarige, naam, hints in woorden', () => {
   assert.equal(fillLine('{naam}... Speurneus!', { naam: 'Elin' }), 'Elin... Speurneus!');
-  assert.match(fillLine(LINES.vers[0], { jarige: 'Hannah' }), /want Hannah is vandaag tien/);
+  assert.match(fillLine(LINES.vers[0][0], { jarige: 'Hannah' }), /want Hannah is vandaag tien/);
+  assert.ok(LINES.dj?.[0] && LINES.hiep?.length === 3 && LINES.dans?.[0]);
   assert.equal(fillLine('{Hints} hints, {hints}.', { hints: 3 }), 'Drie hints, drie.');
 });
 t('badgeInfo: monteur-<deel> en bijzondere badges', () => {
@@ -43,9 +44,9 @@ t('endCards: jarige eerst, zin per talent, badges', () => {
   globalThis.setTimeout = realTimeout;
   assert.deepEqual(stages, ['mega', 'vers', 'confetti', 'finale', 'eind']);
   assert.equal(said[0], 'Boterknop ingedrukt.'); assert.equal(said[1], 'mood:compleet');
-  assert.match(said[2], /Systeemcontrole/); assert.match(said[4], /MEGA-MECHA-POF/); assert.match(said[5], /Hannah is vandaag tien/);
+  assert.match(said[2], /Systeemcontrole/); assert.match(said[4], /MEGA-MECHA-POF/); assert.match(said[5], /DJ Mecha-Pof/); assert.match(said[6], /Hannah is vandaag tien/); assert.ok(said.some(x => /Hiep hiep/.test(x)) && said.some(x => /Robotdans/.test(x)));
   assert.ok(confetti >= 1); assert.ok(fin.done);
-  n++; console.log('✓ finale: volgorde intro → Mega 1-2-3 → vers → confetti → finale + hints → eind; daarna done');
+  n++; console.log('✓ finale: volgorde intro → Mega 1-2-3 → DJ → rapje → hiep → dans → confetti → finale + hints → eind; daarna done');
 }
 t('install: stop zonder deel = geen ritueel', () => {
   const inst = createInstall({ mon: {}, sync: {}, state: { get: () => ({ game: {}, players: [] }), me: () => [], player: () => null }, PARTS, TALENTS, audio: {}, buzz() {}, confetti() {}, overlay() { throw new Error('geen overlay verwacht'); }, closeOverlay() {}, mslot: () => '', esc: s => s });

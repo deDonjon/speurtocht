@@ -243,15 +243,15 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:35}
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync } from './js/sync.js';
 import { createMap } from './js/map.js?v=5'; // ?v ophogen bij elke wijziging: GitHub Pages en Safari bewaren oude bestanden
-import { createMonster, monsterImage, lineText } from './js/monster.js?v=14'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
+import { createMonster, monsterImage, lineText } from './js/monster.js?v=16'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
 import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole } from './js/roles.js?v=1'; // radio / kaart / werkbank, roterend per stop
 import { createInstall } from './js/install.js?v=3'; // installatieritueel: monteur schudt, deel klikt vast
-import { openWalkie, incomingCall, callGreeting, arrivalCall } from './js/walkie.js?v=16'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
+import { openWalkie, incomingCall, callGreeting, arrivalCall } from './js/walkie.js?v=18'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
 import { createNavVoice } from './js/navvoice.js?v=1'; // gesproken navigatie zodra de LED-ogen terug zijn (radiotelefoon)
 import { createSurprises } from './js/surprises.js?v=2'; // Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens
-import { audio } from './js/audio.js?v=9'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
+import { audio } from './js/audio.js?v=10'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
 import { teaserActive, mountTeaser } from './js/teaser.js?v=2'; // voorpret vóór het feest (game.settings.teaser)
-import { createFinale, endCards, END_CSS } from './js/finale.js?v=1'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
+import { createFinale, endCards, END_CSS } from './js/finale.js?v=2'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -325,7 +325,7 @@ let walkie = null; // open walkietalkie (js/walkie.js) of null
 let ring = null;   // inkomende oproep die overgaat (js/walkie.js incomingCall) of null
 const install = createInstall({ mon, sync, state, PARTS, TALENTS, audio, buzz, confetti, overlay: (...a) => overlay(...a), closeOverlay: () => closeOverlay(), mslot: (...a) => mslot(...a), esc });
 const kernOnline = () => { const t = S().game?.settings?.kern_at; return !!t && Date.now() - Date.parse(t) < 3 * 60_000; }; // kern.html staat thuis aan
-const finale = createFinale({ mon, state, audio, confetti, voice: () => kernOnline() ? false : undefined,
+const finale = createFinale({ mon, state, audio, confetti, voice: () => kernOnline() ? false : undefined, music: () => !kernOnline() && hasRole('radio'), // muziek alleen waar Mecha-Pof praat
   onStage: st => { if (st === 'mega') { install.dismiss(); if ($('#ov .install')) closeOverlay(); } cur.update?.(); refresh(); } });
 document.head.insertAdjacentHTML('beforeend', `<style>${END_CSS}</style>`); // kaarten van het eindscherm
 function moodFor() {

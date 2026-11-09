@@ -4,6 +4,7 @@
 //   audio.play('plop')            // naam uit SOUNDS hieronder (installatie: 'vlieg' en 'vast'; 'holo'; 'mega'; verrassingen: 'alarm', 'vonk', 'klok', 'stem', 'kruimel')
 //   audio.playBuffer(buf, { galm })  // stem afspelen; galm = lichte nagalm voor Mega-Mecha-Pof
 //   audio.hum()  → { pulse(strength), stop() }   // funky wah-baslijn onder de stem van het monster
+//   audio.dance() → { duck(on), drop(), stop(fade), beat }  // dansmuziekje voor de finale (eigen deuntje)
 //   audio.buzz(patroon)           // trillen via pkm.buzz (iPhone: alleen een tikje direct na een tik)
 //   audio.muted()                 // dempknop (localStorage pkm2_muted, gezet door index.html)
 //   audio.chime([freq…])          // oude toonreeks, voor wie nog chime gebruikt
@@ -203,6 +204,67 @@ export const audio = {
         if (stopped) return; stopped = true; const n = ctx.currentTime;
         g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), n); g.gain.exponentialRampToValueAtTime(0.0001, n + 0.25);
         o1.stop(n + 0.3); o2.stop(n + 0.3);
+      },
+    };
+  },
+  /** Dansmuziekje voor de finale (eigen deuntje, geen bestaand lied): 122 BPM, four-on-the-floor, clap, hihat,
+      huppelende bas en een chiptune-melodie met robotpiepjes. Akkoorden C · Am · F · G, 8 maten in een lus.
+      → { duck(on) (zachter onder de stem), drop() (melodie + extra hihat aan, voor het dansstuk), stop(fadeSec), beat (s per tel) }.
+      Stil (en een leeg object) als de dempknop aan staat. */
+  dance({ bpm = 122 } = {}) {
+    const none = { duck() {}, drop() {}, stop() {}, beat: 60 / bpm };
+    if (muted() || !context()) return none;
+    const c = ctx, beat = 60 / bpm, bar = beat * 4;
+    const bus = c.createGain(); bus.gain.setValueAtTime(0.0001, c.currentTime); bus.gain.exponentialRampToValueAtTime(0.5, c.currentTime + 0.6);
+    bus.connect(master);
+    const lead = c.createGain(); lead.gain.value = 0; lead.connect(bus); // melodie pas bij drop() (of zacht onder het rapje)
+    const N = m => 440 * Math.pow(2, (m - 69) / 12);                     // midi → Hz
+    const CH = [[48, 52, 55], [45, 48, 52], [41, 45, 48], [43, 47, 50]]; // C, Am, F, G (grondtoon in octaaf 3)
+    // Melodie per maat: [tel, midi, lengte in tellen]; C-groot pentatonisch, vrolijk en huppelend.
+    const MEL = [
+      [[0, 72, .5], [.5, 76, .5], [1, 79, .5], [2, 76, .5], [2.5, 79, .5], [3, 81, 1]],
+      [[0, 81, .5], [.5, 79, .5], [1, 76, 1], [2.5, 72, .5], [3, 74, 1]],
+      [[0, 72, .5], [.5, 74, .5], [1, 77, .5], [1.5, 81, .5], [2, 79, 1], [3.5, 77, .5]],
+      [[0, 79, .5], [.5, 79, .5], [1, 83, .5], [1.5, 86, .5], [2, 84, 1.5]],
+    ];
+    const env = (g, t, v, a, d) => { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + d); };
+    const osc = (type, f, t, d, v, out, { a = 0.005, lp = 0, f1 = 0 } = {}) => {
+      const o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.setValueAtTime(f, t);
+      if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + d * 0.9);
+      env(g, t, v, a, d); let n = o.connect(g);
+      if (lp) { const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; n = n.connect(f); }
+      n.connect(out); o.start(t); o.stop(t + d + 0.05);
+    };
+    const nz = (t, d, v, type, freq, q, out) => {
+      const s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); s.buffer = noise();
+      f.type = type; f.frequency.value = freq; f.Q.value = q; env(g, t, v, 0.002, d);
+      s.connect(f).connect(g).connect(out); s.start(t); s.stop(t + d + 0.05);
+    };
+    let dropped = false, stopped = false, step = 0, next = c.currentTime + 0.15;
+    function schedule(i, t) { // i = achtste noot sinds de start
+      const b8 = i % 8, barI = Math.floor(i / 8), ch = CH[barI % 4];
+      if (b8 % 2 === 0) osc('sine', 150, t, 0.32, 0.9, bus, { a: 0.002, f1: 42 });                 // kick op elke tel
+      if (b8 === 2 || b8 === 6) { nz(t, 0.14, 0.35, 'bandpass', 1500, 0.8, bus); nz(t + 0.012, 0.1, 0.22, 'bandpass', 1900, 1.2, bus); } // clap
+      if (b8 % 2 === 1) nz(t, 0.05, dropped ? 0.22 : 0.14, 'highpass', 7500, 0.7, bus);             // hihat op de tussentel
+      else if (dropped) nz(t, 0.03, 0.07, 'highpass', 9000, 0.7, bus);
+      if (b8 % 2 === 1) osc('square', N(ch[0]) / 2, t, beat * 0.42, 0.16, bus, { lp: 700 });         // huppelende bas (tussentel)
+      if (b8 === 0 || b8 === 3 || b8 === 6) ch.forEach(m => osc('triangle', N(m + 12), t, beat * 0.35, 0.045, bus)); // akkoordstootjes
+      if (b8 === 0) for (const [tb, m, len] of MEL[barI % 4]) osc('square', N(m), t + tb * beat, len * beat * 0.85, 0.06, lead, { lp: 3200 });
+      if (barI % 4 === 3 && b8 === 7) { osc('sine', 900, t, 0.18, 0.12, bus, { f1: 1800 }); osc('sine', 1300, t + beat * 0.25, 0.15, 0.1, bus, { f1: 2400 }); } // robot-bliep-fill
+    }
+    const timer = setInterval(() => {
+      if (stopped) return;
+      while (next < c.currentTime + 0.25) { schedule(step++, next); next += beat / 2; }
+    }, 40);
+    const ramp = (node, v, sec) => { const n = c.currentTime; node.gain.cancelScheduledValues(n); node.gain.setValueAtTime(Math.max(0.0001, node.gain.value), n); node.gain.exponentialRampToValueAtTime(Math.max(0.0001, v), n + sec); };
+    let ducked = false;
+    return {
+      beat,
+      duck(on = true) { if (stopped || ducked === !!on) return; ducked = !!on; ramp(bus, on ? 0.16 : 0.5, on ? 0.15 : 0.5); },
+      drop() { if (stopped) return; dropped = true; ramp(lead, 1, 0.3); ramp(bus, 0.6, 0.3); ducked = false; },
+      stop(fade = 1.5) {
+        if (stopped) return; stopped = true; ramp(bus, 0.0001, fade);
+        setTimeout(() => { clearInterval(timer); try { bus.disconnect(); } catch {} }, fade * 1000 + 300);
       },
     };
   },

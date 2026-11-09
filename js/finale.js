@@ -1,7 +1,8 @@
 // finale.js — de finale thuis en het eindscherm (chat 7, claude/ONBOARDING-FINALE.md §C). Gebruikt door index.html en kern.html.
 //
 //   const fin = createFinale({ mon, state, audio, confetti, voice: () => true|false|undefined, onStage, key })
-//   fin.start()        speel de finale: Mega-Mecha-Pof groeit → LINES.mega 1-2-3 (met galm) → vers → confetti → finale + hints
+//   fin.start()        speel de finale: Mega-Mecha-Pof groeit → LINES.mega 1-2-3 (met galm) → rapje op dansmuziek (dj, vers, hiep,
+//                      dans) → dansstuk met confetti → finale + hints. music() = speelt dit toestel de muziek (alleen wie praat)
 //   fin.stage          'idle' | 'mega' | 'vers' | 'confetti' | 'finale' | 'eind'
 //   fin.done           true als de finale (op dit toestel) al gespeeld is; blijft bewaard per spel (localStorage)
 //   fin.reset()        opnieuw kunnen afspelen (kern.html: knop "Finale opnieuw")
@@ -11,7 +12,7 @@
 // Start: monster.js roept globalThis.pkm.finale.start() aan zodra het zevende deel (de hoed) na het installatieritueel geland is
 // en de installatiezin klaar is. Kern.html heeft ook een knop. Speelt per toestel één keer per spel.
 import { PARTS, TALENTS } from './state.js';
-import { LINES, NAAM_JARIGE } from './monster-lines.js?v=8';
+import { LINES, NAAM_JARIGE } from './monster-lines.js?v=9';
 
 const PART_KEYS = Object.keys(PARTS);
 const WOORDEN = ['nul', 'één', 'twee', 'drie', 'vier', 'vijf', 'zes', 'zeven', 'acht', 'negen', 'tien', 'elf', 'twaalf'];
@@ -61,7 +62,7 @@ export const END_CSS = `.fin-cards{display:grid;grid-template-columns:repeat(aut
 .fin-badges{display:flex;gap:6px;flex-wrap:wrap}.fin-badge{background:#1A1F2A;border:1px solid #15A4C8;color:#7FE8FF;border-radius:999px;padding:2px 9px;font-size:.8rem;font-weight:800;white-space:nowrap}
 .fin-badge.dim{border-color:#3C4A66;color:#93A0B8}`;
 
-export function createFinale({ mon, state, audio, confetti, voice = () => undefined, onStage = () => {}, key = 'pkm2_finale' } = {}) {
+export function createFinale({ mon, state, audio, confetti, voice = () => undefined, music = () => true, onStage = () => {}, key = 'pkm2_finale' } = {}) {
   let stage = 'idle', running = false, runId = 0;
   const gameKey = () => key + ':' + (state.get().game?.started_at || 'x');
   const set = s => { stage = s; try { onStage(s); } catch (e) { console.error('[finale]', e); } };
@@ -71,6 +72,25 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
     if (!text) return;
     const v = voice(), opts = { ...(v !== undefined ? { voice: v } : {}), ...extra };
     if (!(await mon.say(text, opts))) await mon.say(text, opts);
+  }
+  // Het verjaardagsrapje op het dansmuziekje. Muziek alleen op het toestel dat praat (music()), anders gewoon de zinnen.
+  let dance = null;
+  async function rapje(alive) {
+    const J = { jarige: jarige() }, w = l => fillLine(l, J);
+    dance = music() ? audio?.dance?.() || null : null;
+    const talk = async (t, ms) => { dance?.duck(true); await say(t, ms ? { ms } : {}); dance?.duck(false); };
+    try {
+      await talk(w(pick(LINES.dj) || '')); if (!alive()) return;
+      await sleep(dance ? dance.beat * 8 * 1000 : 300); if (!alive()) return; // twee maten alleen muziek
+      const vers = pick(LINES.vers), regels = Array.isArray(vers) ? vers : [vers];
+      for (const r of regels) { await talk(w(r), 7000); if (!alive()) return; await sleep(dance ? dance.beat * 1000 : 200); }
+      for (const h of LINES.hiep || []) { await talk(w(h), 3000); if (!alive()) return; await sleep(1500); if (!alive()) return; } // HOERA!
+      await talk(w(pick(LINES.dans) || ''), 6000); if (!alive()) return;
+      set('confetti');
+      dance?.drop(); confetti?.(); audio?.play?.('badge'); setTimeout(() => confetti?.(), 1800); setTimeout(() => confetti?.(), 6000);
+      await sleep(dance ? dance.beat * 32 * 1000 : 1200); // dansstuk: acht maten (±16 s)
+    } finally { dance?.stop(1.8); dance = null; }
+    await sleep(1200);
   }
   /** intro: zin die eerst gezegd moet worden (de installatiezin van de hoed, als die niet aan bod kwam). */
   async function start({ intro } = {}) {
@@ -85,10 +105,7 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
       await sleep(2600); if (!alive()) return; // Mega-Mecha-Pof groeit (monster.js: 2,4 s)
       for (const l of LINES.mega || []) { await say(fillLine(l, { jarige: jarige() }), { ms: 5000 }); if (!alive()) return; await sleep(400); }
       set('vers');
-      await say(fillLine(pick(LINES.vers), { jarige: jarige() }), { ms: 16000 }); if (!alive()) return;
-      set('confetti');
-      confetti?.(); audio?.play?.('badge'); setTimeout(() => confetti?.(), 1800);
-      await sleep(1200); if (!alive()) return;
+      await rapje(alive); if (!alive()) return;
       set('finale');
       await say(fillLine(pick(LINES.finale), { jarige: jarige() })); if (!alive()) return;
       const h = state.get().game?.hints ?? 0, sub = h === 0 ? 'nul' : h === 1 ? 'een' : 'meer';
@@ -104,7 +121,7 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
     get stage() { return stage; },
     get running() { return running; },
     get done() { return store.get(gameKey()) === '1'; },
-    reset() { runId++; running = false; store.del(gameKey()); set('idle'); },
+    reset() { runId++; running = false; dance?.stop(0.5); dance = null; store.del(gameKey()); set('idle'); },
     voice,
   };
 }
