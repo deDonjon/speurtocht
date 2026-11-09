@@ -1,6 +1,6 @@
 // voice.js — de echte stem van Mecha-Pof (ElevenLabs) voor alles wat het monster zegt buiten de walkietalkie.
 //
-//   import { voice, uitspraak } from './voice.js?v=5';
+//   import { voice, uitspraak } from './voice.js?v=6';
 //   const p = await voice.speak(text, { galm })  → { done: Promise, level() 0..1, stop(), duration }   (gooit een fout als het niet lukt)
 //                                         galm = lichte nagalm (Mega-Mecha-Pof, zie monster.js); de mp3 blijft dezelfde
 //   voice.prewarm(texts, onProgress)    → zinnen vooraf laten opnemen (testpagina)
@@ -14,7 +14,7 @@
 import { audio } from './audio.js?v=10';
 import { SUPABASE_URL, SUPABASE_KEY } from './sync.js';
 
-export const VOICE_VERSION = 'pof1';
+export const VOICE_VERSION = 'pof2'; // pof2 (9 nov): Flash v2.5 + nl, zelfde stem als de walkie
 const TTS_URL = SUPABASE_URL + '/functions/v1/monster-tts';
 const FILE_URL = SUPABASE_URL + '/storage/v1/object/public/monster/tts/' + VOICE_VERSION + '/';
 const TIMEOUT_MS = 7000;

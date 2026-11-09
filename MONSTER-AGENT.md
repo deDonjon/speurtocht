@@ -210,7 +210,7 @@ Supabase-dashboard → project **lnhliamckstuwiwyzxyl** → **Edge Functions →
 | Naam | Waarde |
 |---|---|
 | `ELEVENLABS_VOICE_ID` | het Voice ID uit stap 1 |
-| `ELEVENLABS_TTS_MODEL` | optioneel. Standaard `eleven_multilingual_v2` (mooiste kwaliteit). Klinkt de stem anders dan in de walkie? Zet `eleven_flash_v2_5`. |
+| (model) | staat sinds 9 nov vast in `monster-tts`: `eleven_flash_v2_5` met taal `nl` en dezelfde instellingen als de agent, zodat de vaste zinnen klinken als de walkie. Een secret `ELEVENLABS_TTS_MODEL` wordt niet meer gebruikt. |
 
 `ELEVENLABS_API_KEY` en `ELEVENLABS_AGENT_ID` staan er al. De functies `monster-token` en `monster-tts` zijn
 gedeployed (JWT-verificatie uit, alleen `dedonjon.github.io` en localhost).

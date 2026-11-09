@@ -153,12 +153,12 @@ textarea{min-height:70px}
   </section>
 </main>
 <script type="module">
-import { createMonster, monsterImage, ready, PART_KEYS, MOODS, speechStatus, dutchVoices, middlePitch, setVoicePref, getVoicePref, VOICE_DEFAULT, lineText } from '../js/monster.js?v=16';
+import { createMonster, monsterImage, ready, PART_KEYS, MOODS, speechStatus, dutchVoices, middlePitch, setVoicePref, getVoicePref, VOICE_DEFAULT, lineText } from '../js/monster.js?v=17';
 import { audio } from '../js/audio.js?v=10';
-import { openWalkie, incomingCall, callGreeting, arrivalCall } from '../js/walkie.js?v=18';
+import { openWalkie, incomingCall, callGreeting, arrivalCall } from '../js/walkie.js?v=19';
 import { createSurprises } from '../js/surprises.js?v=2';
 import { LINES } from '../js/monster-lines.js?v=9';
-import { voice } from '../js/voice.js?v=5';
+import { voice } from '../js/voice.js?v=6';
 
 const $ = s => document.querySelector(s);
 const ICON = { lijf: '🥞', ogen: '🫐', neus: '🍓', mond: '🍯', armen: '🥓', benen: '🍌', hoed: '🧈' };
@@ -214,7 +214,7 @@ function allLines() {
     if (l.includes('{Hints}') || l.includes('{hints}')) { for (let n = 2; n <= 8; n++) add(l.replace(/\{Hints\}/g, WOORDEN[n][0].toUpperCase() + WOORDEN[n].slice(1)).replace(/\{hints\}/g, WOORDEN[n])); return; }
     out.push(l.replace(/\{jarige\}|\{naam\}/g, j));
   };
-  const walk = v => Array.isArray(v) ? v.forEach(add) : v && typeof v === 'object' && Object.values(v).forEach(walk);
+  const walk = v => typeof v === 'string' ? add(v) : Array.isArray(v) ? v.forEach(walk) : v && typeof v === 'object' && Object.values(v).forEach(walk); // ook geneste lijsten (vers = regels)
   for (const [k, v] of Object.entries(LINES)) if (!['walkie', 'navigatie', 'eind', 'eindBadge'].includes(k)) walk(k === 'loting' ? { intro: v.intro, klaar: v.klaar } : v); // navigatie krijgt ter plekke een afstand; eind/eindBadge zijn alleen tekst; loting met namen neemt kern.html zelf op
   // vaste zinnen uit index.html
   ['Ik heb de rollen geschud. Kijk maar eens wat je nu kunt.', 'Eén telefoon is in slaap gevallen. Ik verdeel de talenten opnieuw.'].forEach(add);
