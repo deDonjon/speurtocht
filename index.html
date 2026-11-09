@@ -371,8 +371,8 @@ function bonusDone(st, p) {
   mon.react('goed'); const l = lineText('bonus', { sub: 'gevonden' }); if (l) say(l, { auto: true });
 }
 router.on('hint.given', p => { audio.play('hint'); if (p.text) say(p.text, 9000); else toast('💡 Er is een hint vrijgegeven.'); });
-router.on('monster.say', p => say(p.text || '…'));
-router.on('roles.shuffle', () => { say('Ik heb de rollen geschud. Kijk maar eens wat je nu kunt.'); buzz([40, 40, 40]); });
+router.on('monster.say', p => { if (p.kern && kernOnline()) return; say(p.text || '…'); }); // kern:true (wekzin) = alleen de laptop praat, als die aan staat
+router.on('roles.shuffle', p => { if (p.loting && kernOnline()) return; say('Ik heb de rollen geschud. Kijk maar eens wat je nu kunt.'); buzz([40, 40, 40]); }); // loting met animatie: de kern praat
 router.on('plan_b', () => say('Eén telefoon is in slaap gevallen. Ik verdeel de talenten opnieuw.'));
 router.on('gps.skip', p => { if (p.stop_id === state.activeStop()?.id && sync.isLoggedIn()) arrive(p.stop_id); });
 router.on('badge.awarded', p => { if (install.onBadge(p.badge)) return; const me = state.me().find(x => x.id === p.player_id); if (me) toast(`🏅 ${me.name} krijgt de badge ${surprises.badgeLabel(p.badge)}!`); });

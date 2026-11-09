@@ -3,6 +3,7 @@
 // Geheimen (codes, missies, stop-geheimen) komen uit regie_state en staan alleen in `R`.
 import { state, PARTS, TALENTS } from './state.js';
 import { sync } from './sync.js';
+import { LINES } from './monster-lines.js?v=7'; // wekzin (chat 7)
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -307,8 +308,8 @@ function teaserPanel() {
 function tabSpel() {
   const g = game(), act = activeStop(), pz = activePuzzle(), r = route();
   const started = g?.phase && g.phase !== 'lobby';
-  return `${teaserPanel()}<div class="page"><span class="tab">Spel</span>
-      <div class="grid2"><button class="ok" data-a="start">${started ? '▶ Opnieuw starten' : '▶ Start (schudt route)'}</button><button class="danger" data-a="reset">↺ Reset naar lobby</button></div>
+  return `${teaserPanel()}${kernPanel()}<div class="page"><span class="tab">Spel</span>
+      <div class="grid2"><button class="ok" data-a="start">${started ? '▶ Opnieuw starten' : '▶ Start (route in volgorde)'}</button><button class="danger" data-a="reset">↺ Reset naar lobby</button></div>
       <p class="note">${started ? `Gestart ${fmtTime(g.started_at)} · route: ${r.map(s => esc(s.name)).join(' → ')}` : `Nog niet gestart. ${players().filter(p => p.online).length} van ${players().length} speurders online.`}</p>
     </div>
     <div class="page ${pz && !pz.solved_at && g?.phase === 'puzzel' ? 'warn' : ''}"><span class="tab">Huidige stop${act ? ' · ' + esc(act.name) : ''}</span>
@@ -333,6 +334,26 @@ function tabSpel() {
           <button class="danger" data-a="force" style="align-self:end">Zet</button></div>
         <p class="note">Gebruik dit alleen als het spel vastloopt. De puzzelstand van de nieuwe stop wordt niet gewist; "GPS overslaan" na het zetten laat de telefoons aankomen.</p>
       </div></details>`;
+}
+/* ---------- thuis: het kernscherm (kern.html op de laptop), de wekknop en de loting met animatie (chat 7) */
+const WEKZIN = LINES.wek?.[0] || 'Bzzzt... wie maakt mij wakker?';
+function kernPanel() {
+  const g = game(); if (g?.phase && g.phase !== 'lobby') return '';
+  const at = g?.settings?.kern_at, on = at && Date.now() - Date.parse(at) < 3 * 60_000;
+  const woke = (() => { for (const e of events()) { if (e.type === 'game.reset') return false; if (e.type === 'monster.say' && e.payload?.wake) return true; } return false; })();
+  const ps = players(), bday = ps.find(p => p.is_birthday);
+  return `<div class="page"><span class="tab">Thuis · kern en loting</span>
+    <p class="note">Kernscherm: ${on ? `<b style="color:var(--ok)">aan</b> (${ago(at)} geleden gemeld)` : '<b style="color:var(--straw)">niet gezien</b> — open <a href="./kern.html" target="_blank">kern.html</a> op de laptop'}. ${woke ? 'Mecha-Pof is wakker.' : 'Mecha-Pof slaapt nog.'}</p>
+    <div class="grid2"><button class="${woke ? 'plain' : 'ok'}" data-a="wake">⏻ Wek Mecha-Pof</button><button class="${woke ? 'ok' : 'plain'}" data-a="loting">🎰 Loting starten${bday ? ` (${esc(bday.name)} vast)` : ''}</button></div>
+    <p class="note">Wekken = de wekzin op de laptop. Loting = de vijf anderen krijgen een willekeurig talent, ${esc(bday?.name || 'de jarige')} wordt Sleutelbewaarder; de kern laat de namen draaien en Mecha-Pof kondigt elk talent aan. Daarna de voorstelronde via de walkie en de monteurspassen (<a href="./print/monteurspas.html?namen=1" target="_blank">met namen en codes</a>).</p>
+  </div>`;
+}
+function lotingTalents() {
+  const ps = players(), out = {}, bday = ps.filter(p => p.is_birthday), rest = ps.filter(p => !p.is_birthday).sort(() => Math.random() - .5);
+  const pool = Object.keys(TALENTS).filter(t => !(bday.length && t === 'sleutelbewaarder')).sort(() => Math.random() - .5);
+  bday.forEach(p => out[p.id] = 'sleutelbewaarder');
+  rest.forEach((p, i) => out[p.id] = pool[i % pool.length]);
+  return out;
 }
 function tabMonster() {
   const ps = players();
@@ -468,6 +489,8 @@ app.addEventListener('click', async e => {
       return confirmAnd('Talenten opnieuw loten voor alle speurders?', () => sync.regie.event('roles.shuffle', { talents }), '🎲 Talenten verdeeld'); }
     case 'planb': { const d = ui.planb || devices()[0]?.id; return confirmAnd('Plan B: de app verdeelt de talenten van de uitgevallen telefoon opnieuw. Doorgaan?', () => sync.regie.event('plan_b', { dropped_device: d }), '🪫 Plan B gestuurd'); }
     case 'force': { const phase = $('#phasesel').value, idx = +$('#actsel').value; return confirmAnd(`Fase op "${PHASES[phase]}" en actieve stop op ${isNaN(idx) ? '(ongewijzigd)' : idx + 1} zetten?`, () => sync.regie.patchGame({ phase, ...(isNaN(idx) ? {} : { active_index: idx }) }), 'Gezet'); }
+    case 'wake': return busy(() => sync.regie.event('monster.say', { text: WEKZIN, mood: 'wakker', wake: true, kern: true }), '⏻ Mecha-Pof wordt wakker');
+    case 'loting': return confirmAnd('Loting starten? De talenten worden live geloot op het kernscherm (de jarige vast op Sleutelbewaarder).', () => sync.regie.event('roles.shuffle', { talents: lotingTalents(), loting: true }), '🎰 Loting gestart');
     case 'quick': ui.say = b.dataset.s; renderPanel(); return;
     case 'say': { const text = ui.say.trim(); if (!text) return toast('Typ eerst wat hij moet zeggen.'); if (await busy(() => sync.regie.event('monster.say', { text, ...(ui.mood ? { mood: ui.mood } : {}) }), '🗣️ Gestuurd')) { ui.say = ''; renderPanel(); } return; }
     case 'call': { if (!ui.call) return; const p = { player_id: ui.call, message_id: uid() }; if (ui.callText.trim()) p.text = ui.callText.trim(); return busy(() => sync.regie.event('monster.call', p), `📞 ${playerName(ui.call)} wordt gebeld`); }
