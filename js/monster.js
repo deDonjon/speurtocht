@@ -18,9 +18,9 @@
 // - Luistert zelf naar pkm.router / pkm.state (als die er zijn): aankomst, hints, foute antwoorden, stilte.
 // ?v=… tegen oude bestanden in de cache (GitHub Pages/Safari). Ophogen bij een wijziging, ook in index.html en test/monster.html.
 import { hasRole } from './roles.js?v=1';
-import { audio } from './audio.js?v=8';
-import { LINES, NAAM_JARIGE } from './monster-lines.js?v=5';
-import { voice as monsterVoice, uitspraak } from './voice.js?v=2';
+import { audio } from './audio.js?v=9';
+import { LINES, NAAM_JARIGE } from './monster-lines.js?v=6';
+import { voice as monsterVoice, uitspraak } from './voice.js?v=3';
 
 const ZDOG_SRC = [
   'https://cdn.jsdelivr.net/npm/zdog@1.1.3/dist/zdog.dist.min.js',

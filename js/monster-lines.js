@@ -9,7 +9,8 @@
 //   • {naam} wordt alleen ingevuld als jij het was die iets deed. Is het iemand anders,
 //     dan kiest het monster gewoon een andere zin. Het monster noemt alleen jou bij naam.
 //   • {hints} en {Hints} worden het aantal hints in woorden ("vier" / "Vier").
-//   • {spelers} (alleen bij de walkietalkie) wordt de lijst met namen.
+//   • {spelers} (alleen bij de walkietalkie) wordt de lijst met namen; {naam} in walkie.oproep wordt voor wie hij belt.
+//   • {afstand} (alleen bij navigatie) wordt het aantal meters.
 //   • Klaar? Hoog daarna het getal achter monster-lines.js?v= op in js/monster.js, js/walkie.js en
 //     test/monster.html, en dat achter monster.js?v= in index.html. Anders laten telefoons soms nog de oude zinnen horen.
 //   • Elke nieuwe zin wordt de eerste keer met de robotstem opgenomen (een paar tellen wachten), daarna gaat het meteen.
@@ -102,6 +103,11 @@ export const LINES = {
       'Pfffff. Alle vonken gedoofd. Mijn draadjes ruiken een beetje naar geroosterde pannenkoek, maar ik leef nog.',
       'Kortsluiting opgelost. Teamwerk! Ik doe alsof ik niet onder de indruk ben. Lukt niet.',
     ],
+    // Aanmoediging halverwege het tikken (één keer, zonder {tikken} is ook goed).
+    tik: [
+      'Au, au, au! Sneller tikken, ik voel ze kriebelen!',
+      'Ja! Zo! Elke vonk telt. Mijn draadjes zeggen dankjewel.',
+    ],
   },
   // Dubbel signaal: twee kanten op, de telefoons stemmen (fork.*).
   dubbelSignaal: {
@@ -126,6 +132,11 @@ export const LINES = {
     gered: [
       'Pfffoe. Thuis. Jetpack koelt af. Jullie hebben mij gered van een gesmolten bodem.',
     ],
+    // De tijd is om, maar ze zijn er nog niet. Nooit erg: gewoon rustig doorlopen.
+    op: [
+      'Pssssst... de jetpack is gaan sissen. Geeft niks, ik koel wel af met een natte theedoek. Loop maar rustig door, niet rennen.',
+      'Bliep. Jetpack op nul. Mijn stroop is een beetje aangebrand, maar ik leef nog. Stevig doorlopen, speurders, ik wacht op jullie.',
+    ],
   },
   // Verjaardagswens: alleen de jarige, één keer (wish.used).
   wens: {
@@ -140,6 +151,53 @@ export const LINES = {
     ],
     dansje: [
       'Wens vervuld: een dansje! Spatel omhoog, garde rondjes, zuigers op en neer. Robotdans! Doe maar mee!',
+    ],
+  },
+
+  // ---------------------------------------------------------------- gesproken navigatie (alleen met de LED-ogen, radiotelefoon)
+  // {afstand} wordt de afstand in meters (afgerond). Korte zinnen: ze lopen buiten. Hooguit één zin per 20 seconden.
+  // 'warmer' en 'kouder' = dichterbij / verder weg dan de vorige keer; 'gelijk' = ongeveer hetzelfde; 'dichtbij' < 40 m;
+  // 'ver' > 400 m. 'brutaal' = extra zinnen zodra hij ook zijn mond (luidspreker) terug heeft.
+  navigatie: {
+    warmer: [
+      'Warmer! Nog {afstand} meter. Mijn LED-ogen knipperen van blijdschap.',
+      'Bliep! Dichterbij: {afstand} meter. Goed zo, speurders.',
+      'Warmer, warmer. {afstand} meter. Ik ruik... nee wacht, ik zie het bijna.',
+      'Ja! Die kant op. Nog {afstand} meter.',
+    ],
+    kouder: [
+      'Brrr, kouder. {afstand} meter. Draai je eens om, speurders.',
+      'Piep. Verder weg: {afstand} meter. Mijn vizier zegt: andere kant.',
+      'Kouder! Nog {afstand} meter. Ik zie jullie de verkeerde kant op lopen. Grapje. Of niet.',
+    ],
+    gelijk: [
+      'Nog {afstand} meter. Zelfde als net. Staan jullie stil, of loop ik in een kringetje?',
+      'Hmm, {afstand} meter. Beweeg eens wat, dan weet ik warmer of kouder.',
+    ],
+    dichtbij: [
+      'Bijna! Nog {afstand} meter. Kijk goed rond, mijn sensoren tintelen.',
+      'Heet! Heel heet! {afstand} meter. Niet aan mijn stroopmeter komen nu.',
+    ],
+    ver: [
+      'Oef, {afstand} meter. Dat is een eind. Goed dat jullie benen hebben, want de mijne zijn kwijt.',
+      'Nog {afstand} meter. Kijk op de kaart bij de kaarttelefoon, en doorstappen.',
+    ],
+    brutaal: [
+      'Warmer! {afstand} meter. Ik zou harder lopen, maar ik ben een doosje met ogen.',
+      'Kouder, speurders! {afstand} meter. Zelfs een tosti-ijzer vindt die kant verdacht.',
+    ],
+  },
+
+  // ---------------------------------------------------------------- wachtwoordstop (ElevenLabs client tool unlock_stop)
+  // 'goed' zegt de app op alle telefoons zodra het wachtwoord via de walkietalkie is gezegd; 'fout' als het niet klopte.
+  wachtwoord: {
+    goed: [
+      'Wachtwoord geaccepteerd! Klik, klak, slot open. Dat had ik zelf niet beter kunnen zeggen. Nou ja, misschien iets robotischer.',
+      'Bliep! Dat is hem. Toegang verleend. Mijn processor doet een klein dansje.',
+    ],
+    fout: [
+      'Errr. Dat wachtwoord ken ik niet. Mijn processor zegt: nee. Zoek nog eens goed.',
+      'Toegang geweigerd. Beleefd, maar geweigerd. Kijk nog eens om je heen.',
     ],
   },
 
@@ -276,6 +334,12 @@ export const LINES = {
       'Bzzzt! Hé, niet zomaar ophangen! Bij een walkietalkie eindig je elk bericht met over. En stoppen doe je met over en sluiten. Probeer maar. Over!',
       'Piep piep, ik bel terug! Jullie hingen op zonder over en sluiten. Dat mag niet van de robotregels. Zeg aan het eind van een bericht over, en als je klaar bent: over en sluiten. Over!',
       'Krrr, verbinding hersteld. Afspraak is afspraak, speurders: na elk bericht zeg je over, en om op te hangen zeg je over en sluiten. Nu jullie. Over!',
+    ],
+    // Mecha-Pof belt zelf (regie: monster.call zonder eigen tekst). {naam} = voor wie hij belt. Eindigt op "over".
+    oproep: [
+      'Bzzzt! {naam}, ben jij daar? Mecha-Pof hier. Ik moet je iets vragen. Zeg maar hallo, en eindig met over. Over!',
+      'Piep piep, hier Mecha-Pof. Ik bel voor {naam}. Houd de knop vast en praat, en vergeet niet: over. Over!',
+      'Krrrk... inkomend bericht van mij, voor {naam}. Mijn antenne trilt ervan. Zeg het maar. Over!',
     ],
     // Briefing als ze bij een plek aankomen: Mecha-Pof belt zelf en zegt welk onderdeel hier ligt en wie de monteur is.
     // Wordt als begroeting meegestuurd (stop.arrived), per deel van de stop.

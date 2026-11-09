@@ -1,7 +1,7 @@
 // audio.js — het geluidspalet van Mecha-Pof, de keukenrobot, helemaal uit Web Audio (geen bestanden).
 // Toon: lief en speels, met een randje keukenmechaniek (piepjes, servo-zoem, tandwieltjes, ovenbel, stoompufje). Nooit hard of stoer.
 //   import { audio } from './js/audio.js';
-//   audio.play('plop')            // naam uit SOUNDS hieronder (installatie: 'vlieg' en 'vast'; 'holo'; 'mega')
+//   audio.play('plop')            // naam uit SOUNDS hieronder (installatie: 'vlieg' en 'vast'; 'holo'; 'mega'; verrassingen: 'alarm', 'vonk', 'klok', 'stem', 'kruimel')
 //   audio.playBuffer(buf, { galm })  // stem afspelen; galm = lichte nagalm voor Mega-Mecha-Pof
 //   audio.hum()  → { pulse(strength), stop() }   // funky wah-baslijn onder de stem van het monster
 //   audio.buzz(patroon)           // trillen via pkm.buzz (iPhone: alleen een tikje direct na een tik)
@@ -140,6 +140,13 @@ export const SOUNDS = {
   // Mega-Mecha-Pof: opstartzoem die omhoog gaat, tandwielen, akkoord van ovenbellen, stoompuf en een warme bas
   mega()     { whirr(90, 720, 0, 1.3, 0.09); ratchet(8, 0.15, 0.07, 0.07); puff(1.1, 0.08);
                [523, 659, 784, 1047].forEach((f, i) => bell(f, 1.25 + i * 0.09, 0.18, 1.4)); tone({ f: [65, 98], type: 'triangle', at: 1.25, dur: 1.2, vol: 0.22, attack: 0.05, filter: 400 }); },
+  // verrassingen (js/surprises.js)
+  alarm()    { [0, 0.3].forEach(at => { tone({ f: [880, 1100], type: 'triangle', at, dur: 0.14, vol: 0.14, attack: 0.02 }); tone({ f: [1100, 880], type: 'triangle', at: at + 0.15, dur: 0.14, vol: 0.14, attack: 0.02 }); }); // kookwekker-alarm: wie-woe, zacht
+               blip(1320, 1760, 0.62, 0.12, 0.08); },
+  vonk()     { hiss({ dur: 0.06, vol: 0.18, from: 5200, to: 2400, q: 2.5 }); tone({ f: [2400, 900], type: 'square', dur: 0.045, vol: 0.06, filter: 5000 }); blip(1500 + Math.random() * 600, 2600, 0.03, 0.1, 0.05); }, // vonkje wegtikken: tsjak-bliep
+  klok()     { tone({ f: 1700, type: 'square', dur: 0.025, vol: 0.07, filter: 4000 }); tone({ f: 680, type: 'sine', at: 0.005, dur: 0.05, vol: 0.12 }); },                      // kookwekker-tik (finaletimer, laatste tellen)
+  stem()     { blip(600, 950, 0, 0.18, 0.08); bell(1568, 0.1, 0.12, 0.5); },                                                                                                     // stem uitgebracht (dubbel signaal)
+  kruimel()  { [0, 0.09, 0.18, 0.27].forEach((at, i) => blip(1900 - i * 120, 2300 - i * 120, at, 0.1, 0.05)); hiss({ at: 0.05, dur: 0.3, vol: 0.05, from: 3000, to: 1500, q: 0.8 }); }, // het kruimelrobotje trippelt weg
 };
 
 export const audio = {

@@ -1,6 +1,6 @@
 // voice.js — de echte stem van Mecha-Pof (ElevenLabs) voor alles wat het monster zegt buiten de walkietalkie.
 //
-//   import { voice, uitspraak } from './voice.js?v=2';
+//   import { voice, uitspraak } from './voice.js?v=3';
 //   const p = await voice.speak(text, { galm })  → { done: Promise, level() 0..1, stop(), duration }   (gooit een fout als het niet lukt)
 //                                         galm = lichte nagalm (Mega-Mecha-Pof, zie monster.js); de mp3 blijft dezelfde
 //   voice.prewarm(texts, onProgress)    → zinnen vooraf laten opnemen (testpagina)
@@ -11,7 +11,7 @@
 //   2. Bestaat hij niet: Edge Function `monster-tts` maakt hem met de monsterstem en bewaart hem.
 //   3. Lukt dat niet binnen TIMEOUT_MS: de app valt terug op de stem van de telefoon (monster.js).
 // Andere stem of andere instellingen? Hoog VOICE_VERSION op, dan worden alle zinnen opnieuw gemaakt.
-import { audio } from './audio.js?v=8';
+import { audio } from './audio.js?v=9';
 import { SUPABASE_URL, SUPABASE_KEY } from './sync.js';
 
 export const VOICE_VERSION = 'pof1';
