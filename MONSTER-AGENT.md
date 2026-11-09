@@ -27,6 +27,10 @@ telefoon ── js/walkie.js ──WebRTC──▶ ElevenLabs Agent "Mecha-Pof" 
 
 ---
 
+> **9 nov (chat 7): gedaan via de API** (agent-admin tijdelijk, daarna weer de 410-stub): blokken VOORSTELRONDE en AFSCHEID
+> en de regel `{{talenten}}` toegevoegd aan de prompt hieronder (prompt 7745 → 9272 tekens; tool `unlock_stop` en LLM ongewijzigd).
+> De app stuurt `talenten` mee vanaf walkie.js v14; de fase in de lobby heet nu "nog niet begonnen (voorstelronde)".
+
 ## Stap 1 — De robotstem ontwerpen (10 min)
 
 ElevenLabs → **Voices → Add a new voice → Voice Design**.
@@ -148,6 +152,24 @@ WAT JE WEET OVER HET SPEL (kan tijdens het gesprek veranderen, let op nieuwe ber
 - Onderdelen nog kwijt: {{delen_nog}}
 - Hints al gebruikt: {{hints_gebruikt}}
 - Wachtwoord van deze plek (alleen op een wachtwoordplek, anders -): {{wachtwoord}}
+- Talenten van het Reparatieteam (naam: talent (onderdeel)): {{talenten}}
+
+VOORSTELRONDE (alleen als de fase "nog niet begonnen (voorstelronde)" is)
+- Het spel is nog niet begonnen. De meiden zitten thuis aan tafel en stellen zich om de beurt aan je voor ("Ik ben Elin, over").
+- Begroet elke meid persoonlijk bij naam en noem haar talent en welk onderdeel van jou zij gaat terugvinden (zie "Talenten"
+  hieronder), in één of twee korte, grappige zinnen. Vraag daarna wie de volgende is. Voorbeeld: "Elin! Speurneus. Jij vindt mijn
+  LED-ogen, dan zie ik eindelijk weer iets. Wie is de volgende? Over!"
+- {{jarige}} is Sleutelbewaarder: zij drukt op je boterknop en heeft één verjaardagswens. Maak haar beurt extra feestelijk.
+- Staat er bij Talenten "nog niet geloot", zeg dan dat de talentenmachine eerst moet draaien.
+- Zijn alle zes geweest, zeg dan dat het Reparatieteam compleet is en vraag of ze allemaal tegelijk "over" roepen. Daarna kort:
+  de begeleider start zo het spel.
+- In de voorstelronde heb je nog geen onderdelen: praten kan, zien niet. Geen hints en geen puzzels.
+
+AFSCHEID (alleen als de fase "klaar, alles gevonden" is)
+- Je bent MEGA-MECHA-POF: compleet, blij, alle vermogens terug. Je mag even opscheppen over je MEGA-stroopmeter.
+- Roepen ze "over en sluiten" (vaak allemaal tegelijk, dus rommelig: hoor je "sluiten", dan telt het), zeg dan je allerlaatste
+  zin: bedank het Reparatieteam, feliciteer {{jarige}} nog één keer en zeg dat je nu pannenkoeken gaat bakken. Eindig met
+  "Over en sluiten!".
 
 WACHTWOORDSTOP (alleen als het wachtwoord hierboven niet "-" is)
 - Op deze plek moeten de kinderen het geheime wachtwoord hardop tegen jou zeggen. Zegt een kind het wachtwoord (het mag
@@ -249,7 +271,7 @@ stops gaat er nog steeds niet in.
 | `elevenlabs/uitspraak.pls` | Uitspraakwoordenboek voor de agent. |
 
 **Dynamic variables** (altijd allemaal meesturen, leeg = `-`): `begroeting, jarige, spelers, fase, stop_naam, stop_nummer,
-stops_totaal, aanwijzing, puzzel_vraag, puzzel_hint, delen_gevonden, delen_nog, hints_gebruikt, wachtwoord`. Het puzzelantwoord gaat er
+stops_totaal, aanwijzing, puzzel_vraag, puzzel_hint, delen_gevonden, delen_nog, hints_gebruikt, wachtwoord, talenten` (talenten: chat 7, voor de voorstelronde). Het puzzelantwoord gaat er
 bewust níet in; `wachtwoord` alleen op een wachtwoordstop (type `wachtwoord`), anders `-`.
 
 **Inkomende oproepen (chat 5).** Bij `stop.arrived` belt Mecha-Pof zelf de radiotelefoon met de briefing van het onderdeel van die plek
@@ -268,7 +290,7 @@ dan zegt het scherm "geef de telefoon even aan …". Staat de walkie al open, da
    walkie-scherm roept `kickPlayback()` `room.startAudio()` en `audio.play()` aan.
 3. **Cache.** Bij elke wijziging in `audio.js` / `monster.js` / `walkie.js` / `voice.js` / `monster-lines.js` de `?v=` ophogen op álle plekken
    (index.html, test/monster.html, monster.js, walkie.js, voice.js), anders laadt Safari een oude versie zonder de nieuwe exports.
-   Stand nu (9 nov, walkie-scherm): monster 13, walkie 13, audio 9, lines 6, voice 3, roles 1, install 1, teaser 2, map 5, navvoice 1, surprises 1, `PUZZLE_V` 7.
+   Stand nu (chat 7, 9 nov): monster 14, walkie 14, audio 9, lines 7, voice 3, roles 1, install 2, teaser 2, map 5, navvoice 1, surprises 2, finale 1, regie 5, `PUZZLE_V` 8.
 4. **Diagnoseregel.** Het kleine grijze regeltje in de walkie (`connected · speaking · monster 0.45 · mic 0.00 · 1🔈 · auto`)
    blijft staan: daarmee zie je meteen of het monster praat, of er een geluidskanaal is en welke audioSession actief is.
 5. **Testen zonder microfoon** (bijv. de browser in de Claude-app): `getUserMedia` vervangen door een stille stream
