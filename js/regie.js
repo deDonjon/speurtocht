@@ -238,11 +238,19 @@ function surpriseStatus() {
   const g = game(), s = g?.surprise; if (!s) return '';
   const started = s.started_at;
   if (s.kind === 'thief') { const j = eventsAfter('thief.jump', started)[0]; return `<div class="surprise"><span class="k">🍪 De Kruimelaar is actief</span><p>Gestolen: <b>${esc(PARTS[s.data?.part]?.label || s.data?.part || '?')}</b> · nu bij punt ${(j ? +j.payload?.i : 0) + 1} van ${s.data?.points?.length || 0} · ${ago(started)}</p></div>`; }
-  if (s.kind === 'storm') { const total = eventsAfter('storm.score', started).reduce((n, e) => n + (+e.payload?.n || 0), 0); const left = Math.max(0, Math.round((Date.parse(started) + (s.data?.seconds || 30) * 1000 - Date.now()) / 1000);
-    return `<div class="surprise"><span class="k">⚡ Kortsluiting</span><p><span class="countdown">${left}s</span> · ${total} vonken getikt ${eventsAfter('storm.score', started).length ? '(' + Object.entries(eventsAfter('storm.score', started).reduce((m, e) => (m[e.player_id] = (m[e.player_id] || 0) + (+e.payload?.n || 0), m), {})).map(([id, n]) => esc(playerName(id)) + ' ' + n).join(', ') + ')' : ''}</p></div>`; }
-  if (s.kind === 'fork') { const votes = eventsAfter('fork.vote', started), last = {}; for (const v of votes.slice().reverse()) last[v.player_id] = v.payload?.choice; const a = Object.values(last).filter(c => c === 'a').length, b = Object.values(last).filter(c => c === 'b').length;
-    return `<div class="surprise"><span class="k">📡 Dubbel signaal</span><p>A: <b>${esc(s.data?.a || 'A')}</b> (${a}) · B: <b>${esc(s.data?.b || 'B')}</b> (${b})</p></div>`; }
-  if (s.kind === 'finale') { const left = Math.max(0, Math.round((Date.parse(started) + (s.data?.seconds || 0) * 1000 - Date.now()) / 1000); return `<div class="surprise"><span class="k">🔥 Jetpack oververhit</span><p><span class="countdown">${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</span> tot de jetpack het begeeft</p></div>`; }
+  const secondsLeft = total => Math.max(0, Math.round((Date.parse(started) + total * 1000 - Date.now()) / 1000));
+  if (s.kind === 'storm') {
+    const scores = eventsAfter('storm.score', started), total = scores.reduce((n, e) => n + (+e.payload?.n || 0), 0);
+    const perPlayer = {}; for (const e of scores) perPlayer[e.player_id] = (perPlayer[e.player_id] || 0) + (+e.payload?.n || 0);
+    const who = Object.entries(perPlayer).map(([id, n]) => esc(playerName(id)) + ' ' + n).join(', ');
+    return `<div class="surprise"><span class="k">⚡ Kortsluiting</span><p><span class="countdown">${secondsLeft(s.data?.seconds || 30)}s</span> · ${total} vonken getikt${who ? ' (' + who + ')' : ''}</p></div>`;
+  }
+  if (s.kind === 'fork') {
+    const last = {}; for (const v of eventsAfter('fork.vote', started).slice().reverse()) last[v.player_id] = v.payload?.choice;
+    const a = Object.values(last).filter(c => c === 'a').length, b = Object.values(last).filter(c => c === 'b').length;
+    return `<div class="surprise"><span class="k">📡 Dubbel signaal</span><p>A: <b>${esc(s.data?.a || 'A')}</b> (${a}) · B: <b>${esc(s.data?.b || 'B')}</b> (${b})</p></div>`;
+  }
+  if (s.kind === 'finale') { const left = secondsLeft(s.data?.seconds || 0); return `<div class="surprise"><span class="k">🔥 Jetpack oververhit</span><p><span class="countdown">${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</span> tot de jetpack het begeeft</p></div>`; }
   return `<div class="surprise"><span class="k">${esc(s.kind)}</span></div>`;
 }
 setInterval(() => { if (loggedIn && game()?.surprise && $('#surprise')) $('#surprise').innerHTML = surpriseStatus(); }, 1000);
