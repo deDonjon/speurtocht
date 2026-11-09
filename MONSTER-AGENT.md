@@ -6,8 +6,9 @@
 > De stappen blijven staan als naslag (bijv. voor een nieuwe stem).
 >
 > **9 nov (verhaal-chat): de system prompt hieronder is vernieuwd** (verhaal, vermogens per onderdeel via
-> `delen_gevonden`, Kruimelaar & co., eerlijk over computerbrein). **Job: plak hem opnieuw in ElevenLabs** (stap 2, alleen
-> het System prompt-veld). Teksten en briefings: `claude/STORY.md`.
+> `delen_gevonden`, Kruimelaar & co., eerlijk over computerbrein). **Staat op 9 nov via de API in ElevenLabs** (PATCH
+> `/v1/convai/agents/{id}` vanuit een tijdelijke Edge Function `agent-admin`, nu uitgeschakeld). De agent draait op
+> claude-sonnet-4-6 (niet Haiku). Teksten en briefings: `claude/STORY.md`.
 
 ```
                      ┌────────── walkietalkie (live gesprek) ──────────┐
