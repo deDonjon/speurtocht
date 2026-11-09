@@ -120,11 +120,10 @@ if (LEAFLET) { const w = world({ active: 1, parts: ['lijf'] }); w.player.forEach
   await page.waitForSelector('input[aria-label="Code"]', { timeout: 10000 }).catch(() => null);
   await page.fill('input[aria-label="Code"]', '5243').catch(() => {});
   ok('navigatiescherm met 3D-knop', await until(() => !!document.querySelector('#b3d'), 15000));
-  await page.click('#b3d').catch(() => {});
-  ok('3D-bord verschijnt in de kaart', await until(() => !!document.querySelector('#bordslot:not([hidden]) .pkb canvas'), 15000));
+  ok('3D-bord staat standaard aan in de kaart', await until(() => !!document.querySelector('#bordslot:not([hidden]) .pkb canvas'), 15000));
   await sleep(2500);
   await page.screenshot({ path: path.join(OUT, 'bord-app.png') });
-  await page.click('#b3d'); await sleep(300);
+  await page.evaluate(() => document.querySelector('#b3d').click()); await sleep(500);
   ok('terug naar de gewone kaart', await page.evaluate(() => !document.querySelector('#mapslot').hidden && document.querySelector('#bordslot').hidden));
   ok('geen JS-fouten', !errors.length, errors.join(' | '));
   await page.close(); } else console.log('(overgeslagen: zet LEAFLET_DIR)');

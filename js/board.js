@@ -110,7 +110,7 @@ export async function loadOsm() {
   return { data: null, source: 'geen' };
 }
 /** Laat de Edge Function board-osm de kaart ophalen en voor iedereen bewaren. Geeft { data, saved, src, counts } of gooit met details. */
-export async function fetchOsmServer(timeoutMs = 90000) {
+export async function fetchOsmServer(timeoutMs = 150000) {
   let tm;
   try {
     const r = await Promise.race([fetch(`${SUPABASE_URL}/functions/v1/board-osm`, { method: 'POST', headers: { apikey: SUPABASE_KEY, 'content-type': 'application/json' }, body: '{}' }),
@@ -381,6 +381,33 @@ export async function createBoard(host, opts = {}) {
     }
     world.add(houseBody, houseRoof, trees, trunks, flowers);
 
+    // ---- pannenkoekenwereld: stroop die over de rand van het eiland druipt, poffertjes met poedersuiker in het gras
+    const syrupMat = flat('#D9861C', { emissive: '#7A3E00', emissiveIntensity: 0.25, roughness: 0.18, metalness: 0.1 });
+    const NB = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, -1], [-1, 1]];
+    const drips = [];
+    for (const c of cells) for (const [dq, dr] of NB) {
+      if (byKey.has((c.q + dq) + ',' + (c.r + dr))) continue;
+      if (hash(c.q * 7 + dq, c.r * 13 + dr) > 0.3) continue;
+      const ox = R * SQ3 * (dq + dr / 2), oz = R * 1.5 * dr, L = Math.hypot(ox, oz), k = (R * 0.9) / L;
+      drips.push({ x: c.x + ox / L * R * 0.9 * (L / L), z: c.z + oz / L * R * 0.9, h: c.h, len: 3 + hash(c.q + dq * 31, c.r - dr * 17) * 9, k });
+    }
+    const dripMesh = new T.InstancedMesh(new T.CapsuleGeometry(0.85, 1, 3, 8), syrupMat, Math.max(1, drips.length)); dripMesh.count = drips.length;
+    drips.forEach((d, i) => dripMesh.setMatrixAt(i, m4.compose(v3.set(d.x, d.h + 0.2 - d.len / 2, d.z), q4.identity(), s3.set(1, d.len, 1))));
+    dripMesh.castShadow = true; world.add(dripMesh);
+    const poffs = [];
+    for (const c of cells) if (['gras', 'tuin', 'veld'].includes(c.t) && c.d > 12 && c.n > 0.93) { const n = 4 + Math.floor(c.n * 100) % 4; for (let k = 0; k < n; k++) poffs.push({ c, a: k / n * Math.PI * 2 + c.n * 9, r: k ? 2.6 : 0, y: k ? 0 : 1.1 }); }
+    const s7 = path.pts.find(p => p.seq === 7);
+    if (s7) { const c = cellAt(s7.x, s7.z); for (let k = 0; k < 12; k++) poffs.push({ c: c || { x: s7.x, z: s7.z, h: 2.3, decos: [] }, x: s7.x, z: s7.z, a: k / 12 * Math.PI * 2, r: 10.2, y: 0 }); }
+    const poffMesh = new T.InstancedMesh(new T.SphereGeometry(1.5, 12, 8), flat('#C98A3E', { roughness: 0.55 }), Math.max(1, poffs.length));
+    const sugarMesh = new T.InstancedMesh(new T.SphereGeometry(1, 8, 6), flat('#FFFDF8', { roughness: 1, emissive: '#FFFFFF', emissiveIntensity: 0.08 }), Math.max(1, poffs.length));
+    poffMesh.count = sugarMesh.count = 0; poffMesh.castShadow = true;
+    for (const p of poffs) {
+      const cx = p.x ?? p.c.x, cz = p.z ?? p.c.z, x = cx + Math.cos(p.a) * p.r, z = cz + Math.sin(p.a) * p.r, y = p.c.h + 0.35 + 0.6 + p.y;
+      put(poffMesh, m4.compose(v3.set(x, y, z), q4.identity(), s3.set(1, 0.5, 1)), p.c);
+      put(sugarMesh, m4.compose(v3.set(x, y + 0.55, z), q4.identity(), s3.set(0.9, 0.22, 0.9)), p.c);
+    }
+    world.add(poffMesh, sugarMesh);
+
     // wolken (alleen spelers- en kernweergave)
     const cloudMat = flat('#E8EEF7', { roughness: 1, emissive: '#5A6C8E', emissiveIntensity: 0 });
     const clouds = new T.InstancedMesh(new T.IcosahedronGeometry(1, 1), cloudMat, N);
@@ -405,6 +432,19 @@ export async function createBoard(host, opts = {}) {
         const cs = ['#E8B062', '#DFA556', '#EAB868', '#D99A4E', '#E6AD5C'];
         for (let i = 0; i < 5; i++) { const pk = new T.Mesh(new T.CylinderGeometry(8.5 - i * 0.35, 8.7 - i * 0.35, 1.5, 24), flat(cs[i], { roughness: 0.7 })); pk.position.y = 0.8 + i * 1.55; pk.castShadow = pk.receiveShadow = true; g.add(pk); }
         const butter = new T.Mesh(new T.BoxGeometry(3.2, 1.6, 3.2), flat('#FFF1A8', { roughness: 0.5 })); butter.position.y = 8.9; butter.rotation.y = 0.4; butter.castShadow = true; g.add(butter);
+        // stroop over de toren, poedersuiker erop en een zeef die erboven strooit
+        const glaze = new T.Mesh(new T.CylinderGeometry(6.6, 7.2, 0.5, 24), syrupMat); glaze.position.y = 8.05; g.add(glaze);
+        for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + 0.3, d = new T.Mesh(new T.CapsuleGeometry(0.6, 1, 3, 8), syrupMat), len = 2 + (i % 3) * 1.6;
+          d.scale.y = len; d.position.set(Math.cos(a) * 7.4, 8 - len / 2, Math.sin(a) * 7.4); g.add(d); }
+        const dust = new T.Mesh(new T.CylinderGeometry(6.2, 6.2, 0.15, 24), flat('#FFFDF8', { roughness: 1 })); dust.position.y = 8.35; g.add(dust);
+        const sieve = new T.Group(); const rim = new T.Mesh(new T.TorusGeometry(4, 0.35, 6, 24), flat('#C9D3E0', { metalness: 0.6, roughness: 0.3 })); rim.rotation.x = Math.PI / 2;
+        const mesh = new T.Mesh(new T.CircleGeometry(4, 24), new T.MeshBasicMaterial({ color: '#C9D3E0', transparent: true, opacity: 0.45, side: T.DoubleSide })); mesh.rotation.x = Math.PI / 2;
+        const grip = new T.Mesh(new T.BoxGeometry(5, 0.5, 0.8), rim.material); grip.position.x = 6.4; sieve.add(rim, mesh, grip); sieve.position.y = 34; g.add(sieve);
+        const NS = 220, sp = new Float32Array(NS * 3), sv = new Float32Array(NS);
+        for (let i = 0; i < NS; i++) { const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 3.8; sp.set([Math.cos(a) * r, 10 + Math.random() * 24, Math.sin(a) * r], i * 3); sv[i] = 4 + Math.random() * 5; }
+        const sg = new T.BufferGeometry(); sg.setAttribute('position', new T.BufferAttribute(sp, 3));
+        const sugar = new T.Points(sg, new T.PointsMaterial({ color: '#FFFFFF', size: 0.9, sizeAttenuation: true, transparent: true, opacity: 0.9, depthWrite: false }));
+        sugar.userData.speed = sv; g.add(sugar); g.userData.sugar = sugar; g.userData.sieve = sieve;
         topY = 10;
       } else {
         const ped = new T.Mesh(new T.CylinderGeometry(R * 0.6, R * 0.75, 4.5, 6), batter); ped.position.y = 2.25; ped.castShadow = ped.receiveShadow = true; g.add(ped);
@@ -471,7 +511,7 @@ export async function createBoard(host, opts = {}) {
     const stone = new T.Mesh(new T.CylinderGeometry(R * 0.97, R * 0.97, 14.3, 6), flat('#8E979F', { emissive: '#F59E2E', emissiveIntensity: 0.25 })); stone.position.y = -4.85; stone.visible = false; stone.castShadow = stone.receiveShadow = true; world.add(stone);
     const pinGeo = new T.SphereGeometry(2, 12, 10), pins = new Map();
 
-    B = { cloudMat, cells, cellAt, colMesh, topMesh, clouds, bMesh, bInfo, decoMeshes: [houseBody, houseRoof, trees, trunks, flowers], drops, dropMesh, dropMat, stopObjs, extras, crumbs, bonusCoin, beacon, pulse, line, link, arrows, pawn, stone, pinGeo, pins, R };
+    B = { syrupMat, sugarStop: stopObjs[7], cloudMat, cells, cellAt, colMesh, topMesh, clouds, bMesh, bInfo, decoMeshes: [houseBody, houseRoof, trees, trunks, flowers, poffMesh, sugarMesh], drops, dropMesh, dropMat, stopObjs, extras, crumbs, bonusCoin, beacon, pulse, line, link, arrows, pawn, stone, pinGeo, pins, R };
     [houseBody, houseRoof, trees, trunks, flowers, clouds, dropMesh, colMesh, topMesh].forEach(m => { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; });
     fogKey = ''; dyn.groupPos = null;
     applyDynamic(true);
@@ -701,6 +741,11 @@ export async function createBoard(host, opts = {}) {
     B.extras.forEach((o, k) => { o.obj.position.y = o.obj.userData.baseY + Math.sin(t * 2 + k) * 0.5; if (o.ex.k !== 'print') o.obj.rotation.y = t * 1.2 + k; });
     if (B.bonusCoin.visible) B.bonusCoin.userData.coin.rotation.y = t * 1.5;
     const ph = (t * 0.8) % 1; B.pulse.scale.setScalar(1 + ph * 1.4); B.pulse.material.opacity = 0.7 * (1 - ph);
+    // poedersuiker dwarrelt uit de zeef op de pannenkoekentoren
+    const sg7 = B.sugarStop?.g.userData.sugar;
+    if (sg7 && B.sugarStop.g.visible) { const pa = sg7.geometry.attributes.position, sv = sg7.userData.speed;
+      for (let i = 0; i < sv.length; i++) { let y = pa.array[i * 3 + 1] - sv[i] * dt; if (y < 8.6) y = 33.5; pa.array[i * 3 + 1] = y; }
+      pa.needsUpdate = true; const sv2 = B.sugarStop.g.userData.sieve; sv2.rotation.z = Math.sin(t * 9) * 0.06; sv2.position.x = Math.sin(t * 9) * 0.5; }
     // pijltjes op de lijn
     const L = dyn.lineLen || 0, pts = dyn.linePts || [];
     let n = 0;

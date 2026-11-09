@@ -4,10 +4,30 @@ import { state } from './state.js';
 
 export const SUPABASE_URL = 'https://lnhliamckstuwiwyzxyl.supabase.co';
 export const SUPABASE_KEY = 'sb_publishable_hoQWFp1gmy-qfG6IICNckw_ewEXmm_3'; // publishable key: mag openbaar
-export const GAME_CODE = 'hannah10';
+// Welk spel: 'hannah10' (het echte feest) of 'test' (supabase/testspel.sql). Kiezen met ?spel=test in de adresbalk; het toestel
+// onthoudt de keuze tot ?spel=hannah10. Sessie, buffer en regiesleutel staan per spel apart, zodat testen het echte spel niet raakt.
+const GAMES = ['hannah10', 'test'];
+function pickGame() {
+  try {
+    const q = new URLSearchParams(location.search).get('spel');
+    if (q && GAMES.includes(q)) { localStorage.setItem('pkm2_spel', q); return q; }
+    const saved = localStorage.getItem('pkm2_spel'); if (GAMES.includes(saved)) return saved;
+  } catch {}
+  return 'hannah10';
+}
+export const GAME_CODE = typeof location !== 'undefined' ? pickGame() : 'hannah10';
+export const IS_TEST = GAME_CODE !== 'hannah10';
+if (IS_TEST && typeof document !== 'undefined') { // duidelijk merkteken op elk scherm
+  const tag = () => { if (document.getElementById('pkm-testspel')) return; const d = document.createElement('div'); d.id = 'pkm-testspel'; d.textContent = 'TESTSPEL';
+    d.title = 'Terug naar het echte spel: ?spel=hannah10';
+    d.style.cssText = 'position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 2px);transform:translateX(-50%);z-index:99999;pointer-events:none;background:#FF5A4E;color:#fff;font:900 10px/1 system-ui,sans-serif;letter-spacing:.18em;padding:3px 8px;border-radius:999px;box-shadow:0 2px 6px rgba(0,0,0,.4)';
+    document.body.appendChild(d); };
+  if (document.body) tag(); else addEventListener('DOMContentLoaded', tag);
+}
 const SUPABASE_ESM = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-const SESSION_KEY = 'pkm2_session', OUTBOX_KEY = 'pkm2_outbox', REGIE_KEY = 'pkm2_regie';
+const SFX = IS_TEST ? '_' + GAME_CODE : '';
+const SESSION_KEY = 'pkm2_session' + SFX, OUTBOX_KEY = 'pkm2_outbox' + SFX, REGIE_KEY = 'pkm2_regie' + SFX;
 const HEARTBEAT_MS = 10_000, FLUSH_MS = 5_000, EVENTS_LOAD = 50;
 
 const store = {
@@ -207,6 +227,7 @@ export const sync = {
   regie: {
     async login(key) {
       const r = await rpc('regie_check', { p_key: key });
+      if (r?.code && r.code !== GAME_CODE) throw new SyncError(`Deze regiesleutel hoort bij spel "${r.code}", niet bij "${GAME_CODE}"`, 'wronggame');
       regieKey = key; try { sessionStorage.setItem(REGIE_KEY, key); } catch {}
       return r;
     },

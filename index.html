@@ -617,10 +617,10 @@ function updateMap(st, seesTarget) {
 }
 const fitMap = () => wmap?.fit();
 /* ---------- 3D-speelbord (js/board.js) als tweede kaartweergave; de keuze onthoudt de telefoon. Pas geladen als iemand hem aanzet. */
-let board = null, boardP = null, bordOn = store.get('pkm2_bord', false);
+let board = null, boardP = null, bordOn = store.get('pkm2_bord', true); // standaard het 3D-bord; 'Kaart' wisselt naar Leaflet
 async function ensureBoard(slot) {
   if (board) { if (board.el.parentNode !== slot) slot.appendChild(board.el); return board; }
-  if (!boardP) boardP = import('./js/board.js?v=2').then(m => m.createBoard(slot, { mode: 'spel' })).then(b => (board = b)).catch(e => { console.warn('[bord]', e); boardP = null; bordOn = false; store.set('pkm2_bord', false); toast('Het 3D-bord laadt niet op deze telefoon; de gewone kaart blijft.', 3600); return null; });
+  if (!boardP) boardP = import('./js/board.js?v=3').then(m => m.createBoard(slot, { mode: 'spel' })).then(b => (board = b)).catch(e => { console.warn('[bord]', e); boardP = null; bordOn = false; store.set('pkm2_bord', false); toast('Het 3D-bord laadt niet op deze telefoon; de gewone kaart blijft.', 3600); return null; });
   return boardP;
 }
 function updateBoard() {

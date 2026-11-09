@@ -2,7 +2,7 @@
 // Leest live mee via state.js/sync.js (Realtime) en bestuurt het spel met sync.regie.* (CONTRACTS.md §4).
 // Geheimen (codes, missies, stop-geheimen) komen uit regie_state en staan alleen in `R`.
 import { state, PARTS, TALENTS } from './state.js';
-import { sync } from './sync.js';
+import { sync, IS_TEST } from './sync.js';
 import { LINES } from './monster-lines.js?v=7'; // wekzin (chat 7)
 
 /* ================================================================ hulpjes */
@@ -29,7 +29,7 @@ function beep(notes = [880, 1175]) {
 }
 
 /* ================================================================ toestand van het scherm */
-const KEY_REMEMBER = 'pkm2_regie_remember', KEY_TAB = 'pkm2_regie_tab', KEY_SOUND = 'pkm2_regie_sound', KEY_FOLLOW = 'pkm2_regie_follow';
+const KEY_REMEMBER = 'pkm2_regie_remember' + (IS_TEST ? '_test' : ''), KEY_TAB = 'pkm2_regie_tab', KEY_SOUND = 'pkm2_regie_sound', KEY_FOLLOW = 'pkm2_regie_follow';
 let R = { game: null, players: [], stops: [], puzzle_states: [], events: [] }; // regie_state, met geheimen
 let loggedIn = false, booted = false, bootError = '';
 let tab = store.get(KEY_TAB, 'spel');

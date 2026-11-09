@@ -81,7 +81,7 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:75}
 <canvas id="confetti" hidden></canvas>
 <script type="module">
 import { state, PARTS, TALENTS } from './js/state.js';
-import { sync } from './js/sync.js';
+import { sync, IS_TEST } from './js/sync.js';
 import { createMonster, lineText } from './js/monster.js?v=14';
 import { audio } from './js/audio.js?v=9';
 import { voice } from './js/voice.js?v=3';
@@ -94,7 +94,7 @@ const S = () => state.get();
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const pick = l => Array.isArray(l) && l.length ? l[Math.floor(Math.random() * l.length)] : null;
 const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
-const KEY_REMEMBER = 'pkm2_regie_remember'; // zelfde als regie.html
+const KEY_REMEMBER = 'pkm2_regie_remember' + (IS_TEST ? '_test' : ''); // zelfde als regie.html
 document.head.insertAdjacentHTML('beforeend', `<style>${END_CSS} .fin-cards{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px} .fin-card{padding:10px} .fin-zin{font-size:clamp(.8rem,1vw,1rem)} .fin-head b{font-size:clamp(1rem,1.3vw,1.25rem)} .fin-ic{font-size:1.6rem} .fin-badge{font-size:.72rem}</style>`);
 
 /* ---------- monster: groot, praat altijd hardop (de kern is de luidspreker in huis) */
