@@ -1,7 +1,7 @@
 // Browsertest van chat 7 in headless Chrome (Playwright) met de nep-Supabase (test/fake-supabase.mjs) en Zdog uit test/vendor:
 //   node test/browser-chat7.mjs [finale|kern|bonus]   (zonder argument: alles)
 // finale: stop 4 met LED-overlay → wens namens de jarige via de regie (telt als gebruikt + badge) → thuis indienen → hoed installeren →
-//         Mega 1-2-3 → vers → confetti → finale → eindscherm met badges per speurder.
+//         check → Mega → vers → confetti → taart → eindscherm met badges per speurder.
 // kern:   kern.html → regiesleutel → slaap → wekknop (monster.say met de wekzin) → loting (roles.shuffle, Hannah vast) → start → deel vliegt in → finale.
 // bonus:  regie.html tab Bonus → B3 inzetten als volgende stop → telefoon toont de bonus → opgelost zonder ritueel → terug naar de route.
 import http from 'node:http';
@@ -104,13 +104,14 @@ if (!only || only === 'finale') {
   await page.evaluate(() => window.pkm.sync.badge('p1', 'monteur-hoed')); // = geschud
   ok('hoed vastgeklikt', await until(() => document.querySelector('#ov .install')?.textContent.includes('Vastgeklikt'), 5000));
   ok('installatiezin hoed in de ballon', await until(() => __said.some(t => /ontsteking/i.test(t)), 9000));
-  ok('finale start: stage mega, installatie dicht', await until(() => window.pkm.finale.stage === 'mega' && !document.querySelector('#ov .install'), 30000));
+  ok('finale start: stage check, installatie dicht', await until(() => ['check', 'mega'].includes(window.pkm.finale.stage) && !document.querySelector('#ov .install'), 30000));
   ok('Mega-Mecha-Pof: alle zeven delen + compleet', await until(() => window.pkm.mon.mood === 'compleet' && window.pkm.mon.parts.length === 7, 3000));
   ok('mega stukje 1 (systeemcontrole)', await until(() => __said.some(t => /Systeemcontrole/.test(t)), 8000));
   ok('mega stukje 3 (MEGA-MECHA-POF!)', await until(() => __said.some(t => /MEGA-MECHA-POF/.test(t)), 25000));
   ok('Mega-stand actief (galm op de stem)', await page.evaluate(() => window.pkm.mon.status.mega > 0.5));
   ok('vers', await until(() => __said.some(t => /tien jaar oud/.test(t)), 20000));
-  ok('confetti', await until(() => ['confetti', 'finale', 'eind'].includes(window.pkm.finale.stage), 40000));
+  ok('confetti', await until(() => ['confetti', 'taart', 'eind'].includes(window.pkm.finale.stage), 40000));
+  ok('taart: volgende missie in beeld en gezegd', await until(() => !!document.querySelector('.fin-taart') && __said.some(t => /taart/.test(t)), 30000));
   ok('eindscherm', await until(() => window.pkm.finale.stage === 'eind', 40000));
   console.log('   gezegd:', (await page.evaluate(() => __said)).map(t => t.slice(0, 50)).join(' ¦ '));
   await W('.fin-cards');
@@ -175,8 +176,11 @@ if (!only || only === 'kern') {
   ok('kern: 1 van 7', await K.until(() => /1 van 7/.test(document.querySelector('#caption').textContent), 8000));
   // naar thuis: zes delen binnen, thuis goedkeuren → hoed vliegt in → finale op de kern
   await fake(K.page, f => { f.patchGame({ parts: ['lijf', 'ogen', 'neus', 'mond', 'armen', 'benen'], active_index: 6, phase: 'finale' }); return f.rpc('regie_approve_stop', { p_key: 'job', p_drops: 10 }); });
-  ok('kern: fase klaar, finale start vanzelf na de hoed', await K.until(() => ['mega', 'vers', 'confetti', 'finale', 'eind'].includes(window.pkm.finale.stage), 25000));
-  ok('kern: finale met galm (Mega actief)', await K.until(() => window.pkm.mon.status.mega > 0.5, 6000));
+  ok('kern: fase klaar, finale start vanzelf na de hoed', await K.until(() => ['check', 'mega', 'vers', 'confetti', 'taart', 'eind'].includes(window.pkm.finale.stage), 25000));
+  ok('kern: check in beeld (zeven onderdelen)', await K.until(() => document.querySelectorAll('#side .fin-check i').length === 7 || window.pkm.finale.stage !== 'check', 8000));
+  ok('kern: finale met galm (Mega actief)', await K.until(() => window.pkm.mon.status.mega > 0.5, 15000));
+  ok('kern: taart-missie in beeld', await K.until(() => !!document.querySelector('#side .fin-taart'), 90000));
+  await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-taart.png') }).catch(() => {});
   ok('kern: eindscherm met zes kaarten', await K.until(() => document.querySelectorAll('.fin-card').length === 6, 90000));
   ok('kern: hardop (voice:true) — vers gezegd', await K.page.evaluate(() => __said.some(t => /tien jaar oud/.test(t))));
   ok('geen JavaScript-fouten (kern)', !K.errors.length, K.errors.join(' | '));

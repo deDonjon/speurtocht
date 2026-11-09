@@ -82,11 +82,11 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:75}
 <script type="module">
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync, IS_TEST } from './js/sync.js';
-import { createMonster, lineText } from './js/monster.js?v=18';
+import { createMonster, lineText } from './js/monster.js?v=19';
 import { audio } from './js/audio.js?v=11';
 import { voice } from './js/voice.js?v=7';
-import { LINES } from './js/monster-lines.js?v=9';
-import { createFinale, endCards, END_CSS, fillLine } from './js/finale.js?v=3';
+import { LINES } from './js/monster-lines.js?v=10';
+import { createFinale, endCards, END_CSS, fillLine, stageHTML, TAART_HTML } from './js/finale.js?v=4';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -146,6 +146,7 @@ function render() {
   else if (m === 'wakker' || m === 'loting') { if (mon.mood === 'slaap') mon.setMood('wakker'); }
   else if (m === 'onderweg' && !landing) { mon.setParts(parts); mon.setMood(parts.length <= 2 ? 'wakker' : parts.length <= 4 ? 'nieuwsgierig' : 'brutaal'); }
   const eb = $('#eyebrow'), cap = $('#caption'), side = $('#side');
+  if (m !== 'klaar') delete side.dataset.sig; // de finale tekent het zijpaneel alleen opnieuw als de stap verandert
   if (m === 'slaap') {
     eb.textContent = 'Hier rust de kern van Mecha-Pof';
     cap.innerHTML = `<div class="standby"><i></i>STAND-BY · PROCESSOR + RADIO</div>`;
@@ -172,11 +173,18 @@ function render() {
   } else if (m === 'klaar') {
     const showEnd = finale.stage === 'eind' || (finale.stage === 'idle' && finale.done);
     eb.textContent = 'MEGA-MECHA-POF';
-    cap.innerHTML = `<h1 class="title">${finale.stage === 'idle' && !finale.done ? 'Alle zeven onderdelen!' : 'MEGA-MECHA-POF!'}</h1>`;
-    side.innerHTML = showEnd ? `<div class="panel"><h2>Het Reparatieteam</h2><div class="fin-cards">${endCards(state)}</div></div>
+    const stg = finale.stage;
+    cap.innerHTML = `<h1 class="title">${stg === 'idle' && !finale.done ? 'Alle zeven onderdelen!' : stg === 'check' ? 'Systeemcontrole…' : stg === 'taart' ? 'Nieuwe missie!' : 'MEGA-MECHA-POF!'}</h1>`;
+    // Eén vast blok per stap; alleen opnieuw tekenen als de stap verandert (anders herstarten de animaties).
+    const sig = showEnd ? 'eind:' + S().players.map(p => p.id + (p.badges || []).join()).join('|') : 'fin:' + stg;
+    if (side.dataset.sig !== sig) {
+      side.dataset.sig = sig;
+      side.innerHTML = showEnd ? `<div class="panel"><h2>Volgende missie</h2>${TAART_HTML}</div>
+        <div class="panel"><h2>Het Reparatieteam</h2><div class="fin-cards">${endCards(state)}</div></div>
         <div class="row" style="justify-content:center"><button data-t="foto">📸 Teamfoto</button></div>`
-      : finale.stage === 'idle' ? `<div class="panel"><h2>Finale</h2><p class="sub" style="text-align:left">De boterknop zit erop. Klaar voor Mega-Mecha-Pof?</p><button data-t="finale">▶ Finale afspelen</button></div>`
-      : `<div class="panel"><h2>Finale</h2><p class="big">${{ mega: 'Systeemcontrole…', vers: 'Verjaardagsvers', confetti: '🎉', finale: 'Compleet!' }[finale.stage] || ''}</p></div>`;
+      : stg === 'idle' ? `<div class="panel"><h2>Finale</h2><p class="sub" style="text-align:left">De boterknop zit erop. Klaar voor Mega-Mecha-Pof?</p><button data-t="finale">▶ Finale afspelen</button></div>`
+      : `<div class="panel"><h2>${{ check: 'Systeemcontrole', mega: 'Stroopmeter', vers: 'DJ Mecha-Pof', confetti: 'Robotdans!', taart: 'Eerst taart, dan pannenkoeken' }[stg] || 'Finale'}</h2>${stageHTML(stg)}${{ vers: '<p class="sub">Na elk “hiep hiep”: HOERA!</p>', confetti: '<p class="sub">🎉 Poppers! Doe Mecha-Pof na.</p>' }[stg] || ''}</div>`;
+    }
     if (finale.stage === 'idle' && !landing) { mon.setParts(Object.keys(PARTS)); mon.setMood('compleet'); }
   }
   $('#conn').textContent = `${S().conn} · ${g?.phase || '–'}`;

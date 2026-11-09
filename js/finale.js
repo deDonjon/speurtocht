@@ -1,9 +1,9 @@
 // finale.js — de finale thuis en het eindscherm (chat 7, claude/ONBOARDING-FINALE.md §C). Gebruikt door index.html en kern.html.
 //
 //   const fin = createFinale({ mon, state, audio, confetti, voice: () => true|false|undefined, onStage, key })
-//   fin.start()        speel de finale: Mega-Mecha-Pof groeit → LINES.mega 1-2-3 (met galm) → rapje op dansmuziek (dj, vers, hiep,
-//                      dans) → dansstuk met confetti → finale + hints. music() = speelt dit toestel de muziek (alleen wie praat)
-//   fin.stage          'idle' | 'mega' | 'vers' | 'confetti' | 'finale' | 'eind'
+//   fin.start()        speel de finale (kort, afwisselend zin / beeld / muziek): check → mega (onthulling) → rapje op dansmuziek
+//                      (dj, vers, hiep, dans) → dansstuk met confetti → taart (volgende missie) → eind. music() = speelt dit toestel de muziek
+//   fin.stage          'idle' | 'check' | 'mega' | 'vers' | 'confetti' | 'taart' | 'eind'
 //   fin.done           true als de finale (op dit toestel) al gespeeld is; blijft bewaard per spel (localStorage)
 //   fin.reset()        opnieuw kunnen afspelen (kern.html: knop "Finale opnieuw")
 //   fin.voice()        doorgegeven aan mon.say: true = altijd hardop (kern), false = alleen tekst, undefined = alleen de radiotelefoon
@@ -12,7 +12,7 @@
 // Start: monster.js roept globalThis.pkm.finale.start() aan zodra het zevende deel (de hoed) na het installatieritueel geland is
 // en de installatiezin klaar is. Kern.html heeft ook een knop. Speelt per toestel één keer per spel.
 import { PARTS, TALENTS } from './state.js';
-import { LINES, NAAM_JARIGE } from './monster-lines.js?v=9';
+import { LINES, NAAM_JARIGE } from './monster-lines.js?v=10';
 
 const PART_KEYS = Object.keys(PARTS);
 const WOORDEN = ['nul', 'één', 'twee', 'drie', 'vier', 'vijf', 'zes', 'zeven', 'acht', 'negen', 'tien', 'elf', 'twaalf'];
@@ -60,9 +60,37 @@ export const END_CSS = `.fin-cards{display:grid;grid-template-columns:repeat(aut
 .fin-head{display:flex;gap:10px;align-items:center}.fin-head b{display:block;font-size:1.15rem;font-weight:900;color:#fff}.fin-head small{display:block;color:#93A0B8;font-size:.82rem}
 .fin-ic{font-size:2rem;flex:none}.fin-zin{margin:0;font-weight:800;line-height:1.35;color:#EAF2FF}
 .fin-badges{display:flex;gap:6px;flex-wrap:wrap}.fin-badge{background:#1A1F2A;border:1px solid #15A4C8;color:#7FE8FF;border-radius:999px;padding:2px 9px;font-size:.8rem;font-weight:800;white-space:nowrap}
-.fin-badge.dim{border-color:#3C4A66;color:#93A0B8}`;
+.fin-badge.dim{border-color:#3C4A66;color:#93A0B8}
+.fin-check{display:flex;justify-content:center;gap:clamp(6px,1.2vw,14px);flex-wrap:wrap;margin:6px 0}
+.fin-check i{font-style:normal;font-size:clamp(1.6rem,4vw,3.4rem);width:1.6em;height:1.6em;display:grid;place-items:center;border-radius:50%;background:#0E1B2E;border:3px solid #7FE8FF;box-shadow:0 0 16px rgba(127,232,255,.55);animation:finPop .35s both}
+@keyframes finPop{0%{transform:scale(0);opacity:0}70%{transform:scale(1.25);opacity:1}100%{transform:none;opacity:1}}
+.fin-meter{width:min(100%,520px);height:clamp(22px,3.4vh,38px);margin:8px auto;border-radius:999px;background:#0E1B2E;border:3px solid #3C4A66;overflow:hidden;position:relative}
+.fin-meter b{position:absolute;inset:0;width:0;background:linear-gradient(90deg,#F2BE62,#F59E2E 60%,#FF5A4E);animation:finFill 2.4s ease-out forwards}
+.fin-meter span{position:absolute;inset:0;display:grid;place-items:center;font-weight:900;letter-spacing:.2em;color:#fff;text-shadow:0 2px 0 #000}
+@keyframes finFill{to{width:100%}}
+.fin-eq{display:flex;justify-content:center;align-items:flex-end;gap:6px;height:clamp(40px,8vh,90px);margin:8px 0}
+.fin-eq i{width:clamp(8px,1.2vw,16px);border-radius:4px;background:linear-gradient(#7FE8FF,#15A4C8);animation:finEq .5s ease-in-out infinite alternate}
+@keyframes finEq{from{height:15%}to{height:100%}}
+.fin-taart{display:flex;align-items:center;justify-content:center;gap:clamp(8px,2vw,24px);flex-wrap:wrap;margin:6px 0}
+.fin-taart div{display:flex;flex-direction:column;align-items:center;gap:4px;background:#0E1B2E;border:3px solid #F2BE62;border-radius:18px;padding:clamp(8px,1.6vh,18px) clamp(12px,2vw,26px);box-shadow:0 0 18px rgba(242,190,98,.3)}
+.fin-taart div.na{border-color:#3C4A66;box-shadow:none;opacity:.8}
+.fin-taart em{font-style:normal;font-size:clamp(2.4rem,7vw,5.5rem);line-height:1;animation:finPop .5s both}
+.fin-taart b{font-weight:900;font-size:clamp(.95rem,1.8vw,1.6rem);color:#fff}
+.fin-taart small{color:#93A0B8;font-weight:800;font-size:clamp(.75rem,1.1vw,1rem);letter-spacing:.12em;text-transform:uppercase}
+.fin-taart .pijl{font-size:clamp(1.6rem,3vw,2.6rem);color:#F2BE62}`;
+// Beeld van de volgende missie (finale-stap 'taart' en het eindscherm): eerst taart versieren, dan pannenkoeken.
+export const TAART_HTML = `<div class="fin-taart"><div><small>Eerst</small><em>🎂</em><b>Taart versieren</b></div><span class="pijl">➜</span><div class="na"><small>Daarna</small><em style="animation-delay:.4s">🥞</em><b>Pannenkoeken</b></div></div>`;
+// Beeld per finale-stap voor het kernscherm (groot). check en taart; mega = stroopmeter; vers/confetti = equalizer.
+export function stageHTML(stage) {
+  if (stage === 'check') return `<div class="fin-check">${Object.values(PARTS).map((p, i) => `<i style="animation-delay:${(i * CHECK_MS / 1000).toFixed(2)}s">${p.icon}</i>`).join('')}</div>`;
+  if (stage === 'mega') return `<div class="fin-meter"><b></b><span>STROOPMETER · MEGA</span></div>`;
+  if (stage === 'vers' || stage === 'confetti') return `<div class="fin-eq">${Array.from({ length: 12 }, (_, i) => `<i style="animation-delay:${(i * 0.07 % 0.5).toFixed(2)}s;animation-duration:${(0.35 + (i * 37 % 30) / 100).toFixed(2)}s"></i>`).join('')}</div>`;
+  if (stage === 'taart') return TAART_HTML;
+  return '';
+}
 
 // Dansnummer voor de finale (ElevenLabs Music, gemaakt met de functie monster-music). Laadt het niet, dan het eigen deuntje.
+export const CHECK_MS = 420; // per onderdeel in de check (kern.html en index.html animeren op dezelfde maat)
 export const DANS_URL = 'https://lnhliamckstuwiwyzxyl.supabase.co/storage/v1/object/public/monster/music/dans-a.mp3';
 export function createFinale({ mon, state, audio, confetti, voice = () => undefined, music = () => true, track = DANS_URL, onStage = () => {}, key = 'pkm2_finale' } = {}) {
   let stage = 'idle', running = false, runId = 0;
@@ -85,40 +113,54 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
     const talk = async (t, ms) => { dance?.duck(true); await say(t, ms ? { ms } : {}); dance?.duck(false); };
     try {
       await talk(w(pick(LINES.dj) || '')); if (!alive()) return;
-      await sleep(dance ? dance.beat * 8 * 1000 : 300); if (!alive()) return; // twee maten alleen muziek
+      await sleep(dance ? dance.beat * 4 * 1000 : 300); if (!alive()) return; // één maat alleen muziek
       const vers = pick(LINES.vers), regels = Array.isArray(vers) ? vers : [vers];
-      for (const r of regels) { await talk(w(r), 7000); if (!alive()) return; await sleep(dance ? dance.beat * 1000 : 200); }
-      for (const h of LINES.hiep || []) { await talk(w(h), 3000); if (!alive()) return; await sleep(1500); if (!alive()) return; } // HOERA!
-      await talk(w(pick(LINES.dans) || ''), 6000); if (!alive()) return;
+      for (const r of regels) { await talk(w(r), 6000); if (!alive()) return; await sleep(dance ? dance.beat * 2 * 1000 : 200); } // halve maat muziek tussen de regels
+      for (const h of LINES.hiep || []) { await talk(w(h), 3000); if (!alive()) return; await sleep(1300); if (!alive()) return; } // HOERA!
+      await talk(w(pick(LINES.dans) || ''), 5000); if (!alive()) return;
       set('confetti');
       dance?.drop(); confetti?.(); audio?.play?.('badge'); setTimeout(() => confetti?.(), 1800); setTimeout(() => confetti?.(), 6000);
       await sleep(dance ? dance.beat * 32 * 1000 : 1200); // dansstuk: acht maten (±16 s)
     } finally { dance?.stop(1.8); dance = null; }
     await sleep(1200);
   }
-  /** intro: zin die eerst gezegd moet worden (de installatiezin van de hoed, als die niet aan bod kwam). */
+  /** intro: zin die eerst gezegd moet worden (de installatiezin van de hoed, als die niet aan bod kwam).
+   *  Kort en afwisselend (Job, 9 nov): steeds één korte zin, dan beeld of muziek. ±1,5 min tot de walkie.
+   *  check (7 onderdelen klikken in beeld) → mega (stroopmeter vult, Mega groeit, onthulling + laken eraf) → vers (DJ, 2 regels,
+   *  hiep hiep) → confetti (dansstuk) → taart (volgende missie: taart versieren, dan pannenkoeken) → eind (walkie: over en sluiten). */
   async function start({ intro } = {}) {
     if (running) return;
     running = true; const id = ++runId;
     const alive = () => id === runId;
+    const J = () => ({ jarige: jarige() });
     try {
-      trackP = music() ? audio?.loadTrack?.(track) : null; // alvast laden tijdens de Mega-zinnen
+      trackP = music() ? audio?.loadTrack?.(track) : null; // alvast laden
       if (intro) { await say(intro); if (!alive()) return; }
-      mon.setParts(PART_KEYS); mon.setMood('compleet');
+      mon.setParts(PART_KEYS); mon.setMood('wakker');
+      // 1. beeld: zeven onderdelen klikken één voor één aan, dan één korte zin
+      set('check');
+      for (let i = 0; i < PART_KEYS.length; i++) { audio?.play?.('klik'); await sleep(CHECK_MS); if (!alive()) return; }
+      await say(fillLine(pick(LINES.mega?.check), J()), { ms: 4000 }); if (!alive()) return;
+      // 2. beeld + geluid: stroopmeter naar MEGA, Mega-Mecha-Pof groeit; dan de onthulling (laken eraf)
       set('mega');
-      audio?.play?.('mega');
-      await sleep(2600); if (!alive()) return; // Mega-Mecha-Pof groeit (monster.js: 2,4 s)
-      for (const l of LINES.mega || []) { await say(fillLine(l, { jarige: jarige() }), { ms: 5000 }); if (!alive()) return; await sleep(400); }
+      mon.setMood('compleet'); // monster.js: groeien, 'mega'-geluid, sprongetje
+      await sleep(2600); if (!alive()) return;
+      await say(fillLine(pick(LINES.mega?.onthul), J()), { ms: 5000 }); if (!alive()) return;
+      confetti?.(); audio?.play?.('badge');
+      await sleep(1500); if (!alive()) return;
+      // 3. muziek: het rapje en de dans
       set('vers');
       await rapje(alive); if (!alive()) return;
-      set('finale');
-      await say(fillLine(pick(LINES.finale), { jarige: jarige() })); if (!alive()) return;
-      const h = state.get().game?.hints ?? 0, sub = h === 0 ? 'nul' : h === 1 ? 'een' : 'meer';
-      await say(fillLine(pick(LINES.finaleHints?.[sub]), { hints: h })); if (!alive()) return;
+      // 4. beeld: de volgende missie, eerst taart versieren, dan pannenkoeken
+      set('taart');
+      audio?.play?.('badge');
+      await sleep(900); if (!alive()) return;
+      await say(fillLine(pick(LINES.taart), J()), { ms: 6000 }); if (!alive()) return;
+      await sleep(1200); if (!alive()) return;
       store.set(gameKey(), '1');
       set('eind');
       await sleep(600);
-      await say(pick(LINES.afscheid));
+      await say(fillLine(pick(LINES.afscheid), J()));
     } finally { if (id === runId) running = false; }
   }
   return {

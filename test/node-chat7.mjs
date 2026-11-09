@@ -14,7 +14,7 @@ t('zinnen: wek, loting per talent, kern, bonus, afscheid, teamfoto, eind per tal
   assert.ok(LINES.walkie.briefing.bonus?.[0]?.trim()); // het slot ("… over en sluiten. Over!") komt uit walkie.briefingSlot
   for (const k of ['werkbank', 'wachtwoord', 'hoed']) assert.ok(LINES.walkie.briefingSlot[k].tekst.endsWith('Over!') && LINES.walkie.briefingSlot[k].zeg.includes('over en sluiten'));
   for (const k of Object.keys(PARTS)) assert.ok(LINES.installatie[k]?.length, 'installatie ' + k);
-  assert.equal(LINES.mega.length, 3);
+  assert.ok(LINES.mega.check?.length && LINES.mega.onthul?.length && LINES.taart?.[0]?.includes('taart') && LINES.walkie.afscheid?.[0]?.endsWith('Over!'));
   const all = JSON.stringify(LINES); assert.ok(!/\bzo'n\b/.test(all));
 });
 t('fillLine: jarige, naam, hints in woorden', () => {
@@ -42,11 +42,14 @@ t('endCards: jarige eerst, zin per talent, badges', () => {
   const realTimeout = setTimeout; globalThis.setTimeout = (f, ms) => realTimeout(f, 0); // geen echte wachttijd
   await fin.start({ intro: 'Boterknop ingedrukt.' });
   globalThis.setTimeout = realTimeout;
-  assert.deepEqual(stages, ['mega', 'vers', 'confetti', 'finale', 'eind']);
-  assert.equal(said[0], 'Boterknop ingedrukt.'); assert.equal(said[1], 'mood:compleet');
-  assert.match(said[2], /Systeemcontrole/); assert.match(said[4], /MEGA-MECHA-POF/); assert.match(said[5], /DJ Mecha-Pof/); assert.match(said[6], /Hannah is vandaag tien/); assert.ok(said.some(x => /Hiep hiep/.test(x)) && said.some(x => /Robotdans/.test(x)));
+  assert.deepEqual(stages, ['check', 'mega', 'vers', 'confetti', 'taart', 'eind']);
+  const zin = said.filter(x => !x.startsWith('mood:'));
+  assert.equal(zin[0], 'Boterknop ingedrukt.'); assert.ok(said.indexOf('mood:compleet') > said.findIndex(x => /Systeemcontrole/.test(x)));
+  assert.match(zin[1], /Systeemcontrole/); assert.match(zin[2], /MEGA-MECHA-POF/); assert.match(zin[3], /DJ Mecha-Pof/); assert.match(zin[4], /Hannah is vandaag tien/); assert.ok(said.some(x => /Hiep hiep/.test(x)) && said.some(x => /Robotdans/.test(x)));
+  assert.ok(zin.findIndex(x => /taart/.test(x)) > zin.findIndex(x => /Robotdans/.test(x))); assert.match(zin.at(-1), /over en sluiten/i);
+  assert.ok(zin.every(x => x.split(/\s+/).length <= 18), 'elke zin kort (max 18 woorden)');
   assert.ok(confetti >= 1); assert.ok(fin.done);
-  n++; console.log('✓ finale: volgorde intro → Mega 1-2-3 → DJ → rapje → hiep → dans → confetti → finale + hints → eind; daarna done');
+  n++; console.log('✓ finale: volgorde intro → check → Mega → DJ → rapje → hiep → dans → confetti → taart → afscheid; korte zinnen; daarna done');
 }
 t('install: stop zonder deel = geen ritueel', () => {
   const inst = createInstall({ mon: {}, sync: {}, state: { get: () => ({ game: {}, players: [] }), me: () => [], player: () => null }, PARTS, TALENTS, audio: {}, buzz() {}, confetti() {}, overlay() { throw new Error('geen overlay verwacht'); }, closeOverlay() {}, mslot: () => '', esc: s => s });

@@ -95,35 +95,41 @@ export const LINES = {
     ],
   },
 
-  // Alle zeven delen zitten vast: de aankondiging van Mega-Mecha-Pof (fase klaar). In stukjes, zodat het spannend blijft.
-  mega: [
-    'Systeemcontrole. Pantser: check. Ogen: check. Neus: check. Mond: check. Spatel en garde: check. Benen: check. Jetpack: check.',
-    'Stroopmeter... honger... nee wacht. De wijzer gaat voorbij honger. Voorbij heel veel honger. Hij staat op... MEGA.',
-    'Krrrrr... bzzzzt... BLIEP! Dames en heren, speurders en de jarige: hier is hij. Groter, sterker, plakkeriger. MEGA-MECHA-POF!',
-  ],
+  // ---------------------------------------------------------------- finale thuis (js/finale.js)
+  // Kort houden (Job, 9 nov): steeds één korte zin, dan beeld of muziek. Volgorde: check → onthul → dj → vers → hiep → dans
+  // → dansstuk met confetti → taart → afscheid.
+  // Alle zeven delen zitten vast. check: na de zeven klikjes in beeld. onthul: als Mega gegroeid is (Job trekt het laken weg).
+  mega: {
+    check: [
+      'Systeemcontrole. Alle zeven onderdelen: check!',
+    ],
+    onthul: [
+      'Stroopmeter: MEGA! Dames en heren: MEGA-MECHA-POF!',
+    ],
+  },
 
-  // Het verjaardagsvers voor de finale: een rapje op het dansmuziekje (audio.dance, eigen deuntje, geen bestaand lied).
-  // Volgorde in finale.js: dj → muziek → vers (één regel per keer, muziek zachter) → hiep (de meiden roepen HOERA in de
-  // pauze) → dans → dansstuk met confetti → muziek uit → finale.
+  // Het verjaardagsrapje op het dansmuziekje. Eén regel per keer, met een stukje muziek ertussen.
   dj: [
-    'Bzzzt! Muziek aan! DJ Mecha-Pof draait plaatjes. Maak wat ruimte, speurders!',
+    'Bzzzt! DJ Mecha-Pof. Muziek aan!',
   ],
   vers: [
     [
       'Mijn lampjes knipperen rood en goud, want {jarige} is vandaag tien jaar oud!',
-      'Mijn spatel zwaait, mijn garde draait, de stroop spuit rond, mijn jetpack laait!',
-      'Zes speurders vonden stuk voor stuk mijn lijf, mijn ogen, mijn neus. Wat een geluk!',
-      'Mijn mond, mijn armen, mijn benen erbij. De grootste pannenkoek is van mij. Voor jou, {jarige}!',
+      'Zes speurders vonden stuk voor stuk al mijn onderdelen. Wat een geluk!',
     ],
   ],
   // Roep-en-antwoord: Mecha-Pof zegt het begin, de meiden roepen HOERA in de pauze die erna komt.
   hiep: [
     'Iedereen! Hiep hiep...',
     'Nog een keer! Hiep hiep...',
-    'En nu voor de robot! Piep piep...',
+    'En de laatste! Hiep hiep...',
   ],
   dans: [
-    'Robotdans! Armen hoekig, knieën slap, doe mij maar na. Bliep, bloep, stap!',
+    'Robotdans! Doe mij maar na. Bliep, bloep, stap!',
+  ],
+  // Na de dans: de volgende missie (staat ook groot in beeld). Eerst taart versieren, dan pannenkoeken.
+  taart: [
+    'Nieuwe missie, monteurs! Eerst versieren jullie de taart. Zo mooi als ik. Daarna: pannenkoeken!',
   ],
 
   // ---------------------------------------------------------------- verrassingen (zie MECHA-POF-SPEL.md)
@@ -358,8 +364,8 @@ export const LINES = {
 
   // Het monster is compleet.
   finale: [
-    'Alle systemen compleet! {jarige}, gefeliciteerd. En jullie ook. Tijd voor pannenkoeken!',
-    'Helemaal heel! Jullie zijn de slimste speurders in mijn hele geheugen. Nu: pannenkoeken!',
+    'Alle systemen compleet! {jarige}, gefeliciteerd. Nu eerst taart versieren, dan pannenkoeken!',
+    'Helemaal heel! Slimste speurders ooit. Eerst de taart versieren, daarna pannenkoeken!',
   ],
 
   // Na de finale: een plagerij over het aantal hints. Kies op aantal.
@@ -370,7 +376,7 @@ export const LINES = {
   },
   // Na de finale: het afscheid via de walkietalkie, en de teamfoto.
   afscheid: [
-    'Nog één ding, speurders. Pak de walkietalkie en roep met zijn zessen tegelijk: over en sluiten!',
+    'Laatste klus: allemaal tegelijk in de walkie. Over en sluiten!',
   ],
   teamfoto: [
     'Teamfoto! Allemaal voor mijn poster. Drie, twee, één... zeg allemaal: pannenkoek!',
@@ -448,6 +454,10 @@ export const LINES = {
         'Bzzzt! Thuis! Mijn kern ligt hier, en het laatste stuk ook: mijn boterknop en mijn stroop-jetpack. Sleutelbewaarder, dit is jouw moment. Druk op de knop, dan vlieg ik.',
       ],
     },
+    // Afscheid na de finale (knop op het eindscherm): kort, zodat ze meteen met zijn zessen "over en sluiten" roepen.
+    afscheid: [
+      'Mega-Mecha-Pof hier, groter dan ooit! Roep met zijn zessen: over en sluiten. Over!',
+    ],
     // Slot van elke briefing (bij aankomst). 'zeg' = wat de kinderen terugzeggen; staat ook groot in beeld.
     // 'gemist' = als niemand opneemt, zegt de app de briefing zelf met dit slot (dan valt er niks terug te zeggen).
     briefingSlot: {
