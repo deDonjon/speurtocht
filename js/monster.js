@@ -1,4 +1,4 @@
-// monster.js — het levende Pannenkoekenmonster (Zdog, pseudo-3D op een canvas).
+// monster.js — het levende monster: Mecha-Pof, de keukenrobot (Zdog, pseudo-3D op een canvas). Zie MECHA-POF.md.
 //
 // Contract (zie index.html, blok "monster"):
 //   createMonster() → { el, setParts(parts, { land }), setMood(mood), setSize('sm'|'md'|'lg'),
@@ -25,7 +25,7 @@ export const PART_KEYS = ['lijf', 'ogen', 'neus', 'mond', 'armen', 'benen', 'hoe
 export const MOODS = ['slaap', 'wakker', 'nieuwsgierig', 'brutaal', 'compleet'];
 const VIEW = 250;            // modelruimte: het monster past in een vak van 250 × 250
 const SILENCE_MS = 90_000;
-const BG = '#FFF4DF';
+const BG = '#FFF4DF', BG_DARK = '#1C2433';
 
 // ---------------------------------------------------------------- Zdog laden (van de CDN, met reserve)
 let Z = globalThis.Zdog || null;
@@ -56,11 +56,21 @@ const pick = arr => arr[Math.random() * arr.length | 0];
 // ---------------------------------------------------------------- kleuren en spook
 function hexMix(hex, to, t) {
   const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const b = p(to), mix = a => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+  const rgba = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/i.exec(hex || '');
+  if (rgba) { const c = mix(rgba.slice(1, 4).map(Number)); return `rgba(${c.join(',')},${rgba[4] ?? 1})`; } // gloed van LED's en vlam
   if (!/^#[0-9a-f]{6}$/i.test(hex)) return hex;
-  const a = p(hex), b = p(to);
-  return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * t).toString(16).padStart(2, '0')).join('');
+  return '#' + mix(p(hex)).map(v => v.toString(16).padStart(2, '0')).join('');
 }
-const ghostOf = c => hexMix(c, '#EFE2C8', 0.8);
+// Donker thema (werkplaats) of licht (crème)? Bepaalt de spookkleur van ontbrekende delen, de schaduw en de achtergrond van het plaatje.
+function isDark() {
+  try {
+    const c = getComputedStyle(document.documentElement).backgroundColor.match(/\d+(\.\d+)?/g);
+    if (!c || (c[3] != null && +c[3] === 0)) return false;
+    return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) < 110;
+  } catch { return false; }
+}
+const ghostOf = c => isDark() ? hexMix(c, '#3A4458', 0.78) : hexMix(c, '#EFE2C8', 0.8);
 function walk(node, fn) { fn(node); for (const c of node.children || []) walk(c, fn); }
 function setGhost(anchor, on) {
   if (!anchor._orig) {
@@ -73,204 +83,308 @@ function setGhost(anchor, on) {
   }
 }
 
-// ---------------------------------------------------------------- het model
+// ---------------------------------------------------------------- het model: Mecha-Pof (zie MECHA-POF.md)
+// Een keukenrobot: koekenpanhelm met vizier en LED-ogen, pantser van vier pannenkoeken met een stroopmeter,
+// spatel- en garde-arm, zuigerbenen in pannetjes en een stroopfles-jetpack met vlam. Hij zweeft.
+// Modelruimte zoals altijd: het lichaam staat met de voeten rond y = 100 (grond), z wijst naar de kijker.
+const IRON = '#2F3542', IRON_D = '#20252F', IRON_L = '#4A5262', STEEL = '#C9D1D8', STEEL_L = '#EEF2F5', STEEL_D = '#8E979F';
+const VISOR = '#12223A', LED = '#7FE8FF', LED_GLOW = 'rgba(127,232,255,0.32)';
 function buildModel(illo) {
   const TAU = Z.TAU;
   const m = { parts: {}, base: {} };
-  m.world = new Z.Anchor({ addTo: illo, translate: { y: -10 } });
-  m.shadow = new Z.Ellipse({ addTo: m.world, diameter: 150, rotate: { x: TAU / 4 }, translate: { y: 104 }, stroke: false, fill: true, color: 'rgba(120,80,30,0.16)' });
+  // world iets kleiner: Mecha-Pof is langer dan het oude monster (antenne) en zweeft
+  m.world = new Z.Anchor({ addTo: illo, translate: { y: -4 }, scale: 0.86 });
+  m.shadow = new Z.Ellipse({ addTo: m.world, diameter: 136, rotate: { x: TAU / 4 }, translate: { y: 104 }, stroke: false, fill: true, color: isDark() ? 'rgba(127,232,255,0.13)' : 'rgba(40,40,60,0.16)' });
   m.yaw = new Z.Anchor({ addTo: m.world, translate: { y: 100 } });      // draaipunt op de grond
   m.squash = new Z.Anchor({ addTo: m.yaw });
   const body = new Z.Anchor({ addTo: m.squash, translate: { y: -100 } });
-  const part = (key, t, to = body) => { const a = new Z.Anchor({ addTo: to, translate: t }); m.parts[key] = a; m.base[key] = { x: 0, y: 0, z: 0, ...t }; return a; };
-  // Benen en stapel in één Group: die tekent in vaste volgorde (benen eerst, dan de pannenkoeken van onder naar boven),
-  // zodat de stapel de bovenkant van de benen altijd afdekt, uit elke hoek.
+  const part = (key, t, to = body, Kind = Z.Anchor, extra = {}) => { const a = new Kind({ addTo: to, translate: t, ...extra }); m.parts[key] = a; m.base[key] = { x: 0, y: 0, z: 0, ...t }; return a; };
+  // Benen en pantser in één Group: vaste tekenvolgorde (benen eerst, dan de platen van onder naar boven),
+  // zodat het pantser de bovenkant van de zuigers altijd afdekt.
   const stackG = new Z.Group({ addTo: body });
+  // Diepte van de hele stapel = het midden van het lijf (niet het gemiddelde van alle onderdelen, dat schuift door
+  // het borstpaneel naar voren). Zo tekenen gezicht en armen vóór het pantser en de jetpack erachter.
+  stackG.updateSortValue = function () { Z.Group.prototype.updateSortValue.call(this); this.sortValue = this.renderOrigin.z; };
 
-  // --- bananenbenen
-  const benen = part('benen', { y: 64 }, stackG);
+  // --- zuigerbenen met pannetjes als voeten (eigen Group die op diepte sorteert: het verste been eerst)
+  const benen = part('benen', { y: 64 }, stackG, Z.Group, { updateSort: true });
+  m.rods = [];
   m.legs = [-1, 1].map(s => {
-    const hip = new Z.Anchor({ addTo: benen, translate: { x: 30 * s, z: 8 } });
+    const hip = new Z.Anchor({ addTo: benen, translate: { x: 21 * s, z: 2 } });
     const g = new Z.Group({ addTo: hip });
-    const end = { x: -2 * s, y: 39, z: 14 };
-    new Z.Shape({ addTo: g, path: [{ x: 0, y: 0 }, { bezier: [{ x: 12 * s, y: 14 }, { x: 10 * s, y: 31 }, end] }], closed: false, stroke: 14, color: '#F3D34A' });
-    new Z.Shape({ addTo: g, path: [{ x: 4 * s, y: 5, z: 5 }, { x: 8 * s, y: 18, z: 6 }], closed: false, stroke: 3, color: '#FBEA9A' });
-    new Z.Shape({ addTo: g, translate: end, stroke: 7, color: '#6B4A1A' });
+    // pannetje: gietijzer, met een pannenkoek erin en een steeltje naar buiten
+    new Z.Ellipse({ addTo: g, diameter: 30, rotate: { x: TAU / 4 }, translate: { y: 29 }, fill: true, stroke: 7, color: IRON_D });
+    new Z.Ellipse({ addTo: g, diameter: 31, rotate: { x: TAU / 4 }, translate: { y: 25.6 }, fill: false, stroke: 1.6, color: STEEL_D });
+    new Z.Ellipse({ addTo: g, diameter: 21, rotate: { x: TAU / 4 }, translate: { y: 25 }, fill: true, stroke: 3, color: '#F2BE62' });
+    new Z.Shape({ addTo: g, path: [{ x: 15 * s, y: 26 }, { x: 29 * s, y: 21 }], stroke: 4.5, color: STEEL_D });
+    // stalen zuigerstang (pompt op en neer) in een gietijzeren huls
+    const rod = new Z.Anchor({ addTo: g });
+    new Z.Shape({ addTo: rod, path: [{ y: -6 }, { y: 16 }], stroke: 9, color: STEEL });
+    new Z.Shape({ addTo: rod, path: [{ x: -1.8, y: -4, z: 3.6 }, { x: -1.8, y: 14, z: 3.6 }], stroke: 2.2, color: STEEL_L });
+    m.rods.push(rod);
+    new Z.Box({ addTo: g, width: 14, height: 11, depth: 14, stroke: 3, translate: { y: 18 }, color: IRON, topFace: IRON_L, leftFace: IRON_D, rightFace: IRON_D, rearFace: IRON_D, bottomFace: false });
     return hip;
   });
 
-  // --- de stapel van vijf pannenkoeken (lijf) met stroop erop.
-  // Elke pannenkoek = twee platte schijven met een dikke rand (onder donker, boven goud). Geen Zdog.Cylinder:
-  // die vervormt verkeerd bij squash-and-stretch.
+  // --- het lijf: nek van gietijzer, pantser van vier pannenkoeken met klinknagels, borstpaneel met stroopmeter
   const lijf = part('lijf', {}, stackG);
-  const D = [138, 142, 134, 128, 116], Y = [56, 38, 20, 2, -16];
-  const FACE = ['#F3BE55', '#F8CC6B', '#EDB44A', '#F6C35B', '#F9D27A'];
-  const RIM = ['#C4842A', '#D09030', '#BB7C26', '#CB8C2E', '#D49835'];
+  new Z.Box({ addTo: lijf, width: 34, height: 16, depth: 28, stroke: 3, translate: { y: -12 }, color: IRON, topFace: IRON_L, leftFace: IRON_D, rightFace: IRON_D, rearFace: IRON_D, bottomFace: false });
+  const D = [124, 118, 112, 104], Y = [52, 34, 16, -2];          // van onder naar boven
+  const FACE = ['#F3BE55', '#F7CC6E', '#EDB44A', '#F9D27A'];
+  const RIM = ['#B96E24', '#C9792C', '#B46A22', '#D0842F'];
+  m.rivets = [];
   m.cakes = D.map((d, i) => {
     const c = new Z.Anchor({ addTo: lijf, translate: { y: Y[i] } });
     new Z.Ellipse({ addTo: c, diameter: d, rotate: { x: TAU / 4 }, translate: { y: 4 }, fill: true, stroke: 10, color: RIM[i] });
     new Z.Ellipse({ addTo: c, diameter: d - 2, rotate: { x: TAU / 4 }, translate: { y: -3.5 }, fill: true, stroke: 9, color: FACE[i] });
+    const R = d / 2 + 5;
+    for (let k = 0; k < 8; k++) {
+      const a = (k + (i % 2) * 0.5) / 8 * TAU;
+      m.rivets.push({ a, s: new Z.Shape({ addTo: c, translate: { x: Math.sin(a) * R, y: 1.5, z: Math.cos(a) * R }, stroke: 4.2, color: '#9AA3AD' }) });
+    }
     return c;
   });
-  const TOP = -25.6, RT = 116 / 2 + 4;
-  const blob = []; for (let k = 0; k < 9; k++) { const a = k / 9 * TAU, r = 30 + [6, -3, 4, -5, 2, 5, -4, 3, -2][k]; blob.push({ x: Math.cos(a) * r, y: Math.sin(a) * r + 6 }); }
-  new Z.Shape({ addTo: lijf, path: blob, fill: true, stroke: 5, color: '#8A4A1C', rotate: { x: TAU / 4 }, translate: { y: TOP } });
-  new Z.Shape({ addTo: lijf, path: [{ x: -10, y: 8 }, { x: 4, y: 18 }], stroke: 4, color: '#B0672E', rotate: { x: TAU / 4 }, translate: { y: TOP - 0.5 } }); // glans
-  m.syrupDrips = [[-0.95, 13], [0.88, 18]].map(([a, L]) => {
-    const x = Math.sin(a) * RT, z = Math.cos(a) * RT;
-    const d = new Z.Group({ addTo: lijf, translate: { x, y: TOP, z } });
-    new Z.Shape({ addTo: d, path: [{ y: 0 }, { y: L }], stroke: 6, color: '#8A4A1C' });
-    new Z.Shape({ addTo: d, translate: { y: L + 1, z: 1 }, stroke: 9, color: '#8A4A1C' });
-    return { d, a };
+  // borstpaneel (alleen van voren te zien; zie applyPose)
+  m.panel = new Z.Group({ addTo: lijf, translate: { y: 25, z: 61 } });
+  new Z.Box({ addTo: m.panel, width: 32, height: 28, depth: 5, stroke: 3, color: IRON, frontFace: '#394050', leftFace: IRON_D, rightFace: IRON_D, topFace: IRON_L, bottomFace: IRON_D, rearFace: false });
+  new Z.Rect({ addTo: m.panel, width: 33, height: 29, translate: { z: 4.2 }, stroke: 1.3, color: STEEL_D });
+  new Z.Ellipse({ addTo: m.panel, diameter: 17, translate: { y: 1, z: 4.4 }, fill: true, stroke: 1.8, color: '#0E1B2E' });
+  new Z.Ellipse({ addTo: m.panel, diameter: 18.5, translate: { y: 1, z: 4.6 }, stroke: 1.2, color: STEEL_D });
+  new Z.Ellipse({ addTo: m.panel, diameter: 12, quarters: 2, rotate: { z: TAU / 2 }, translate: { y: 1, z: 5 }, stroke: 2.2, color: '#F59E2E' });
+  new Z.Ellipse({ addTo: m.panel, diameter: 12, quarters: 1, rotate: { z: -TAU / 4 }, translate: { y: 1, z: 5.2 }, stroke: 2.2, color: '#E0473C' });
+  m.gauge = new Z.Anchor({ addTo: m.panel, translate: { y: 1, z: 5.6 } });
+  new Z.Shape({ addTo: m.gauge, path: [{ y: 0 }, { y: -6.5 }], stroke: 1.6, color: LED });
+  new Z.Shape({ addTo: m.panel, translate: { y: 1, z: 5.8 }, stroke: 3, color: LED });
+  new Z.Shape({ addTo: m.panel, path: [{ x: -6, y: 9.5 }, { x: 6, y: 9.5 }], translate: { z: 4.6 }, stroke: 1.6, color: '#5FC9E0' });
+  m.leds = [[-11, '#2B5C3D', '#4ADE80'], [11, '#5C2320', '#FF5A4E']].map(([x, dim, lit]) => {
+    new Z.Shape({ addTo: m.panel, translate: { x, y: -9.5, z: 4.6 }, stroke: 3.6, color: dim });
+    return new Z.Shape({ addTo: m.panel, translate: { x, y: -9.5, z: 5 }, stroke: 3.6, color: lit });
   });
+  m.syrupDrips = []; // (het oude monster had stroopdruppels; Mecha-Pof niet)
 
-  // --- bosbesogen met oogleden, glimlichtje en wenkbrauwen van stroop
-  const ogen = part('ogen', { y: -5, z: 64 });
+  // --- de koekenpanhelm met vizier, LED-ogen, steel en antenne (= de ogen)
+  const HY = -50;
+  const ogen = part('ogen', { y: HY });
+  new Z.Hemisphere({ addTo: ogen, diameter: 82, rotate: { y: TAU / 2 }, translate: { z: 1 }, color: '#262B36', backface: IRON_L, stroke: 2 });
+  // De voorkant van de pan telt voor de diepte iets verder naar achter: anders schuiven neus en rooster
+  // (onderaan het gezicht, door de kijkhoek net iets dieper) er bij sommige houdingen achter.
+  const sink = (sh, dz = 6) => { const f = sh.updateSortValue; sh.updateSortValue = function () { f.call(this); this.sortValue -= dz; }; return sh; };
+  sink(new Z.Ellipse({ addTo: ogen, diameter: 82, translate: { z: 4 }, fill: true, stroke: 8, color: IRON }));
+  sink(new Z.Ellipse({ addTo: ogen, diameter: 89, translate: { z: 4 }, stroke: 3.2, color: STEEL_D }));
+  sink(new Z.Ellipse({ addTo: ogen, diameter: 70, translate: { z: 8.4 }, stroke: 1.4, color: '#4A5058' }));
+  new Z.Ellipse({ addTo: ogen, diameter: 80, quarters: 1, rotate: { z: TAU / 2 + 0.25 }, translate: { z: 8.8 }, stroke: 2, color: '#7A828E' }); // glans linksboven
+  // steel van de pan, schuin naar rechtsboven en een beetje naar achter
+  const tip = { x: 76, y: -32, z: -10 };
+  new Z.Shape({ addTo: ogen, path: [{ x: 36, y: -14, z: -1 }, tip], stroke: 10, color: IRON });
+  new Z.Shape({ addTo: ogen, path: [{ x: 40, y: -18, z: 2.5 }, { x: 73, y: -35.5, z: -6 }], stroke: 2.2, color: STEEL_D });
+  m.steam = [0, 1, 2].map(i => ({ i, s: new Z.Shape({ addTo: ogen, translate: tip, stroke: 4, color: '#D5DCE6' }) }));
+  // vizier
+  new Z.RoundedRect({ addTo: ogen, width: 66, height: 25, cornerRadius: 11, translate: { y: -4, z: 9.4 }, fill: true, stroke: 2, color: VISOR });
+  new Z.RoundedRect({ addTo: ogen, width: 67, height: 26, cornerRadius: 11.5, translate: { y: -4, z: 9.9 }, stroke: 2, color: LED });
+  new Z.Shape({ addTo: ogen, path: [{ x: -24, y: -12.5 }, { x: 16, y: -12.5 }], translate: { z: 10.1 }, stroke: 1.6, color: '#2A3F5E' });
   m.eyes = [-1, 1].map(s => {
-    const a = new Z.Anchor({ addTo: ogen, translate: { x: 24 * s, z: 4 }, rotate: { y: s * 0.34 } });
+    const a = new Z.Anchor({ addTo: ogen, translate: { x: 15 * s, y: -4, z: 11 } });
     const g = new Z.Group({ addTo: a });
     const ball = new Z.Group({ addTo: g });
-    new Z.Shape({ addTo: ball, stroke: 30, color: '#FFFDF6' });
-    new Z.Ellipse({ addTo: ball, diameter: 29, stroke: 2.5, color: '#C4842A', translate: { z: 0.5 } });
-    const pupil = new Z.Anchor({ addTo: ball, translate: { z: 8 } });
-    new Z.Shape({ addTo: pupil, stroke: 15, color: '#3D2470' });
-    new Z.Shape({ addTo: pupil, translate: { x: -2.5, y: 2.5, z: 2 }, stroke: 6, color: '#5A3C9C' });
-    new Z.Shape({ addTo: pupil, path: [{ x: -2, y: -5.5 }, { x: 2, y: -5.5 }], translate: { z: 3 }, stroke: 2.5, color: '#22123F' }); // kroontje van de bes
-    const glint = new Z.Shape({ addTo: pupil, translate: { x: 3, y: -3, z: 5 }, stroke: 5, color: '#FFFFFF' });
-    const lid = new Z.Group({ addTo: g, translate: { y: -15.5, z: 14 }, scale: { y: 0.001 }, visible: false });
-    new Z.Ellipse({ addTo: lid, diameter: 31, quarters: 2, rotate: { z: -TAU / 4 }, translate: { y: 15.5 }, fill: true, stroke: 2, color: '#F2BE57' });
-    new Z.Shape({ addTo: lid, path: [{ x: -15, y: 15.5 }, { x: 15, y: 15.5 }], stroke: 3.5, color: '#5A2E12' });
-    const arc = new Z.Ellipse({ addTo: g, diameter: 20, quarters: 2, rotate: { z: TAU / 4 }, stroke: 4.5, color: '#5A2E12', translate: { z: 14 }, visible: false });
-    const brow = new Z.Group({ addTo: g, translate: { y: -23, z: 6 } });
-    new Z.Shape({ addTo: brow, path: [{ x: -11, y: 3 }, { bezier: [{ x: -5, y: -3 }, { x: 5, y: -3 }, { x: 11, y: 3 }] }], closed: false, stroke: 6, color: '#7A3E14' });
-    return { s, a, ball, pupil, glint, lid, arc, brow };
+    const pupil = new Z.Anchor({ addTo: ball });
+    new Z.Shape({ addTo: pupil, path: [{ x: -4 }, { x: 4 }], stroke: 14, color: LED_GLOW });
+    new Z.Shape({ addTo: pupil, path: [{ x: -4.5 }, { x: 4.5 }], translate: { z: 0.4 }, stroke: 7, color: LED });
+    const glint = new Z.Shape({ addTo: pupil, path: [{ x: -2.5 }, { x: 2.5 }], translate: { y: -0.6, z: 0.8 }, stroke: 2.6, color: '#FFFFFF' });
+    // stand-by-lampje (vizier uit: slapen of knipperen)
+    const sb = new Z.Shape({ addTo: g, translate: { z: 0.5 }, stroke: 3, color: LED, visible: false });
+    // lamel die als ooglid omlaag schuift
+    const lid = new Z.Group({ addTo: g, translate: { y: -11.5, z: 1.6 }, scale: { y: 0.001 }, visible: false });
+    new Z.Rect({ addTo: lid, width: 29, height: 23, translate: { y: 11.5 }, fill: true, stroke: 1, color: '#0B1626' });
+    new Z.Shape({ addTo: lid, path: [{ x: -14.5, y: 23 }, { x: 14.5, y: 23 }], stroke: 2, color: STEEL_D });
+    // blije LED-boogjes ^ ^
+    const arc = new Z.Shape({ addTo: g, path: [{ x: -6, y: 2.5 }, { bezier: [{ x: -3.5, y: -4.5 }, { x: 3.5, y: -4.5 }, { x: 6, y: 2.5 }] }], closed: false, translate: { y: 1, z: 0.6 }, stroke: 3.4, color: LED, visible: false });
+    // stalen wenkbrauw-lamel boven het vizier
+    const brow = new Z.Group({ addTo: g, translate: { y: -18, z: -0.5 } });
+    new Z.Shape({ addTo: brow, path: [{ x: -10 }, { x: 10 }], stroke: 3.6, color: STEEL_D });
+    new Z.Shape({ addTo: brow, path: [{ x: -9, y: -0.8, z: 1 }, { x: 9, y: -0.8, z: 1 }], stroke: 1.2, color: STEEL_L });
+    return { s, a, ball, pupil, glint, lid, arc, brow, sb };
   });
+  // antenne met knipperlampje
+  new Z.Shape({ addTo: ogen, path: [{ x: 9, y: -40, z: -2 }, { x: 9, y: -57, z: -2 }], stroke: 3, color: STEEL_D });
+  new Z.Shape({ addTo: ogen, translate: { x: 9, y: -61, z: -2 }, stroke: 7, color: '#8E2A22' });
+  m.lamp = new Z.Group({ addTo: ogen, translate: { x: 9, y: -61, z: -1.5 } });
+  new Z.Shape({ addTo: m.lamp, stroke: 15, color: 'rgba(224,71,60,0.3)' });
+  new Z.Shape({ addTo: m.lamp, stroke: 7, color: '#FF5A4E' });
+  new Z.Shape({ addTo: m.lamp, translate: { x: -1, y: -1, z: 2 }, stroke: 2, color: '#FFC4BC' });
 
-  // --- aardbeienneus
-  const neus = part('neus', { y: 18, z: 75 });
+  // --- aardbei-knop (neus)
+  const neus = part('neus', { y: HY + 16, z: 10 });
   m.noseIn = new Z.Anchor({ addTo: neus });
-  const ng = new Z.Group({ addTo: m.noseIn });
-  [-1, 0, 1].forEach(k => new Z.Shape({ addTo: ng, path: [{ y: -9, z: -2 }, { x: k * 7, y: -14 + Math.abs(k) * 2, z: -1 }], stroke: 4.5, color: '#3C8F5A' }));
-  new Z.Shape({ addTo: ng, path: [{ y: -3 }, { y: 2 }], stroke: 19, color: '#E0473C' });
-  new Z.Shape({ addTo: ng, translate: { y: 8 }, stroke: 11, color: '#E0473C' });
-  new Z.Shape({ addTo: ng, translate: { x: -4, y: -5, z: 8 }, stroke: 4, color: '#F58A7E' });
-  [[-4, 1], [3, -2], [4, 5], [-2, 7], [0, -5], [-5, -3], [2, 10]].forEach(([x, y]) => new Z.Shape({ addTo: ng, translate: { x, y, z: 9 }, stroke: 2.4, color: '#FFE7A0' }));
+  m.noseGlow = new Z.Shape({ addTo: m.noseIn, translate: { z: 1 }, stroke: 18, color: 'rgba(255,90,78,0.35)', visible: false });
+  new Z.Ellipse({ addTo: m.noseIn, diameter: 12.5, translate: { z: 1 }, stroke: 2.4, color: STEEL_D });
+  new Z.Shape({ addTo: m.noseIn, path: [{ y: -0.5 }, { y: 1 }], translate: { z: 3 }, stroke: 10, color: '#E0352B' });
+  new Z.Shape({ addTo: m.noseIn, path: [{ x: -2.6, y: -5 }, { x: 0, y: -6.6 }, { x: 2.6, y: -5 }], closed: false, translate: { z: 5 }, stroke: 2, color: '#3C8F5A' });
+  new Z.Shape({ addTo: m.noseIn, translate: { x: -2, y: -1.8, z: 7.5 }, stroke: 2.8, color: '#FF9C8C' });
+  [[2, 1], [-1, 3], [1.5, -1.5]].forEach(([x, y]) => new Z.Shape({ addTo: m.noseIn, translate: { x, y, z: 7.8 }, stroke: 1.1, color: '#FFE7A0' }));
 
-  // --- stroopmond (één vorm die van glimlach naar wijd open gaat)
-  const mond = part('mond', { y: 39, z: 76 });
+  // --- luidsprekerrooster (mond): plaatje + 7 LED-streepjes die als VU-meter meebewegen
+  const mond = part('mond', { y: HY + 27, z: 10.5 });
   m.mouthA = new Z.Anchor({ addTo: mond });
   const mg = new Z.Group({ addTo: m.mouthA });
-  m.mouth = new Z.Shape({ addTo: mg, path: mouthPath(0, 0), fill: true, stroke: 4.5, color: '#4A1F0B' });
-  m.tongue = new Z.Shape({ addTo: mg, translate: { y: 8, z: 1 }, stroke: 8, color: '#E88AA0', visible: false });
-  m.mouthDrip = new Z.Anchor({ addTo: mg, translate: { x: 19, y: -2 } });
-  new Z.Shape({ addTo: m.mouthDrip, path: [{ y: 1 }, { y: 7 }], stroke: 3.5, color: '#8A4A1C' });
-  new Z.Shape({ addTo: m.mouthDrip, translate: { y: 8.5 }, stroke: 6, color: '#8A4A1C' });
+  m.tongue = new Z.Shape({ addTo: mg, path: [{ x: -10 }, { x: 10 }], translate: { y: 3, z: -0.5 }, stroke: 12, color: 'rgba(127,232,255,0.22)', visible: false });
+  m.mouth = new Z.Shape({ addTo: mg, path: mouthPath(0, 0), fill: true, stroke: 3, color: '#0E1B2E' });
+  m.mouthRim = new Z.Shape({ addTo: mg, path: mouthPath(0, 0), translate: { z: 0.4 }, stroke: 1.2, color: STEEL_D });
+  m.bars = Array.from({ length: 7 }, (_, i) => new Z.Shape({ addTo: mg, path: [{ x: -9 + i * 3, y: 0 }, { x: -9 + i * 3, y: 1 }], translate: { z: 1 }, stroke: 1.5, color: LED }));
+  m.mouthDrip = new Z.Anchor({ addTo: mg }); // stalen glimlachlijn eronder
+  new Z.Shape({ addTo: m.mouthDrip, path: [{ x: -17, y: 5 }, { bezier: [{ x: -10, y: 12 }, { x: 10, y: 12 }, { x: 17, y: 5 }] }], closed: false, translate: { z: -0.6 }, stroke: 1.6, color: STEEL_D });
 
-  // --- spekarmen
-  const armen = part('armen', { y: 20 });
+  // --- armen: links een spatel, rechts een garde
+  const armen = part('armen', { y: 8 });
   m.arms = [-1, 1].map(s => {
-    const sh = new Z.Anchor({ addTo: armen, translate: { x: 68 * s, y: -2, z: 4 } });
+    const sh = new Z.Anchor({ addTo: armen, translate: { x: 62 * s, z: 2 } });
     const g = new Z.Group({ addTo: sh });
-    const path = [{ x: 0, y: -2 }, { bezier: [{ x: 10 * s, y: 10 }, { x: -9 * s, y: 22 }, { x: 1 * s, y: 34 }] }, { bezier: [{ x: 7 * s, y: 41 }, { x: 13 * s, y: 45 }, { x: 8 * s, y: 52 }] }];
-    new Z.Shape({ addTo: g, path, closed: false, stroke: 12, color: '#C94C5A' });
-    new Z.Shape({ addTo: g, path, closed: false, stroke: 3.5, color: '#F7D5C9', translate: { x: -2.6 * s, z: 3 } });
-    new Z.Shape({ addTo: g, path, closed: false, stroke: 2.5, color: '#9E3341', translate: { x: 3 * s, z: 3 } });
+    new Z.Shape({ addTo: g, path: [{ x: 1 * s, y: 4 }, { x: 3 * s, y: 27 }], stroke: 7.5, color: STEEL });
+    new Z.Shape({ addTo: g, path: [{ x: 0, y: 6, z: 3 }, { x: 2 * s, y: 25, z: 3 }], stroke: 1.8, color: STEEL_L });
+    new Z.Shape({ addTo: g, translate: { x: 3 * s, y: 28 }, stroke: 9, color: IRON });
+    new Z.Box({ addTo: g, width: 17, height: 13, depth: 17, stroke: 3, color: IRON, topFace: IRON_L, leftFace: IRON_D, rightFace: IRON_D, rearFace: IRON_D, bottomFace: IRON_D });
+    new Z.Shape({ addTo: g, translate: { z: 10 }, stroke: 4, color: '#9AA3AD' });
+    const wrist = new Z.Anchor({ addTo: g, translate: { x: 3 * s, y: 28 } });
+    if (s < 0) { // spatel
+      new Z.Shape({ addTo: wrist, path: [{ y: 2 }, { y: 13 }], stroke: 4, color: STEEL });
+      const blade = new Z.Anchor({ addTo: wrist, translate: { y: 13 } });
+      new Z.Shape({ addTo: blade, path: [{ x: -6.5, y: 0 }, { x: 6.5, y: 0 }, { x: 9, y: 17 }, { x: -9, y: 17 }], fill: true, stroke: 2.5, color: '#D7DEE4' });
+      [-4.5, -1.5, 1.5, 4.5].forEach(x => new Z.Shape({ addTo: blade, path: [{ x, y: 4 }, { x: x * 1.15, y: 14 }], translate: { z: 1.4 }, stroke: 1.3, color: '#6E7780' }));
+      m.spatula = wrist;
+    } else {     // garde: drie draadlussen die rondjes draaien
+      new Z.Shape({ addTo: wrist, path: [{ y: 2 }, { y: 11 }], stroke: 4.5, color: STEEL });
+      m.whisk = new Z.Anchor({ addTo: wrist, translate: { y: 24 } });
+      for (let k = 0; k < 3; k++) new Z.Ellipse({ addTo: m.whisk, width: 17, height: 27, rotate: { y: k * TAU / 6 }, stroke: 1.5, color: '#B9C3CF' });
+      new Z.Shape({ addTo: m.whisk, translate: { y: -13 }, stroke: 5, color: STEEL_D });
+    }
     return { s, sh };
   });
 
-  // --- boterhoedje (smelt)
-  const hoed = part('hoed', { y: TOP });
-  m.puddle = new Z.Ellipse({ addTo: hoed, diameter: 26, rotate: { x: TAU / 4 }, translate: { y: -0.8 }, fill: true, stroke: 3, color: '#FFE98A' });
-  m.butterDrips = [-0.42, 0.38].map(a => {
-    const d = new Z.Group({ addTo: hoed, translate: { x: Math.sin(a) * (RT - 1), z: Math.cos(a) * (RT - 1) }, scale: { y: 0.001 }, visible: false });
-    new Z.Shape({ addTo: d, path: [{ y: 0 }, { y: 10 }], stroke: 5, color: '#FFE98A' });
-    new Z.Shape({ addTo: d, translate: { y: 11 }, stroke: 7.5, color: '#FFE98A' });
-    return d;
-  });
-  m.hatTilt = new Z.Anchor({ addTo: hoed, translate: { x: -4 }, rotate: { y: 0.55, z: -0.12 } });
+  // --- boterknop op de helm + stroopfles-jetpack met vlam (= het hoedje)
+  const hoed = part('hoed', { y: HY });
+  m.hatTilt = new Z.Anchor({ addTo: hoed, translate: { x: -14, y: -41, z: -4 }, rotate: { y: 0.45, z: -0.14 } });
   m.hatScale = new Z.Anchor({ addTo: m.hatTilt });
-  new Z.Box({ addTo: m.hatScale, width: 34, height: 18, depth: 26, stroke: 5, translate: { y: -11.5 }, color: '#FFE98A', topFace: '#FFF6C6', leftFace: '#F2D35E', rightFace: '#F2D35E', frontFace: '#FFE98A', rearFace: '#F7DE74', bottomFace: false });
+  new Z.Box({ addTo: m.hatScale, width: 17, height: 10, depth: 14, stroke: 3, translate: { y: -5 }, color: '#FFE98A', topFace: '#FFF6C6', leftFace: '#F2D35E', rightFace: '#F2D35E', frontFace: '#FFE98A', rearFace: '#F7DE74', bottomFace: false });
+  new Z.Ellipse({ addTo: m.hatScale, diameter: 6, quarters: 3, rotate: { z: -TAU / 4 * 1.5 }, translate: { y: -5, z: 8.6 }, stroke: 1.3, color: '#B9902A' });
+  new Z.Shape({ addTo: m.hatScale, path: [{ y: -9 }, { y: -5.5 }], translate: { z: 8.8 }, stroke: 1.3, color: '#B9902A' });
+  // jetpack: schuin op de rug
+  const jet = new Z.Anchor({ addTo: hoed, translate: { x: 34, y: 70, z: -52 }, rotate: { z: -0.3 } });
+  new Z.Shape({ addTo: jet, path: [{ x: -6, y: -6, z: 10 }, { x: -12, y: -6, z: 22 }], stroke: 4, color: STEEL_D }); // beugel naar het pantser
+  new Z.Box({ addTo: jet, width: 20, height: 42, depth: 18, stroke: 5, color: '#A24C14', frontFace: '#7A3410', rearFace: '#B9581A', leftFace: '#6A2C0C', rightFace: '#8A3E12', topFace: '#8A3E12', bottomFace: '#4A1C06' });
+  new Z.Rect({ addTo: jet, width: 16, height: 15, translate: { y: 2, z: -12 }, fill: true, stroke: 1, color: '#FFF4DF' });
+  new Z.Shape({ addTo: jet, path: [{ x: -5, y: 1 }, { x: 5, y: 1 }], translate: { z: -12.6 }, stroke: 2.2, color: '#5A2E12' });
+  new Z.Shape({ addTo: jet, path: [{ x: -4, y: 5 }, { x: 4, y: 5 }], translate: { z: -12.6 }, stroke: 1.4, color: '#8A6A4A' });
+  new Z.Box({ addTo: jet, width: 12, height: 7, depth: 12, stroke: 2, translate: { y: -26 }, color: '#E0473C', topFace: '#F0645A' });
+  new Z.Shape({ addTo: jet, path: [{ y: 24 }, { y: 28 }], stroke: 10, color: STEEL_D });
+  m.flame = new Z.Anchor({ addTo: jet, translate: { y: 30 } });
+  m.puddle = new Z.Shape({ addTo: m.flame, path: [{ y: 4 }, { y: 14 }], stroke: 22, color: 'rgba(245,158,46,0.28)' }); // gloed
+  new Z.Cone({ addTo: m.flame, diameter: 13, length: 26, rotate: { x: -TAU / 4 }, stroke: 2, color: '#F59E2E', backface: '#FFB347' });
+  new Z.Cone({ addTo: m.flame, diameter: 7, length: 16, rotate: { x: -TAU / 4 }, translate: { z: 0 }, stroke: 1.5, color: '#FFF1A6', backface: '#FFF8D0' });
+  m.butterDrips = [];
 
-  // --- stroopspetters (voor de landing)
-  m.drops = Array.from({ length: 10 }, () => ({ s: new Z.Shape({ addTo: m.world, stroke: 6, color: '#8A4A1C', visible: false }), vx: 0, vy: 0, vz: 0, life: 0 }));
+  // --- vonkjes (voor de landing)
+  m.drops = Array.from({ length: 10 }, (_, i) => ({ s: new Z.Shape({ addTo: m.world, stroke: 5, color: i % 2 ? LED : '#FFD25A', visible: false }), vx: 0, vy: 0, vz: 0, life: 0 }));
   return m;
 }
+// Het luidsprekerrooster: een afgerond plaatje dat bij `open` dieper wordt (de onderkaak zakt), scheef bij `smirk`.
 function mouthPath(open, smirk) {
-  const yl = -2 + 3 * smirk, yr = -2 - 5 * smirk, w = 19 - 2 * open;
-  const d = 8 + 15 * open, u = (d - 3.5) * (1 - open) + 1 * open;
-  return [
-    { x: -w, y: yl },
-    { bezier: [{ x: -w * 0.6, y: yl + d }, { x: w * 0.6, y: yr + d }, { x: w, y: yr }] },
-    { bezier: [{ x: w * 0.6, y: yr + u }, { x: -w * 0.6, y: yl + u }, { x: -w, y: yl }] },
-  ];
+  const w = 14, yl = -3 + 1.5 * smirk, yr = -3 - 2.5 * smirk, h = 6 + 7 * open;
+  return [{ x: -w, y: yl }, { x: w, y: yr }, { x: w, y: yr + h }, { x: -w, y: yl + h }];
 }
 
 // ---------------------------------------------------------------- pose → model (gedeeld door live monster en stilstaand plaatje)
 function neutralPose() {
   return { yaw: 0, lean: 0, hop: 0, sqY: 0, eyeClose: 0, arcHappy: false, lid: 0, gx: 0, gy: 0, mouth: 0.1, smirk: 0,
-    browL: 0, browR: 0, cross: 0, armUp: [0, 0], sniff: 0, melt: 0, wobble: 0, t: 0, breath: 0, legKick: 0 };
+    browL: 0, browR: 0, cross: 0, armUp: [0, 0], sniff: 0, melt: 0, wobble: 0, t: 0, breath: 0, legKick: 0,
+    hover: 0, thrust: 1 }; // Mecha-Pof: hover = hoogte boven de grond (negatief = omhoog), thrust = kracht van de vlam
 }
 function applyPose(m, P, parts) {
   const TAU = Z.TAU;
   m.yaw.rotate.y = P.yaw;
   m.yaw.rotate.x = P.lean;
-  m.yaw.translate.y = 100 + P.hop;
+  m.yaw.translate.y = 100 + P.hop + P.hover;
   const sy = 1 + P.breath + P.sqY, sx = 1 - (P.breath + P.sqY) * 0.5;
   m.squash.scale.set({ x: sx, y: sy, z: sx });
-  const shadowS = clamp(1 + P.hop / 140, 0.6, 1.1);
+  const shadowS = clamp(1 + (P.hop + P.hover) / 140, 0.6, 1.1);
   m.shadow.scale.set({ x: shadowS, y: shadowS, z: shadowS });
-  for (const d of m.syrupDrips) d.d.visible = Math.cos(d.a - P.yaw) > 0.05;
-  // wiebelende pannenkoeken
+  // klinknagels en borstpaneel alleen aan de kant die je ziet (de platen tekenen in vaste volgorde)
+  for (const r of m.rivets) r.s.visible = Math.cos(r.a - P.yaw) > 0.12;
+  m.panel.visible = Math.cos(P.yaw) > 0.18;
+  // wiebelende pantserplaten
   m.cakes.forEach((c, i) => { c.translate.x = Math.sin(P.t * 1.7 + i * 0.9) * P.wobble; c.translate.z = Math.cos(P.t * 1.3 + i * 1.4) * P.wobble * 0.6; });
-  // ogen
+  // stroopmeter en LED'jes
+  m.gauge.rotate.z = Math.sin(P.t * 2.6) * 0.75 + (P.melt > 0 ? 0.4 * P.melt : 0);
+  const blink = Math.floor(P.t * 2) % 2;
+  m.leds[0].visible = !!blink; m.leds[1].visible = !blink;
+  // ogen: LED's in het vizier
   const sides = { [-1]: P.browL, 1: P.browR };
+  const asleep = P.eyeClose > 0.72;
   for (const e of m.eyes) {
-    const closed = P.eyeClose > 0.72;
-    e.ball.visible = !closed;
+    e.ball.visible = !asleep;
     e.ball.scale.set({ x: 1, y: Math.max(0.06, 1 - 0.94 * P.eyeClose), z: 1 });
-    e.pupil.translate.x = P.gx * 5; e.pupil.translate.y = P.gy * 4;
-    e.arc.visible = closed;
-    e.arc.rotate.z = P.arcHappy ? -TAU / 4 : TAU / 4;
-    e.arc.translate.y = P.arcHappy ? 3 : -2;
-    e.lid.visible = P.lid > 0.03 && !closed;
+    e.pupil.translate.x = P.gx * 8; e.pupil.translate.y = P.gy * 3;
+    e.arc.visible = asleep && P.arcHappy;
+    e.sb.visible = asleep && !P.arcHappy;
+    e.sb.stroke = 2.4 + 1.6 * (0.5 + 0.5 * Math.sin(P.t * 1.6));
+    e.lid.visible = P.lid > 0.03 && !asleep;
     e.lid.scale.y = Math.max(0.001, P.lid);
-    e.brow.visible = Math.cos(P.yaw - e.s * 0.34) > -0.15; // van achteren steken de wenkbrauwen niet boven de stapel uit
     const r = sides[e.s];
-    e.brow.translate.y = -23 - 5 * Math.max(0, r) + 2 * Math.max(0, -r);
+    e.brow.translate.y = -18 - 3.5 * Math.max(0, r) + 2 * Math.max(0, -r);
     e.brow.rotate.z = r < 0 ? -e.s * 0.38 * -r : e.s * 0.12 * r;
   }
-  // neus
-  const sn = 1 + P.sniff * 0.13 * Math.sin(P.t * 38);
-  m.noseIn.scale.set({ x: 1 + P.sniff * 0.05, y: sn, z: 1 });
-  m.noseIn.translate.y = P.sniff * Math.sin(P.t * 19) * 1.2;
-  // mond
+  // antennelampje knippert (slapen: uit), stoom uit de steel
+  m.lamp.visible = asleep && !P.arcHappy ? false : (P.t * 1.25) % 1 < 0.55;
+  const ogenOn = parts.has('ogen');
+  for (const st of m.steam) {
+    const u = (P.t * 0.45 + st.i / 3) % 1;
+    st.s.visible = ogenOn && u > 0.06;
+    st.s.translate.set({ x: 76 + u * 7, y: -32 - u * 32, z: -10 });
+    st.s.stroke = 2 + 7 * u * (1 - u) * 2.2;
+  }
+  // aardbei-knop: wordt ingedrukt en licht op
+  const pr = P.sniff * (0.5 + 0.5 * Math.sin(P.t * 19));
+  m.noseIn.translate.z = -2.2 * pr;
+  m.noseIn.scale.set({ x: 1 + P.sniff * 0.06, y: 1 - 0.08 * pr, z: 1 });
+  m.noseGlow.visible = P.sniff > 0.3 && parts.has('neus');
+  // rooster: onderkaak zakt en de streepjes worden een VU-meter
   const open = clamp(P.mouth, 0, 1);
-  m.mouth.path = mouthPath(open, P.smirk); m.mouth.updatePath();
+  const mp = mouthPath(open, P.smirk);
+  m.mouth.path = mp; m.mouth.updatePath();
+  m.mouthRim.path = mp; m.mouthRim.updatePath();
   m.mouthA.rotate.z = -0.18 * P.smirk; m.mouthA.translate.x = 3 * P.smirk;
-  m.tongue.visible = open > 0.35;
-  m.tongue.translate.y = -2 + (8 + 15 * open) * 0.7 - 4; m.tongue.stroke = 5 + 7 * open;
-  m.mouthDrip.translate.x = 19 - 2 * open; m.mouthDrip.translate.y = -2 - 5 * P.smirk;
-  // armen: rust ↔ over elkaar, plus omhoog (zwaaien)
+  const h = 6 + 7 * open;
+  m.bars.forEach((b, i) => {
+    const x = -9 + i * 3, f = (x + 14) / 28, top = (-3 + 1.5 * P.smirk) * (1 - f) + (-3 - 2.5 * P.smirk) * f;
+    const lvl = open > 0.15 ? 0.45 + 0.55 * Math.abs(Math.sin(P.t * 21 + i * 1.9)) * (0.6 + 0.4 * open) : 0.55;
+    const half = Math.max(0.5, (h / 2 - 2) * lvl), cy = top + h / 2;
+    b.path[0].x = b.path[1].x = x; b.path[0].y = cy - half; b.path[1].y = cy + half; b.updatePath();
+  });
+  m.tongue.visible = open > 0.35 && parts.has('mond');
+  m.tongue.translate.y = -3 + h / 2;
+  m.mouthDrip.translate.y = 7 * open;
+  // armen: rust ↔ over elkaar, plus omhoog (zwaaien); de garde draait, de spatel zwaait
   for (const a of m.arms) {
     const s = a.s, c = P.cross, up = P.armUp[s < 0 ? 0 : 1];
-    const sway = Math.sin(P.t * 2 + s) * 0.08 * (1 - c);
-    a.sh.translate.x = (68 - 12 * c) * s; a.sh.translate.y = -2 + 32 * c; a.sh.translate.z = 4 + 46 * c;
+    const sway = Math.sin(P.t * 2 + s) * 0.08 * (1 - c) + (s < 0 ? Math.sin(P.t * Math.PI) * 0.12 * (1 - c) : 0);
+    a.sh.translate.x = (62 - 20 * c) * s; a.sh.translate.y = 26 * c; a.sh.translate.z = 2 + 50 * c;
     a.sh.rotate.z = s * (-0.35 + 1.75 * c - 2.4 * up) + s * sway;
     a.sh.rotate.x = 0.95 * c;
   }
-  // benen
-  m.legs.forEach((h, i) => { const s = i ? 1 : -1; h.rotate.z = s * P.legKick * Math.sin(P.t * 9 + i * Math.PI) * 0.35; });
-  // smeltend hoedje
+  if (m.whisk) m.whisk.rotate.y = P.t * 10;
+  if (m.spatula) m.spatula.rotate.z = Math.sin(P.t * 3.1) * 0.18;
+  // benen: zuigers pompen (sneller bij legKick), heupen schoppen een beetje
+  m.legs.forEach((hp, i) => { const s = i ? 1 : -1; hp.rotate.z = s * P.legKick * Math.sin(P.t * 9 + i * Math.PI) * 0.3; });
+  m.rods.forEach((r, i) => { r.translate.y = 2 + 2.2 * Math.sin(P.t * (3.2 + 9 * P.legKick) + i * Math.PI); });
+  // boterknop wordt ingedrukt bij melt (= compleet: jetpack vol aan); vlam flakkert
   const mt = clamp(P.melt, 0, 1);
-  m.hatScale.scale.set({ x: 1 + 0.18 * mt, y: 1 - 0.5 * mt, z: 1 + 0.18 * mt });
-  m.puddle.scale = 1 + 0.9 * mt;
-  m.butterDrips.forEach((d, i) => { const v = clamp(mt * 1.6 - i * 0.3, 0, 1.4); d.visible = v > 0.02 && parts.has('hoed'); d.scale.y = Math.max(0.001, v); });
+  m.hatScale.scale.set({ x: 1 + 0.08 * mt, y: 1 - 0.35 * mt, z: 1 + 0.08 * mt });
+  const fl = (0.86 + 0.14 * Math.sin(P.t * 25) + 0.07 * Math.sin(P.t * 61)) * P.thrust * (1 + 0.7 * mt) * (parts.has('hoed') ? 1 : 0.45);
+  m.flame.scale.set({ x: 0.8 + 0.25 * fl, y: Math.max(0.05, fl), z: 0.8 + 0.25 * fl });
 }
 
 // ---------------------------------------------------------------- stilstaand plaatje (schuifpuzzel)
 const imgCache = new Map();
 export function monsterImage(parts = PART_KEYS) {
-  const set = new Set(parts), key = PART_KEYS.filter(p => set.has(p)).join(',') + (Z ? ':z' : ':f');
+  const set = new Set(parts), dark = isDark(), key = PART_KEYS.filter(p => set.has(p)).join(',') + (Z ? ':z' : ':f') + (dark ? ':d' : '');
   if (imgCache.has(key)) return imgCache.get(key);
   let url;
   if (Z) {
@@ -280,33 +394,41 @@ export function monsterImage(parts = PART_KEYS) {
       const illo = new Z.Illustration({ element: svg, zoom: 300 / 218, rotate: { x: -0.25 } }); // iets ingezoomd: minder lege tegels
       const m = buildModel(illo);
       for (const k of PART_KEYS) setGhost(m.parts[k], !set.has(k));
-      const P = neutralPose(); P.mouth = 0.25; P.yaw = 0.12;
+      const P = neutralPose(); P.mouth = 0.25; P.yaw = 0.12; P.hover = -6; P.t = 0.3;
       applyPose(m, P, set);
       illo.updateRenderGraph();
       const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      r.setAttribute('x', -200); r.setAttribute('y', -200); r.setAttribute('width', 400); r.setAttribute('height', 400); r.setAttribute('fill', BG);
+      r.setAttribute('x', -200); r.setAttribute('y', -200); r.setAttribute('width', 400); r.setAttribute('height', 400); r.setAttribute('fill', dark ? BG_DARK : BG);
       svg.insertBefore(r, svg.firstChild);
       url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(svg));
     } catch (e) { console.warn('[monster] plaatje', e); }
   }
-  url = url || 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(flatSvg(set, true));
+  url = url || 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(flatSvg(set, true, dark));
   imgCache.set(key, url);
   return url;
 }
-// Plat reservemonster (als Zdog niet laadt): hetzelfde idee in gewone SVG.
-function flatSvg(set, bg) {
+// Plat reservemonster (als Zdog niet laadt): een vereenvoudigde, stilstaande versie van mecha-pof-reference.svg.
+function flatSvg(set, bg, dark = isDark()) {
   const o = p => set.has(p) ? '' : ' opacity=".15"';
-  const cakes = [[228, 98], [208, 100], [188, 96], [168, 92], [148, 86]].map(([y, rx], i) => `<ellipse cx="150" cy="${y + 8}" rx="${rx}" ry="20" fill="#C9892C"/><ellipse cx="150" cy="${y}" rx="${rx}" ry="20" fill="${['#F3BE55', '#F8CC6B', '#EDB44A', '#F6C35B', '#F9D27A'][i]}"/>`).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">${bg ? `<rect width="300" height="300" fill="${BG}"/>` : ''}
-<ellipse cx="150" cy="284" rx="100" ry="10" fill="#E6D3AE"/>
-<g${o('benen')} fill="none" stroke="#F3D34A" stroke-width="15" stroke-linecap="round"><path d="M118 240c12 14 10 30-2 40"/><path d="M182 240c-12 14-10 30 2 40"/></g>
-<g${o('lijf')}>${cakes}<path d="M120 140c10-8 50-8 60 0 4 8-10 14-30 14s-34-6-30-14z" fill="#8A4A1C"/></g>
-<g${o('armen')} fill="none" stroke="#C94C5A" stroke-width="12" stroke-linecap="round"><path d="M56 190c-16 10-14 28-24 40"/><path d="M244 190c16 10 14 28 24 40"/></g>
-<g${o('ogen')}><circle cx="124" cy="176" r="15" fill="#FFFDF6" stroke="#C4842A" stroke-width="2.5"/><circle cx="176" cy="176" r="15" fill="#FFFDF6" stroke="#C4842A" stroke-width="2.5"/><circle cx="126" cy="178" r="7.5" fill="#3D2470"/><circle cx="178" cy="178" r="7.5" fill="#3D2470"/><circle cx="129" cy="175" r="2.5" fill="#fff"/><circle cx="181" cy="175" r="2.5" fill="#fff"/><path d="M112 154q12-7 24 0M164 154q12-7 24 0" fill="none" stroke="#7A3E14" stroke-width="5" stroke-linecap="round"/></g>
-<g${o('neus')}><circle cx="150" cy="196" r="10" fill="#E0473C"/><circle cx="150" cy="204" r="6" fill="#E0473C"/><path d="M144 186l6 3 6-3" fill="none" stroke="#3C8F5A" stroke-width="4" stroke-linecap="round"/></g>
-<g${o('mond')}><path d="M131 214q19 18 38 0q-19 8-38 0z" fill="#4A1F0B" stroke="#4A1F0B" stroke-width="4" stroke-linejoin="round"/></g>
-<g${o('hoed')}><rect x="132" y="104" width="34" height="20" rx="5" fill="#FFE98A" transform="rotate(-8 150 114)"/><rect x="132" y="104" width="34" height="7" rx="4" fill="#FFF6C6" transform="rotate(-8 150 114)"/></g>
-</svg>`;
+  const plate = (y, k) => `<g transform="translate(200 ${y}) scale(${k} 1)"><path d="M-96 0V16A96 18 0 0 0 96 16V0Z" fill="#C9792C"/><ellipse rx="96" ry="18" fill="#F2BE62"/><g fill="#9AA3AD"><circle cx="-70" cy="9" r="2.6"/><circle cx="-24" cy="12" r="2.6"/><circle cx="24" cy="12" r="2.6"/><circle cx="70" cy="9" r="2.6"/></g></g>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">${bg ? `<rect width="300" height="300" fill="${dark ? BG_DARK : BG}"/>` : ''}
+<ellipse cx="150" cy="286" rx="78" ry="7" fill="${dark ? '#2A3550' : '#E6D3AE'}"/>
+<g transform="translate(26 6) scale(.62)">
+<g${o('hoed')}><g transform="rotate(-14 266 332)"><rect x="246" y="300" width="42" height="80" rx="10" fill="#A24C14"/><rect x="251" y="324" width="32" height="30" rx="4" fill="#FFF4DF"/><rect x="256" y="288" width="22" height="14" rx="3" fill="#E0473C"/></g>
+<path d="M300 382C292 400 300 424 310 436C320 424 328 400 320 382C316 392 304 392 300 382Z" fill="#F59E2E"/><path d="M305 388C302 400 306 414 310 420C314 414 318 400 315 388Z" fill="#FFF1A6"/>
+<rect x="184" y="140" width="26" height="18" rx="4" fill="#FFE98A" stroke="#D9B53E" stroke-width="1.5"/><circle cx="197" cy="150" r="4" fill="none" stroke="#B9902A" stroke-width="1.5"/></g>
+<g${o('lijf')}><rect x="150" y="226" width="100" height="22" fill="#2F3542"/>${plate(352, 1.04)}${plate(322, 1)}${plate(292, .96)}${plate(262, .9)}
+<rect x="174" y="296" width="52" height="46" rx="8" fill="#2F3542" stroke="#9AA3AD" stroke-width="1.5"/><circle cx="200" cy="318" r="16" fill="#0E1B2E" stroke="#9AA3AD" stroke-width="1.5"/><path d="M188 318A12 12 0 0 1 212 318" fill="none" stroke="#F59E2E" stroke-width="3"/><path d="M200 318L208 310" stroke="#7FE8FF" stroke-width="2" stroke-linecap="round"/><circle cx="182" cy="302" r="2.2" fill="#4ADE80"/><circle cx="218" cy="302" r="2.2" fill="#E0473C"/></g>
+<g${o('armen')}><rect x="70" y="262" width="34" height="14" rx="7" fill="#C9D1D8"/><rect x="46" y="256" width="40" height="22" rx="6" fill="#2F3542"/><rect x="40" y="276" width="14" height="60" rx="5" fill="#C9D1D8"/><path d="M22 334H68L72 372H18Z" fill="#D7DEE4" stroke="#4A5058"/><path d="M30 340V366M40 340V366M50 340V366M60 340V366" stroke="#5A636B" stroke-width="1.2"/>
+<rect x="296" y="262" width="34" height="14" rx="7" fill="#C9D1D8"/><rect x="314" y="256" width="40" height="22" rx="6" fill="#2F3542"/><rect x="346" y="276" width="14" height="40" rx="5" fill="#C9D1D8"/><g fill="none" stroke="#9AA6B4" stroke-width="2.4"><ellipse cx="353" cy="346" rx="20" ry="30"/><ellipse cx="353" cy="346" rx="12" ry="30"/><ellipse cx="353" cy="346" rx="4" ry="30"/></g></g>
+<g${o('benen')}><rect x="160" y="366" width="18" height="36" rx="5" fill="#C9D1D8"/><rect x="222" y="366" width="18" height="36" rx="5" fill="#C9D1D8"/><rect x="154" y="384" width="30" height="22" rx="6" fill="#2F3542"/><rect x="216" y="384" width="30" height="22" rx="6" fill="#2F3542"/>
+<path d="M136 420C136 408 150 402 169 402S202 408 202 420V428H136Z" fill="#2F3542"/><path d="M198 420C198 408 212 402 231 402S264 408 264 420V428H198Z" fill="#2F3542"/><path d="M136 410L116 404M264 410L284 404" stroke="#9AA3AD" stroke-width="5" stroke-linecap="round"/><ellipse cx="169" cy="416" rx="20" ry="6" fill="#F2BE62"/><ellipse cx="231" cy="416" rx="20" ry="6" fill="#F2BE62"/></g>
+<g${o('ogen')}><path d="M258 178L318 160" stroke="#2F3542" stroke-width="14" stroke-linecap="round"/><circle cx="200" cy="190" r="62" fill="#2F3542" stroke="#9AA3AD" stroke-width="2"/><circle cx="200" cy="190" r="52" fill="none" stroke="#4A5058" stroke-width="2"/>
+<rect x="138" y="178" width="124" height="40" rx="14" fill="#12223A" stroke="#7FE8FF" stroke-width="2"/><ellipse cx="172" cy="198" rx="14" ry="8" fill="#7FE8FF"/><ellipse cx="228" cy="198" rx="14" ry="8" fill="#7FE8FF"/><path d="M164 197H180M220 197H236" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+<path d="M200 128V110" stroke="#9AA3AD" stroke-width="3" stroke-linecap="round"/><circle cx="200" cy="106" r="6" fill="#E0473C"/></g>
+<g${o('neus')}><circle cx="200" cy="226" r="7" fill="#E0352B" stroke="#9AA3AD" stroke-width="1.5"/></g>
+<g${o('mond')}><rect x="168" y="236" width="64" height="12" rx="6" fill="#0E1B2E" stroke="#9AA3AD" stroke-width="1.5"/><path d="M176 239V245M184 239V245M192 239V245M200 239V245M208 239V245M216 239V245M224 239V245" stroke="#7FE8FF" stroke-width="2" stroke-linecap="round"/></g>
+</g></svg>`;
 }
 
 // ---------------------------------------------------------------- stijl (één keer)
@@ -485,7 +607,7 @@ export function createMonster() {
   const el = document.createElement('div');
   el.className = 'pkmon md slaap';
   el.innerHTML = '<div class="zzz" aria-hidden="true"><b>z</b><b>z</b><b>Z</b></div>';
-  el.setAttribute('role', 'img'); el.setAttribute('aria-label', 'Het Pannenkoekenmonster');
+  el.setAttribute('role', 'img'); el.setAttribute('aria-label', 'Mecha-Pof, de keukenrobot');
   let canvas = null, img = null, illo = null, m = null, built = false, destroyed = false;
   const parts = new Set();
   let mood = 'slaap', size = 'md';
@@ -626,6 +748,10 @@ export function createMonster() {
     P.sniff = lerpK(P.sniff, t < S.sniffUntil && mv ? 1 : 0, 10, dt);
     P.wobble = T.wobble * mv; P.breath = Math.sin(sec * T.breathW) * T.breathA * mv;
     P.melt = S.melt;
+    // zweven op de jetpack: slapen = op de grond met een waakvlammetje, compleet = hoger en vol gas
+    const hoverT = mood === 'slaap' ? 0 : -7 - 8 * S.melt + 4 * Math.sin(sec * Math.PI) * mv;
+    P.hover = rm ? hoverT : lerpK(P.hover, hoverT, mood === 'slaap' ? 1.5 : 4, dt);
+    P.thrust = lerpK(P.thrust, mood === 'slaap' ? 0.3 : 1, 3 * kk, dt);
     // praten: mond per woord
     S.talk = Math.max(0, S.talk - dt * 4.5);
     // live (walkietalkie): de mond volgt het echte volume, zonder het kunstmatige klapperen
@@ -687,11 +813,11 @@ export function createMonster() {
     audio.play('spetter');
     audio.buzz([30, 30, 60]);
     if (quiet) return;
-    S.sqV -= 2.2;     // het hele monster zakt even in
+    S.sqV -= 2.2;     // de hele robot zakt even in
     const TAU = Math.PI * 2;
     m.drops.forEach((d, i) => {
       const ang = (i / m.drops.length) * TAU + rnd(-0.3, 0.3), sp = rnd(70, 140);
-      const y0 = L.key === 'lijf' ? 62 : L.key === 'benen' ? 98 : L.key === 'armen' ? 50 : b.y + 4;
+      const y0 = (L.key === 'lijf' ? 56 : L.key === 'benen' ? 95 : L.key === 'armen' ? 30 : b.y + 4) + P.hover;
       d.s.translate.set({ x: b.x + Math.cos(ang) * 6, y: y0, z: b.z + Math.sin(ang) * 6 });
       d.vx = Math.cos(ang) * sp; d.vz = Math.sin(ang) * sp; d.vy = -rnd(90, 170); d.life = rnd(0.45, 0.7);
       d.s.stroke = rnd(4, 8); d.s.visible = true;
