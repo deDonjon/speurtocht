@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0F18">
+<title>Speelbord van Mecha-Pof</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
+<style>
+/* bord.html — het 3D-speelbord op een eigen scherm (js/board.js).
+   ?kern  = kernscherm thuis (wolken, draaiende camera)   ?regie = alles zichtbaar, met antwoorden   ?demo = schuif om de route na te spelen
+   Zonder parameter: spelersweergave. Het bord volgt live de stand uit Supabase (game, stops, telefoons). */
+:root{--bg:#0B0F18;--panel:#1A1F2A;--line:#3C4A66;--line2:#4E5D7E;--visor:#0E1B2E;--led:#7FE8FF;--led-dark:#15A4C8;--gold:#F2BE62;--gold-deep:#9A5419;--ink:#EAF2FF;--muted:#93A0B8;--straw:#FF5A4E;--ok:#4ADE80;
+  --display:'Lilita One','Arial Rounded MT Bold',sans-serif;--body:'Nunito','Segoe UI',system-ui,sans-serif;--hud:'Chakra Petch',ui-monospace,Menlo,monospace;color-scheme:dark}
+*{box-sizing:border-box}[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-weight:700;overflow:hidden}
+#app{position:fixed;inset:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(8px + env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-right,0px)) 8px max(14px,env(safe-area-inset-left,0px));border-bottom:2px solid var(--line);background:var(--panel)}
+.bar h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(1.3rem,3.4vw,2.2rem);color:var(--gold);text-shadow:0 3px 0 var(--gold-deep);line-height:1}
+.eyebrow{font-family:var(--hud);letter-spacing:.18em;text-transform:uppercase;color:var(--led);font-size:.72rem}
+.clock{text-align:right;line-height:1.1}
+.clock b{font-family:var(--hud);font-size:clamp(1.3rem,3vw,2rem);color:var(--led);font-variant-numeric:tabular-nums}
+.clock small{display:block;color:var(--muted);font-size:.78rem}
+#board{position:relative;min-height:0;background:var(--visor)}
+.dock{display:grid;gap:8px;padding:10px max(14px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px));background:var(--panel);border-top:2px solid var(--line)}
+.next{font-size:clamp(.95rem,1.8vw,1.35rem);line-height:1.3}
+.next b{color:var(--led)}
+.parts{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.parts span{display:grid;place-items:center;height:clamp(34px,5vh,52px);border-radius:10px;border:2px dashed var(--line2);background:var(--visor);font-size:clamp(1.1rem,2.4vh,1.6rem);filter:grayscale(1);opacity:.45}
+.parts span.got{border-style:solid;border-color:var(--gold);filter:none;opacity:1;box-shadow:0 0 10px rgba(242,190,98,.35)}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.row .grow{flex:1 1 160px;min-width:0}
+button{font:inherit;font-weight:900;cursor:pointer;border:0;border-radius:12px;min-height:40px;padding:6px 14px;color:#3A1C06;background:linear-gradient(180deg,#FCE3A6,var(--gold) 45%,#E0A548);box-shadow:0 3px 0 var(--gold-deep)}
+button.plain{background:linear-gradient(180deg,#3A4356,#2A3142);color:var(--ink);border:2px solid var(--line2);box-shadow:0 2px 0 #10141C}
+button:focus-visible,input:focus-visible{outline:3px solid var(--led);outline-offset:2px}
+.seg{display:inline-flex;background:var(--visor);border:2px solid var(--line2);border-radius:12px;padding:3px;gap:2px}
+.seg button{background:none;box-shadow:none;color:var(--muted);min-height:34px;padding:4px 9px;border-radius:9px}
+.seg button[aria-pressed="true"]{background:var(--led);color:var(--visor)}
+input[type=range]{width:100%;accent-color:var(--gold);height:30px}
+.osm{font-size:.82rem;color:var(--muted)}
+.osm b{color:var(--ink)}
+.pill{font-family:var(--hud);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:var(--visor);color:var(--led)}
+body.kern .dock .row.tools,body.kern .osm{display:none}
+body.kern .next{font-size:clamp(1.2rem,2.4vw,2rem)}
+#toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:9;background:var(--panel);border:2px solid var(--led-dark);border-radius:12px;padding:10px 14px;max-width:90vw;font-size:.9rem;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="bar">
+    <div><span class="eyebrow">Mecha-Pof · route A</span><h1>Speelbord</h1></div>
+    <div class="clock"><b id="clock">--:--</b><small id="sun">verbinden…</small></div>
+  </header>
+  <main id="board"></main>
+  <section class="dock">
+    <div class="next" id="next">Het bord wordt gebouwd…</div>
+    <div class="parts" id="parts"></div>
+    <div class="row tools">
+      <div class="seg" role="group" aria-label="Weergave">
+        <button data-m="spel" aria-pressed="false">Spelers</button><button data-m="regie" aria-pressed="false">Regie</button><button data-m="kern" aria-pressed="false">Kern</button>
+      </div>
+      <button class="plain" id="center" aria-label="Camera terugzetten">🎯</button>
+      <button class="plain" id="demo" aria-pressed="false">Demo</button>
+    </div>
+    <div class="row" id="demorow" hidden>
+      <input class="grow" type="range" id="prog" min="0" max="7" step="0.05" value="0" aria-label="Voortgang langs de route (demo)">
+      <button id="play">▶ Speel af</button>
+    </div>
+    <div class="row osm" id="osmrow">
+      <span class="grow">Kaart: <b id="osm">laden…</b></span>
+      <button class="plain" id="refetch">Kaart opnieuw ophalen</button>
+      <button class="plain" id="save">Kaartbestand bewaren</button>
+    </div>
+  </section>
+</div>
+<div id="toast" role="status"></div>
+<script type="module">
+import { state, PARTS } from './js/state.js';
+import { sync } from './js/sync.js';
+import { createBoard } from './js/board.js?v=1';
+import { ROUTE, TIMES, SUNSET } from './js/board-data.js?v=1';
+
+const $ = s => document.querySelector(s);
+const qs = new URLSearchParams(location.search);
+let mode = qs.has('kern') ? 'kern' : qs.has('regie') ? 'regie' : 'spel';
+let demo = qs.has('demo'), playing = false, prog = 0, live = false;
+document.body.classList.toggle('kern', mode === 'kern');
+const PART_KEYS = ['lijf', 'ogen', 'neus', 'mond', 'armen', 'benen', 'hoed'];
+$('#parts').innerHTML = PART_KEYS.map(k => `<span data-p="${k}" title="${PARTS[k].label}">${PARTS[k].icon}</span>`).join('');
+const toast = (t, ms = 3200) => { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), ms); };
+const fmt = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(Math.round(m % 60)).padStart(2, '0')}`;
+const OSM_LABEL = { bestand: 'echte kaart (bestand in de app)', cache: 'echte kaart (bewaard op dit toestel)', live: 'echte kaart (net opgehaald)', ophalen: 'echte kaart ophalen…', geen: 'getekend bord (nog geen kaartdata)' };
+
+const board = await createBoard($('#board'), { mode, onStatus: s => { $('#osm').textContent = OSM_LABEL[s] || s; } }).catch(e => { $('#next').textContent = e.message; throw e; });
+
+function syncButtons() {
+  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === mode));
+  $('#demo').setAttribute('aria-pressed', demo); $('#demorow').hidden = !demo;
+}
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { mode = b.dataset.m; document.body.classList.toggle('kern', mode === 'kern'); board.setMode(mode); syncButtons(); render(); });
+$('#center').onclick = () => board.recenter();
+$('#demo').onclick = () => { demo = !demo; playing = false; $('#play').textContent = '▶ Speel af'; syncButtons(); render(); };
+$('#prog').oninput = e => { prog = +e.target.value; playing = false; $('#play').textContent = '▶ Speel af'; render(); };
+$('#play').onclick = () => { playing = !playing; if (playing && prog >= 7) prog = 0; $('#play').textContent = playing ? '⏸ Pauze' : '▶ Speel af'; };
+let lastT = performance.now();
+(function tick(now) { const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+  if (playing) { prog = Math.min(7, prog + dt * 0.18); $('#prog').value = prog; render(); if (prog >= 7) { playing = false; $('#play').textContent = '▶ Speel af'; } }
+  requestAnimationFrame(tick); })(lastT);
+
+$('#refetch').onclick = async () => { toast('Kaart wordt opgehaald bij OpenStreetMap…', 6000); const s = await board.refetchOsm(); toast(s === 'live' ? 'Echte kaart opgehaald en bewaard op dit toestel.' : 'Ophalen lukte niet. Probeer het zo nog eens.'); };
+$('#save').onclick = () => {
+  const d = board.osmData(); if (!d) return toast('Er is nog geen echte kaart. Tik eerst op "Kaart opnieuw ophalen".');
+  const url = URL.createObjectURL(new Blob([JSON.stringify(d)], { type: 'application/json' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: 'osm.json' }); document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast('osm.json bewaard. Stuur het naar Claude, dan komt het als vast bestand in de app.', 6000);
+};
+
+function render() {
+  const S = state.get(), g = S.game;
+  if (demo || !live) board.update({ progress: prog });
+  else board.update({ stops: state.route(), activeIndex: g?.active_index ?? 0, phase: g?.phase, players: S.players.map(p => ({ ...p })), pos: null, meIds: [] });
+  const inf = board.info();
+  $('#clock').textContent = inf.minutes != null ? fmt(inf.minutes) : '--:--';
+  $('#sun').textContent = (demo || !live ? 'demo · ' : '') + (inf.minutes < SUNSET ? (inf.dusk > 0.2 ? 'zon zakt' : 'daglicht') : 'na zonsondergang');
+  const got = demo || !live ? PART_KEYS.slice(0, inf.reached || 0) : (g?.parts || []);
+  document.querySelectorAll('#parts span').forEach(el => el.classList.toggle('got', got.includes(el.dataset.p)));
+  const names = Object.fromEntries((S.stops || []).filter(s => s.seq).map(s => [s.seq, s.name]));
+  const tgt = demo || !live ? null : state.activeStop();
+  let txt;
+  if (inf.finished) txt = '🏠 Thuis: <b>de finale!</b> Mega-Mecha-Pof is compleet.';
+  else if (tgt && !tgt.part && !tgt.key) txt = `⭐ Bonus: <b>${esc(tgt.name)}</b>${inf.lineMeters ? ` · nog ±${inf.lineMeters} m` : ''}`;
+  else if (inf.targetSeq) txt = `Volgende: <b>${inf.targetSeq === 7 ? 'thuis' : 'stop ' + inf.targetSeq}${names[inf.targetSeq] ? ' · ' + esc(names[inf.targetSeq]) : ''}</b>${inf.lineMeters ? ` · nog ±${inf.lineMeters} m langs de lijn` : ' · jullie zijn er!'}`;
+  else txt = 'Wacht op de start…';
+  if (!live && !demo) txt += ' <span class="pill">offline: demo</span>';
+  $('#next').innerHTML = txt;
+}
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+window.__board = board; // voor test/browser-bord.mjs
+syncButtons(); render();
+try { await sync.connect(); live = true; state.on('change', () => { if (!render.raf) render.raf = requestAnimationFrame(() => { render.raf = 0; render(); }); }); render(); }
+catch (e) { toast('Geen verbinding met het spel: het bord draait als demo.', 5000); render(); }
+setInterval(render, 30_000); // klok en schemering bijwerken
+</script>
+</body>
+</html>

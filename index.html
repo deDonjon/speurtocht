@@ -137,6 +137,8 @@ input.big:focus{border-color:var(--led);box-shadow:inset 0 2px 8px rgba(0,0,0,.5
 .status.bad{color:var(--straw)}
 .mapwrap{position:relative;border-radius:14px;overflow:hidden;border:2px solid var(--led-dark);background:var(--visor);box-shadow:0 0 18px rgba(127,232,255,.18)}
 .mapbtn{position:absolute;right:10px;bottom:24px;z-index:2;width:46px;min-height:46px;border-radius:50%;padding:0;font-size:20px}
+.mapbtn.b3d{bottom:78px;font-size:13px;font-family:var(--hud);letter-spacing:.04em}
+.bordslot{height:min(56vh,440px)}
 
 /* ---------- puzzels (gedeeld door js/puzzles/*.js) */
 .question{font-size:1.25rem;font-weight:900;line-height:1.35}
@@ -614,6 +616,19 @@ function updateMap(st, seesTarget) {
     players: S().players.map(p => ({ ...p, color: guard(p).color })) });
 }
 const fitMap = () => wmap?.fit();
+/* ---------- 3D-speelbord (js/board.js) als tweede kaartweergave; de keuze onthoudt de telefoon. Pas geladen als iemand hem aanzet. */
+let board = null, boardP = null, bordOn = store.get('pkm2_bord', false);
+async function ensureBoard(slot) {
+  if (board) { if (board.el.parentNode !== slot) slot.appendChild(board.el); return board; }
+  if (!boardP) boardP = import('./js/board.js?v=1').then(m => m.createBoard(slot, { mode: 'spel' })).then(b => (board = b)).catch(e => { console.warn('[bord]', e); boardP = null; bordOn = false; store.set('pkm2_bord', false); toast('Het 3D-bord laadt niet op deze telefoon; de gewone kaart blijft.', 3600); return null; });
+  return boardP;
+}
+function updateBoard() {
+  if (!board || !bordOn) return;
+  const g = S().game;
+  board.update({ stops: state.route(), activeIndex: g?.active_index ?? 0, phase: g?.phase, pos: test ? null : S().pos, meIds: S().device.players,
+    players: S().players.map(p => ({ ...p, color: guard(p).color })) });
+}
 
 /* ================================================================ schermen
    Elk scherm heeft een sleutel; verandert die, dan schuift een nieuw scherm in. Anders roept refresh() alleen update() aan. */
@@ -744,12 +759,21 @@ screens.nav = (el, id) => {
     <div class="page"><span class="tab">${stopTab(st)}</span>
       <div class="row" style="justify-content:space-between"><span class="eyebrow">${PARTS[st.part]?.icon || ''} ${esc(PARTS[st.part]?.label || '')}</span><span class="eyebrow">${kaart ? '🗺️ Kaart' : ''}</span></div>
       <h2>${esc(st.name)}</h2><p class="clue">${esc(st.clue)}</p>
-      ${kaart && hasL ? '<div class="mapwrap"><div id="mapslot"></div><button class="mapbtn plain" id="fit" aria-label="Kaart centreren">🎯</button></div>' : ''}
+      ${kaart && hasL ? '<div class="mapwrap"><div id="mapslot"></div><div id="bordslot" class="bordslot" hidden></div><button class="mapbtn plain b3d" id="b3d" aria-label="Wissel tussen kaart en 3D-speelbord">3D</button><button class="mapbtn plain" id="fit" aria-label="Kaart centreren">🎯</button></div>' : ''}
       ${kaart ? '<div id="dist"></div><div class="meter" aria-hidden="true"><i></i></div>' : '<div class="rolenote" id="rolenote"></div>'}
       <p class="status" id="status"></p>
       <div id="navbtns" class="row"></div>
     </div>`;
-  if (kaart && hasL) { $('#mapslot', el).appendChild(wmap.el); $('#fit', el).onclick = fitMap; }
+  if (kaart && hasL) {
+    $('#mapslot', el).appendChild(wmap.el);
+    const showView = async () => {
+      $('#mapslot', el).hidden = bordOn; $('#bordslot', el).hidden = !bordOn; $('#b3d', el).textContent = bordOn ? 'Kaart' : '3D';
+      if (bordOn) { await ensureBoard($('#bordslot', el)); updateBoard(); if (!board) showView(); } else wmap.invalidate();
+    };
+    $('#fit', el).onclick = () => bordOn ? board?.recenter() : fitMap();
+    $('#b3d', el).onclick = () => { bordOn = !bordOn; store.set('pkm2_bord', bordOn); showView(); };
+    showView();
+  }
   el.addEventListener('click', e => { const b = e.target.closest('[data-n]')?.dataset.n;
     if (b === 'tele') arrive(id); if (b === 'gps') { gpsError = ''; stopGps(); startGps(); update(); } });
   const update = () => {
@@ -761,13 +785,13 @@ screens.nav = (el, id) => {
       dist = Math.round(d);
       status = kaart ? (d <= r + 30 ? 'Bijna! Nog een klein stukje.' : 'Volg de stippellijn op de kaart.') + ` · GPS ±${Math.round(pos.acc)} m` : (d <= r + 30 ? 'Bijna! Nog een klein stukje.' : '');
     }
-    if (kaart) { $('#dist', el).innerHTML = `<div class="dist">${dist}<small> m</small></div><div class="status">${warm}</div>`; $('.meter i', el).style.width = pct + '%'; updateMap(st, true); }
+    if (kaart) { $('#dist', el).innerHTML = `<div class="dist">${dist}<small> m</small></div><div class="status">${warm}</div>`; $('.meter i', el).style.width = pct + '%'; updateMap(st, true); updateBoard(); }
     else { const who = whoHas('kaart'); $('#rolenote', el).innerHTML = `<p class="clue" style="font-size:1rem">🗺️ De kaart en de afstand staan op de telefoon van <b>${esc(who || 'de kaartlezer')}</b>. Loop samen op!</p>`; }
     const s = $('#status', el); s.textContent = status; s.classList.toggle('bad', !!gpsError);
     $('#navbtns', el).innerHTML = (test ? '<button class="berry grow" data-n="tele">🛸 Teleporteer naar deze plek</button>' : '') + (gpsError ? '<button class="berry grow" data-n="gps">📡 Locatie opnieuw proberen</button>' : '');
     checkArrival();
   };
-  update(); return { update, destroy: () => wmap?.el.remove() };
+  update(); return { update, destroy: () => { wmap?.el.remove(); board?.el.remove(); } };
 };
 
 /* ---------- puzzel bij de actieve stop (ook de finale thuis)
