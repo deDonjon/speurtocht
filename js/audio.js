@@ -1,4 +1,5 @@
-// audio.js — het geluidspalet van het Pannenkoekenmonster, helemaal uit Web Audio (geen bestanden).
+// audio.js — het geluidspalet van Mecha-Pof, de keukenrobot, helemaal uit Web Audio (geen bestanden).
+// Toon: lief en speels, met een randje keukenmechaniek (piepjes, servo-zoem, tandwieltjes, ovenbel, stoompufje). Nooit hard of stoer.
 //   import { audio } from './js/audio.js';
 //   audio.play('plop')            // naam uit SOUNDS hieronder
 //   audio.hum()  → { pulse(strength), stop() }   // funky wah-baslijn onder de stem van het monster
@@ -84,25 +85,38 @@ function hiss({ at = 0, dur = 0.2, vol = 0.3, from = 2000, to = 400, q = 1.2, ty
   s.connect(bp).connect(g).connect(master); s.start(t); s.stop(t + dur + 0.05);
 }
 const notes = (fs, step, opt = {}) => fs.forEach((f, i) => tone({ f, at: i * step, dur: opt.dur || 0.3, vol: opt.vol || 0.3, type: opt.type || 'triangle' }));
+// robotbouwstenen
+const blip = (f0, f1, at = 0, vol = 0.22, dur = 0.07) => tone({ f: [f0, f1], type: 'sine', at, dur, vol, attack: 0.004 });          // bliep / bloep
+const bell = (f, at = 0, vol = 0.2, dur = 0.9) => {                                                                                  // ovenbelletje (metaalachtig, met boventonen)
+  tone({ f, type: 'sine', at, dur, vol, attack: 0.003 });
+  tone({ f: f * 2.76, type: 'sine', at, dur: dur * 0.5, vol: vol * 0.3, attack: 0.003 });
+  tone({ f: f * 5.4, type: 'sine', at, dur: dur * 0.25, vol: vol * 0.12, attack: 0.002 });
+};
+const whirr = (f0, f1, at = 0, dur = 0.3, vol = 0.07) => tone({ f: [f0, f1], type: 'sawtooth', at, dur, vol, attack: 0.04, filter: 1100, vib: 28 }); // servo-zoem
+const ratchet = (n, at = 0, step = 0.035, vol = 0.12) => { for (let i = 0; i < n; i++) hiss({ at: at + i * step, dur: 0.022, vol, from: 3400, to: 2800, q: 5 }); }; // tandwieltjes
+const puff = (at = 0, vol = 0.07) => hiss({ at, dur: 0.35, vol, from: 5000, to: 1800, q: 0.5, type: 'highpass' });                     // stoompufje
 
 // ---------------------------------------------------------------- het palet
 export const SOUNDS = {
-  plop()     { tone({ f: [620, 170], type: 'sine', dur: 0.12, vol: 0.5 }); hiss({ dur: 0.05, vol: 0.08, from: 900, to: 500 }); },     // stroop-plop bij een zet
-  deel()     { notes([523, 587, 659, 698, 784, 880, 988, 1047], 0.075, { dur: 0.22, vol: 0.26 }); tone({ f: 2093, type: 'sine', at: 0.62, dur: 0.5, vol: 0.12, vib: 7 }); }, // toonladdertje
-  spetter()  { tone({ f: [140, 50], type: 'sine', dur: 0.22, vol: 0.6 }); hiss({ dur: 0.28, vol: 0.32, from: 2600, to: 350, q: 0.8 }); hiss({ at: 0.06, dur: 0.12, vol: 0.12, from: 4000, to: 1500 }); }, // landing
-  val()      { hiss({ dur: 0.45, vol: 0.1, from: 3500, to: 600, q: 3 }); },                                                            // vallen (whoosh)
-  klik()     { tone({ f: 1900, type: 'square', dur: 0.03, vol: 0.12, filter: 3500 }); tone({ f: 1250, type: 'square', at: 0.04, dur: 0.03, vol: 0.1, filter: 3500 }); }, // vastklikken
-  brom()     { tone({ f: [110, 92], type: 'sawtooth', dur: 0.5, vol: 0.22, filter: 420 }); tone({ f: [55, 46], type: 'sine', dur: 0.55, vol: 0.25 }); }, // korte brom (ballon zonder stem)
+  plop()     { blip(900, 1350, 0, 0.28, 0.06); tone({ f: 2400, type: 'square', at: 0.005, dur: 0.02, vol: 0.05, filter: 4000 }); },  // toetsje bij een zet: bliep
+  deel()     { whirr(220, 660, 0, 0.32); ratchet(4, 0.05, 0.05, 0.09);                                                                  // servo draait, tandwieltjes, dan het muziekdoosje
+               [784, 880, 1047, 1175, 1319, 1568].forEach((f, i) => tone({ f, type: 'sine', at: 0.32 + i * 0.07, dur: 0.25, vol: 0.2 })); bell(2093, 0.78, 0.14, 1); },
+  spetter()  { tone({ f: [150, 55], type: 'sine', dur: 0.22, vol: 0.55 }); tone({ f: 420, type: 'square', dur: 0.05, vol: 0.06, filter: 1600 });
+               bell(330, 0.01, 0.1, 0.35); puff(0.08, 0.1); ratchet(2, 0.12, 0.05, 0.08); },                                              // deel klikt vast: tonk-klink-pssst
+  val()      { hiss({ dur: 0.45, vol: 0.09, from: 3500, to: 600, q: 3 }); tone({ f: [1400, 500], type: 'sine', dur: 0.4, vol: 0.06, vib: 9 }); }, // vallen (jetpack-zwiepje)
+  klik()     { tone({ f: 1900, type: 'square', dur: 0.03, vol: 0.1, filter: 3500 }); tone({ f: 1250, type: 'square', at: 0.04, dur: 0.03, vol: 0.09, filter: 3500 }); }, // vastklikken
+  brom()     { blip(520, 760, 0, 0.18, 0.09); blip(760, 600, 0.11, 0.16, 0.09); blip(600, 980, 0.22, 0.18, 0.12); },                    // bie-bu-bliep (ballon zonder stem)
   tik()      { tone({ f: 1250, type: 'sine', dur: 0.05, vol: 0.4 }); },                                                             // aftellen
   tak()      { tone({ f: 880, type: 'sine', dur: 0.06, vol: 0.4 }); },
-  fout()     { tone({ f: [330, 300], type: 'square', dur: 0.16, vol: 0.18, filter: 1200 }); tone({ f: [233, 180], type: 'square', at: 0.16, dur: 0.3, vol: 0.18, filter: 900 }); },
-  hint()     { tone({ f: 659, type: 'sine', dur: 0.35, vol: 0.3 }); tone({ f: 880, type: 'sine', at: 0.13, dur: 0.5, vol: 0.28, vib: 6 }); tone({ f: 1760, type: 'sine', at: 0.13, dur: 0.4, vol: 0.06 }); },
-  badge()    { notes([784, 988, 1175, 1568], 0.08, { dur: 0.35, vol: 0.24 }); hiss({ at: 0.3, dur: 0.4, vol: 0.06, from: 8000, to: 5000, q: 2 }); },
-  giggle()   { [0, 1, 2, 3, 4].forEach(i => tone({ f: [1050 - i * 60, 820 - i * 60], type: 'sine', at: i * 0.085, dur: 0.07, vol: 0.22, vib: 30 })); }, // hihihi
-  start()    { notes([262, 330, 392, 523], 0.14, { dur: 0.4, vol: 0.4 }); },
-  aankomst() { notes([523, 659, 784], 0.14, { dur: 0.38, vol: 0.4 }); },
-  login()    { notes([392, 523], 0.14, { dur: 0.38, vol: 0.4 }); },
-  ok()       { notes([523, 784], 0.14, { dur: 0.38, vol: 0.4 }); },
+  fout()     { blip(520, 470, 0, 0.24, 0.14); blip(400, 300, 0.17, 0.24, 0.26); tone({ f: 150, type: 'square', at: 0.17, dur: 0.22, vol: 0.04, filter: 600 }); }, // bu-buuu (verdrietig, niet streng)
+  hint()     { blip(660, 1320, 0, 0.22, 0.1); bell(1760, 0.12, 0.16, 0.7); },                                                       // lampje gaat aan: bliep-ting
+  badge()    { notes([784, 988, 1175, 1568], 0.08, { dur: 0.35, vol: 0.22, type: 'sine' }); bell(2093, 0.34, 0.12, 0.8); },
+  giggle()   { [0, 1, 2, 3, 4].forEach(i => blip(1300 - i * 70, 980 - i * 70, i * 0.075, 0.18, 0.06)); },                            // robot-hihihi
+  start()    { whirr(110, 440, 0, 0.45, 0.08); ratchet(5, 0.08, 0.06, 0.08);                                                        // opstarten: zoem, tandwieltjes, piepjes, belletje
+               blip(523, 523, 0.45, 0.2, 0.07); blip(659, 659, 0.55, 0.2, 0.07); blip(784, 784, 0.65, 0.2, 0.07); bell(1047, 0.78, 0.22, 1); puff(0.8, 0.06); },
+  aankomst() { bell(1319, 0, 0.22, 0.6); bell(1319, 0.32, 0.09, 0.5); blip(784, 1568, 0.18, 0.14, 0.12); },                         // radarping met echo
+  login()    { blip(600, 900, 0, 0.24, 0.07); blip(900, 1200, 0.1, 0.24, 0.09); },                                                    // bie-dup
+  ok()       { bell(1568, 0, 0.22, 0.8); },                                                                                         // ting! (ovenbel)
   zend()     { hiss({ dur: 0.09, vol: 0.12, from: 3200, to: 2200, q: 0.7 }); tone({ f: 1400, type: 'square', at: 0.05, dur: 0.05, vol: 0.08, filter: 2500 }); }, // walkietalkie: knop in
   over()     { tone({ f: [1300, 900], type: 'square', dur: 0.08, vol: 0.08, filter: 2500 }); hiss({ at: 0.05, dur: 0.22, vol: 0.14, from: 2600, to: 900, q: 0.6 }); }, // knop los: "over!"
 };

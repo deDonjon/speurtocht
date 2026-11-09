@@ -11,7 +11,7 @@
 // `monster-token`, zodat de API-sleutel nooit in de app staat. De microfoon staat standaard dicht; alleen zolang
 // de knop ingedrukt is gaat hij open. Zo hoort het monster geen wind of geschreeuw van de rest.
 // Animatie: de mond volgt het echte uitgaande volume (getOutputVolume), dus het klopt bij elke zin.
-import { audio, setRecording } from './audio.js?v=5';
+import { audio, setRecording } from './audio.js?v=6';
 import { SUPABASE_URL, SUPABASE_KEY } from './sync.js';
 
 const SDK = [
