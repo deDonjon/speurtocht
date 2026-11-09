@@ -109,7 +109,8 @@ export function createInstall(d) {
     const box = document.querySelector('#ov .install #inst');
     if (box) {
       const extra = how === 'timeout' ? ' Mecha-Pof heeft het zelf maar vastgeklikt.' : '';
-      box.innerHTML = `<h2>✓ Vastgeklikt!</h2><p>${esc(PARTS[part]?.label || 'Het deel')} zit weer op zijn plek.${extra}</p>
+      const label = PARTS[part]?.label || 'het deel';
+      box.innerHTML = `<h2>✓ Vastgeklikt!</h2><p>${esc(label[0].toUpperCase() + label.slice(1))} zit weer op zijn plek.${extra}</p>
         <button class="ok wide big-btn">${cur.last ? '🥞 Pannenkoeken!' : 'Op naar de volgende plek ▶'}</button>`;
       box.querySelector('button').onclick = () => { cur = null; closeOverlay(); };
     } else { cur = null; }
