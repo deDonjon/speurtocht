@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mecha-Pof Dansnummer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout: één kolom als het spelscherm van de app; drie nummers als bedieningspanelen van Mecha-Pof. Bewust alleen donker (spelwereld). */
+:root {
+  --bg: #0E1320; --panel: #1A2133; --line: #33405A; --ink: #EAF2FF; --muted: #93A0B8;
+  --led: #7FE8FF; --gold: #F2BE62; --berry: #E8536A;
+  --display: "Lilita One", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --body: "Nunito", system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+}
+body {
+  background: radial-gradient(120% 70% at 50% 0%, #26304A 0%, var(--bg) 70%) fixed, var(--bg);
+  color: var(--ink); font-family: var(--body); font-weight: 600; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 40px;
+}
+main { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.eye { font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; color: var(--led); font-weight: 800; }
+h1 { font-family: var(--display); font-weight: 400; font-size: 2.1rem; line-height: 1.05; margin: 4px 0 6px; text-wrap: balance; }
+h1 span { color: var(--gold); }
+.lead { margin: 0; color: var(--muted); }
+.track { background: var(--panel); border: 2px solid var(--line); border-radius: 18px; padding: 16px; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; align-items: center; }
+.track.on { border-color: var(--led); box-shadow: 0 0 22px rgba(127,232,255,.18); }
+.letter { grid-row: span 2; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-size: 1.6rem; background: #252D42; color: var(--gold); border: 2px solid var(--line); }
+.track.on .letter { background: var(--gold); color: #3A2508; border-color: var(--gold); }
+.name { font-weight: 800; font-size: 1.05rem; }
+.what { color: var(--muted); font-size: .92rem; min-width: 0; }
+audio { grid-column: 1 / -1; width: 100%; margin-top: 8px; }
+.tag { display: inline-block; margin-left: 6px; font-size: .72rem; padding: 1px 8px; border-radius: 999px; background: rgba(242,190,98,.16); color: var(--gold); font-weight: 800; vertical-align: 2px; }
+.note { font-size: .88rem; color: var(--muted); border-top: 2px dashed var(--line); padding-top: 14px; margin: 0; }
+.note b { color: var(--ink); }
+</style>
+</head><body>
+<main>
+  <div>
+    <div class="eye">Finale · dansstuk</div>
+    <h1>Welk nummer laat <span>Mecha-Pof</span> knallen?</h1>
+    <p class="lead">Drie instrumentale versies van een minuut, gemaakt met ElevenLabs. Tik op ▶ om te luisteren.</p>
+  </div>
+
+  <section class="track on" aria-label="Versie A">
+    <div class="letter">A</div>
+    <div class="name">Robot-keukenparty <span class="tag">staat nu in de app</span></div>
+    <div class="what">±122 BPM · 8-bit-melodie · pannen en garde als slagwerk</div>
+    <audio id="a" controls preload="none" src="https://lnhliamckstuwiwyzxyl.supabase.co/storage/v1/object/public/monster/music/dans-a.mp3"></audio>
+  </section>
+
+  <section class="track" aria-label="Versie B">
+    <div class="letter">B</div>
+    <div class="name">Funky robotdans</div>
+    <div class="what">±118 BPM · slapbas · robotachtig synthdeuntje</div>
+    <audio id="b" controls preload="none" src="https://lnhliamckstuwiwyzxyl.supabase.co/storage/v1/object/public/monster/music/dans-b.mp3"></audio>
+  </section>
+
+  <section class="track" aria-label="Versie C">
+    <div class="letter">C</div>
+    <div class="name">Confetti-eurodance</div>
+    <div class="what">±126 BPM · klappen · fluitdeuntje om op te springen</div>
+    <audio id="c" controls preload="none" src="https://lnhliamckstuwiwyzxyl.supabase.co/storage/v1/object/public/monster/music/dans-c.mp3"></audio>
+  </section>
+
+  <p class="note">In de finale rapt Mecha-Pof over het nummer heen; de muziek gaat dan zachter en bij de robotdans weer hard. Geen geluid? Zet de stil-schakelaar uit en het volume omhoog. <b>Laat Claude weten welke letter het wordt.</b></p>
+</main>
+
+<script>
+// Eén nummer tegelijk: start je er een, dan stoppen de andere.
+const players = [...document.querySelectorAll('audio')];
+players.forEach(p => p.addEventListener('play', () => players.forEach(q => { if (q !== p) q.pause(); })));
+</script>
+</body></html>
