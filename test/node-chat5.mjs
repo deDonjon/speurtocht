@@ -57,14 +57,14 @@ ok('wachtwoord: zonder password in de config vertrouwt de app de agent; zonder a
 // ---------------------------------------------------------------- surprises (pure hulpjes)
 const { tally, roundSecondsLeft, BADGES } = await import('../js/surprises.js');
 ok('surprises: stemmen tellen, laatste stem per speler telt', () => {
-  const started = '2026-11-13T15:00:00Z';
+  const started = '2026-11-13T15:00:00.500Z'; // de stem van p9 om :00 is van vóór de start
   const ev = (type, player_id, payload, s) => ({ type, player_id, payload, at: `2026-11-13T15:00:${String(s).padStart(2, '0')}Z` });
   const events = [ev('fork.vote', 'p1', { choice: 'a' }, 5), ev('fork.vote', 'p2', { choice: 'b' }, 6), ev('fork.vote', 'p1', { choice: 'b' }, 7), ev('fork.vote', 'p3', { choice: 'a' }, 1), ev('storm.score', 'p1', { n: 4 }, 8), ev('storm.score', 'p2', { n: 7 }, 9), ev('storm.score', 'p9', { n: 99 }, 0)];
   // nieuwste eerst, zoals state.events
   const sorted = events.slice().sort((x, y) => y.at.localeCompare(x.at));
   assert.deepEqual(tally(sorted, 'fork.vote', started), { a: 1, b: 2, by: { p1: 'b', p2: 'b', p3: 'a' } });
   assert.equal(tally(sorted, 'storm.score', started).total, 11);
-  assert.equal(roundSecondsLeft(started, 30, Date.parse('2026-11-13T15:00:12Z')), 18);
+  assert.equal(roundSecondsLeft(started, 30, Date.parse('2026-11-13T15:00:12.500Z')), 18);
   assert.ok(BADGES.kruimelaar && BADGES.vonkenvanger && BADGES.jetpack && BADGES.wens);
 });
 

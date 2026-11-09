@@ -193,6 +193,8 @@ export const sync = {
   },
   async badge(playerId, badge) { return rpc('award_badge', { p_code: actorCode(), p_player: playerId, p_badge: badge }, { buffer: true }); },
   async log(type, payload = {}) { return rpc('log_event', { p_code: actorCode(), p_type: type, p_payload: payload }, { buffer: true }); },
+  /** Zelfde als log(), maar namens een bepaalde bewaker op dit toestel (bijv. fork.vote per speelster). Valt terug op log(). */
+  async logAs(playerId, type, payload = {}) { const code = codeFor(playerId); return rpc('log_event', { p_code: code || actorCode(), p_type: type, p_payload: payload }, { buffer: true }); },
   /** Verjaardagswens inzetten: vereist dat de jarige op dit toestel is ingelogd. */
   async wish(forWhat) {
     const h = state.me().find(p => p.is_birthday); if (!h) throw new SyncError('De jarige is niet op dit toestel ingelogd', 'nobirthday');
