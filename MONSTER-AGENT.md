@@ -10,9 +10,10 @@
 > `/v1/convai/agents/{id}` vanuit een tijdelijke Edge Function `agent-admin`, nu uitgeschakeld). De agent draait op
 > claude-sonnet-4-6 (niet Haiku). Teksten en briefings: `claude/STORY.md`.
 >
-> **9 nov (chat 5, Walkie 2.0): twee dingen moet Job nog in het dashboard doen**, zie [Stap 6](#stap-6--wachtwoordstop-client-tool-unlock_stop-5-min):
-> (1) het blok WACHTWOORDSTOP en de regel `{{wachtwoord}}` in de system prompt plakken (staat hieronder al in de prompt);
-> (2) de client tool `unlock_stop` aanmaken. Zonder (2) werkt alles behalve het wachtwoord zeggen; de kinderen typen dan de code.
+> **9 nov (chat 5, Walkie 2.0): gedaan via de API** (tijdelijke Edge Function `agent-admin`, aangeroepen vanuit SQL met de
+> `http`-extensie, daarna weer op de 410-stub gezet): de system prompt hieronder (incl. WACHTWOORDSTOP en `{{wachtwoord}}`)
+> staat in ElevenLabs én de client tool `unlock_stop` (id `tool_6201m6zxgnx5f7r9be1ek1519hs5`) is aangemaakt en aan de agent
+> gekoppeld. [Stap 6](#stap-6--wachtwoordstop-client-tool-unlock_stop-5-min) blijft staan als naslag; alleen nog testen.
 
 ```
                      ┌────────── walkietalkie (live gesprek) ──────────┐
