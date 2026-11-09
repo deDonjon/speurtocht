@@ -4,7 +4,7 @@
 //   createMonster() → { el, setParts(parts, { land }), setMood(mood), setSize('sm'|'md'|'lg'),
 //                       say(text, { ms, voice }) → Promise, react('start'|'goed'|'fout'|'hint'|'tik'), destroy() }
 //   monsterImage(parts?) → data-URL (stilstaand, voor de schuifpuzzel); monsterImage('mega') → Mega-Mecha-Pof (kaartje, taart)
-// Extra (niet nodig voor de app): mon.line(situatie) zegt een zin uit monster-lines.js; `ready` is een Promise voor Zdog.
+// Extra (niet nodig voor de app): mon.line(situatie) zegt een zin uit monster-lines.js; lineText(sit, { sub }) geeft alleen de tekst; `ready` is een Promise voor Zdog.
 // Standen die uit parts + mood volgen (geen extra API nodig):
 //   - hologram: alleen 'lijf' gevonden → het pantser is half doorzichtig cyaan met scanlijnen en een lichtring op de grond
 //   - installatie: setParts(parts, { land: deel }) → het deel vliegt van buiten beeld naar zijn plek en klikt vast (vonkjes, 'vast')
@@ -693,6 +693,13 @@ function fill(text, vars = {}) {
     .replace(/\{hints\}/g, w);
 }
 const lastLine = {};
+/** Tekst van een zin uit monster-lines.js zonder hem te zeggen (voor surprises.js, navvoice.js, index.html):
+    lineText('kruimelaar', { sub: 'start' }) → ingevulde zin of null. extra: { mood, sub, naam, hints, vars:{afstand:…} }. */
+export function lineText(sit, { mood, sub, naam, hints, vars = {} } = {}) {
+  const l = pickLine(sit, { mood, sub, naam });
+  if (!l) return null;
+  return Object.entries(vars).reduce((t, [k, v]) => t.replace(new RegExp('\\{' + k + '\\}', 'g'), String(v)), fill(l, { naam, hints: hints ?? globalThis.pkm?.state?.get?.().game?.hints ?? 0 }));
+}
 function pickLine(sit, { mood, sub, naam } = {}) {
   let src = LINES[sit]; if (sub != null) src = src?.[sub];
   if (!src) return null;
@@ -1252,7 +1259,8 @@ export function createMonster() {
     if (pk.mon && pk.mon.el !== el) return; // alleen het monster van de app luistert mee
     const r = pk.router, s = pk.state;
     offs.push(r.on('*', () => inner.activity()));
-    offs.push(r.on('stop.arrived', () => { const l = lineFor('aankomst'); if (l) setTimeout(() => say(l, { auto: true }), 600); }));
+    // aankomst: belt Mecha-Pof zelf (inkomende oproep, index.html/walkie.js), dan zegt hij hier niets; de briefing komt via de walkie
+    offs.push(r.on('stop.arrived', () => { if (pk.callRinging?.()) return; const l = lineFor('aankomst'); if (l) setTimeout(() => { if (!pk.callRinging?.()) say(l, { auto: true }); }, 600); }));
     offs.push(r.on('stop.solved', p => { inner.lastBy = p?.by || null; }));
     offs.push(r.on('hint.given', p => { inner.localHints = (inner.localHints || 0) + 1; react('hint', { line: !p?.text }); }));
     offs.push(s.on('puzzle', ps => checkWrong(ps)));

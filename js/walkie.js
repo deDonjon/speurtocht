@@ -1,11 +1,17 @@
 // walkie.js — walkietalkie met Mecha-Pof: knop ingedrukt houden = praten, loslaten = het monster antwoordt.
 //
 // Contract:
-//   openWalkie({ mon, context, onClose }) → { update(text), close() }
+//   openWalkie({ mon, context, onClose, greeting?, tools?, incoming? }) → { update(text), close(), open }
 //     mon      het monster uit monster.js (de walkie hangt mon.el in zijn eigen .mslot en roept elk frame mon.live() aan)
 //     context  () → { jarige, spelers, ... }  spelstand voor de agent (dynamic variables, zie MONSTER-AGENT.md)
 //     onClose  wordt aangeroepen na het ophangen (index.html hangt het monster dan terug)
+//     greeting eigen openingszin voor dit gesprek (bijv. de briefing van een onderdeel, walkie.briefing.<deel>); anders een zin uit walkie.hallo
+//     tools    { naam: async (params) → string }  client tools van de agent (ElevenLabs "Client" tools, bijv. unlock_stop); de sleutel is de toolnaam
+//     incoming true = het gesprek begon met een oproep van Mecha-Pof (andere statustekst)
 //   update(text)  vertel de agent iets dat net gebeurde (bijv. "Ze hebben de neus gevonden"), zonder dat het monster hoeft te antwoorden
+//   incomingCall({ mon, context, greeting, title?, sub?, tools?, timeout?, onAnswer?, onMissed?, onClose? }) → { close(), open }
+//     De radiotelefoon gaat over (belgeluid + trillen, knop Opnemen). Opnemen = openWalkie met `greeting` als {{begroeting}}.
+//     Niet opgenomen binnen `timeout` ms (40 s) → onMissed(greeting): index.html laat Mecha-Pof de tekst dan zelf zeggen.
 //
 // Techniek: ElevenLabs Agents via WebRTC (@elevenlabs/client). Het token komt van de Supabase Edge Function
 // `monster-token`, zodat de API-sleutel nooit in de app staat. De microfoon staat standaard dicht; alleen zolang
@@ -52,19 +58,27 @@ async function getToken() {
 }
 // Alle waarden als korte tekst: ontbrekende variabelen laten de agent haperen.
 // Namen gaan in uitspraak-spelling mee (Evy → Eevie), zodat de stem ze goed zegt.
-const KEYS = ['begroeting', 'jarige', 'spelers', 'fase', 'stop_naam', 'stop_nummer', 'stops_totaal', 'aanwijzing', 'puzzel_vraag', 'puzzel_hint', 'delen_gevonden', 'delen_nog', 'hints_gebruikt'];
+const KEYS = ['begroeting', 'jarige', 'spelers', 'fase', 'stop_naam', 'stop_nummer', 'stops_totaal', 'aanwijzing', 'puzzel_vraag', 'puzzel_hint', 'delen_gevonden', 'delen_nog', 'hints_gebruikt', 'wachtwoord'];
 function vars(ctx = {}) {
   return Object.fromEntries(KEYS.map(k => [k, uitspraak(String(ctx[k] ?? '').trim()) || '-']));
 }
 // "Hannah, Elin, Isa" → "Hannah, Elin en Isa"
 function namen(list) { const a = String(list || '').split(/\s*,\s*/).filter(Boolean); return a.length > 1 ? a.slice(0, -1).join(', ') + ' en ' + a[a.length - 1] : a[0] || 'speurders'; }
 const lastGreet = {};
+const fillGreeting = (l, ctx = {}) => String(l || '').replace(/\{spelers\}/g, namen(ctx.spelers)).replace(/\{jarige\}/g, ctx.jarige && ctx.jarige !== 'de jarige' ? ctx.jarige : NAAM_JARIGE).replace(/\{naam\}/g, ctx.naam || 'speurder');
 function greeting(kind, ctx) {
   const list = LINES.walkie?.[kind] || [];
   const fresh = list.length > 1 ? list.filter(l => l !== lastGreet[kind]) : list;
   const l = fresh[Math.floor(Math.random() * fresh.length)] || 'Mecha-Pof hier. Zeg het maar. Over!';
   lastGreet[kind] = l;
-  return l.replace(/\{spelers\}/g, namen(ctx.spelers)).replace(/\{jarige\}/g, ctx.jarige && ctx.jarige !== 'de jarige' ? ctx.jarige : NAAM_JARIGE);
+  return fillGreeting(l, ctx);
+}
+/** Openingszin voor een oproep van Mecha-Pof: de briefing van een onderdeel (walkie.briefing.<deel>), of een algemene
+    oproepzin (walkie.oproep, met {naam}). Voor index.html en de testpagina. */
+export function callGreeting({ part, naam, text } = {}) {
+  if (text) return fillGreeting(text, { naam });
+  if (part && LINES.walkie?.briefing?.[part]?.length) { const l = LINES.walkie.briefing[part]; return fillGreeting(l[Math.floor(Math.random() * l.length)], { naam }); }
+  return greeting('oproep', { naam });
 }
 // Eindigt dit bericht met "over en sluiten" (of "over en uit")? Spraakherkenning schrijft het soms los of met streepjes.
 const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -100,7 +114,24 @@ function injectCss() {
 #walkie .wk-diag{font:600 .72rem ui-monospace,Menlo,monospace;opacity:.45;text-align:center}
 #walkie .wk-err{color:#FFB4A8;text-align:center;max-width:420px}
 #walkie .wk-retry{margin-top:8px;background:#F2BE62;color:#3A1C06;border:0;border-radius:999px;padding:12px 20px;font:800 1rem Nunito,sans-serif}
-@media (prefers-reduced-motion:reduce){#walkie .wk-ptt{transition:none}}`;
+#walkie .wk-tool{font:800 .85rem Nunito,sans-serif;color:#FFE98A;text-align:center;min-height:1.2em}
+/* inkomende oproep: de radiotelefoon gaat over */
+#wk-ring{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  padding:calc(env(safe-area-inset-top,0px) + 22px) 18px calc(env(safe-area-inset-bottom,0px) + 22px);color:#EAF2FF;font-family:Nunito,system-ui,sans-serif;
+  background:linear-gradient(rgba(60,74,102,.35) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,rgba(60,74,102,.35) 1px,transparent 1px) 0 0/40px 40px,radial-gradient(120% 80% at 50% 30%,#33405A 0%,#0B0F18 72%);-webkit-user-select:none;user-select:none}
+#wk-ring .rg-top{text-align:center;display:flex;flex-direction:column;gap:6px;align-items:center}
+#wk-ring .rg-eye{font:700 .78rem 'Chakra Petch',ui-monospace,monospace;letter-spacing:.16em;text-transform:uppercase;color:#7FE8FF;animation:wk-blink 1.1s steps(1) infinite}
+#wk-ring h2{margin:0;font:400 2rem 'Lilita One',system-ui,sans-serif;color:#F2BE62;text-shadow:0 3px 0 #9A5419,0 0 24px rgba(242,190,98,.25)}
+#wk-ring .rg-sub{font-weight:800;color:#BFEFFF;max-width:420px}
+#wk-ring .mslot{background:radial-gradient(circle at 50% 40%,#1E3352,#0E1B2E 75%);border-radius:28px;padding:8px;box-shadow:0 10px 40px rgba(0,0,0,.5),0 0 24px rgba(127,232,255,.25),inset 0 0 0 3px #7FE8FF;animation:wk-ring 1.7s ease-in-out infinite}
+#wk-ring .rg-btns{width:100%;max-width:420px;display:flex;flex-direction:column;gap:12px;align-items:center}
+#wk-ring .rg-answer{width:100%;min-height:84px;border:0;border-radius:999px;color:#062814;font:400 1.6rem 'Lilita One',system-ui,sans-serif;letter-spacing:.02em;
+  background:linear-gradient(180deg,#86F0AE 0%,#4ADE80 50%,#2FBF66 100%);box-shadow:0 6px 0 #1F8A4C,0 0 24px rgba(74,222,128,.35);touch-action:manipulation}
+#wk-ring .rg-answer:active{transform:translateY(4px);box-shadow:0 2px 0 #1F8A4C}
+#wk-ring .rg-later{background:transparent;border:0;color:#93A0B8;text-decoration:underline;font:800 .95rem Nunito,sans-serif;min-height:44px;padding:8px 14px}
+@keyframes wk-ring{0%,100%{transform:rotate(0)}10%{transform:rotate(-3deg) translateX(-3px)}20%{transform:rotate(3deg) translateX(3px)}30%{transform:rotate(-2deg)}40%{transform:rotate(2deg)}50%{transform:none}}
+@keyframes wk-blink{0%,55%{opacity:1}56%,100%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){#walkie .wk-ptt{transition:none}#wk-ring .mslot,#wk-ring .rg-eye{animation:none}}`;
   document.head.appendChild(s);
 }
 
@@ -111,19 +142,19 @@ function kickPlayback(conv) {
   for (const a of document.querySelectorAll('audio')) { try { a.muted = false; if (a.paused) a.play().catch(() => {}); } catch {} }
 }
 
-export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
+export function openWalkie({ mon, context = () => ({}), onClose, greeting: firstGreeting = null, tools = null, incoming = false } = {}) {
   injectCss();
-  document.getElementById('walkie')?.remove();
+  document.getElementById('walkie')?.remove(); document.getElementById('wk-ring')?.remove();
   const el = document.createElement('div'); el.id = 'walkie';
-  el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Walkietalkie met het Pannenkoekenmonster');
+  el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Walkietalkie met Mecha-Pof');
   el.innerHTML = `
     <div class="wk-top"><span class="wk-led" aria-hidden="true"></span><h2>Mecha-Pof · walkietalkie</h2><button class="wk-x" data-a="close">Ophangen</button></div>
-    <div class="wk-mid"><div class="mslot" data-size="lg"></div><div class="wk-state" aria-live="polite">Verbinden…</div><div class="wk-said"></div><div class="wk-diag" aria-hidden="true"></div></div>
+    <div class="wk-mid"><div class="mslot" data-size="lg"></div><div class="wk-state" aria-live="polite">Verbinden…</div><div class="wk-said"></div><div class="wk-tool" aria-live="polite"></div><div class="wk-diag" aria-hidden="true"></div></div>
     <div class="wk-rules">Eindig met <b>“over”</b> · klaar? Zeg <b>“over en sluiten”</b></div>
     <button class="wk-ptt" disabled aria-label="Houd ingedrukt om te praten">Houd vast<small>om te praten</small></button>`;
   document.body.appendChild(el);
   const $ = s => el.querySelector(s);
-  const led = $('.wk-led'), stateEl = $('.wk-state'), said = $('.wk-said'), ptt = $('.wk-ptt');
+  const led = $('.wk-led'), stateEl = $('.wk-state'), said = $('.wk-said'), ptt = $('.wk-ptt'), toolEl = $('.wk-tool');
   if (mon) { $('.mslot').appendChild(mon.el); mon.setSize('lg'); }
 
   const diag = el.querySelector('.wk-diag'); let diagN = 0, conn = 'verbinden';
@@ -187,6 +218,21 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
   el.addEventListener('click', e => { const a = e.target.closest('[data-a]')?.dataset.a; if (a === 'close') close(); if (a === 'retry') { connect(); } });
   // (close() zonder force belt terug als er niet met "over en sluiten" is afgesloten; zie callBack())
 
+  // ---- client tools (ElevenLabs "Client" tools): de agent roept ze aan, de browser voert ze uit en geeft een korte tekst terug.
+  // De sleutel is de toolnaam uit het dashboard (hoofdlettergevoelig). Een fout wordt tekst, zodat het gesprek doorgaat.
+  function clientTools() {
+    const out = {};
+    for (const [name, fn] of Object.entries(tools || {})) {
+      if (typeof fn !== 'function') continue;
+      out[name] = async (params = {}) => {
+        toolEl.textContent = '⚙️ ' + name + '…';
+        try { const r = await fn(params, { update: t => { try { conv?.sendContextualUpdate(String(t)); } catch {} } }); toolEl.textContent = typeof r === 'string' ? r : ''; return r == null ? 'ok' : r; }
+        catch (e) { console.warn('[walkie] tool', name, e); toolEl.textContent = ''; return 'Dat lukte niet: ' + (e?.message || e); }
+      };
+    }
+    return out;
+  }
+
   // ---- verbinden
   async function connect() {
     $('.wk-err')?.remove(); $('.wk-retry')?.remove(); ptt.hidden = false;
@@ -199,11 +245,13 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
       const id = ++sessId; ending = false; endSpoke = false;
       const live = () => id === sessId; // oude sessie (na terugbellen) mag niets meer doen
       const ctx = context() || {};
-      const begroeting = greeting(callbackMode ? 'terugbel' : 'hallo', ctx);
+      // begroeting: terugbelzin, anders de eigen openingszin van een oproep (briefing), anders een gewone hallo-zin
+      const begroeting = callbackMode ? greeting('terugbel', ctx) : firstGreeting ? fillGreeting(firstGreeting, ctx) : greeting('hallo', ctx);
       conv = await El.Conversation.startSession({
         conversationToken: token,
         connectionType: 'webrtc',
         dynamicVariables: vars({ ...ctx, begroeting }),
+        clientTools: clientTools(),
         useWakeLock: true,
         onConnect: () => { led.className = 'wk-led on'; conn = 'verbonden'; },
         onStatusChange: ({ status }) => { conn = status; },
@@ -230,11 +278,12 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
         onDisconnect: () => { if (!live() || closed || ending || switching) return; fail('De verbinding is verbroken.'); },
       });
       if (closed) { try { await conv.endSession(); } catch {} return; }
+      firstGreeting = null; // de eigen openingszin geldt één keer; terugbellen krijgt een terugbelzin
       try { conv.setMicMuted(true); } catch {}
       kickPlayback(conv); setTimeout(() => kickPlayback(conv), 800);
       el.addEventListener('pointerdown', () => kickPlayback(conv), { capture: true });
       ptt.disabled = false; led.className = 'wk-led on'; everConnected = true;
-      setState(callbackMode ? '📞 Mecha-Pof belt terug…' : 'Mecha-Pof neemt op…');
+      setState(callbackMode ? '📞 Mecha-Pof belt terug…' : incoming ? '📞 Opgenomen! Mecha-Pof praat zo…' : 'Mecha-Pof neemt op…');
       thinkingSince = performance.now(); // het eerste bericht (begroeting) komt vanzelf
     } catch (err) {
       fail(err?.message || String(err));
@@ -282,4 +331,42 @@ export function openWalkie({ mon, context = () => ({}), onClose } = {}) {
     close: () => close({ force: true }), // de app zelf (bijv. bij een nieuw scherm) hangt altijd echt op
     get open() { return !closed; },
   };
+}
+
+// ---------------------------------------------------------------- inkomende oproep (stop.arrived, monster.call)
+// Alleen de radiotelefoon (hasRole('radio'), index.html beslist dat). Belgeluid 'bel' uit audio.js elke 1,7 s plus trillen,
+// Mecha-Pof wiebelt in zijn slot, grote knop Opnemen. Opnemen → openWalkie met `greeting` als {{begroeting}}.
+// Later → onClose(); niets gezegd. Niet opgenomen binnen `timeout` → onMissed(greeting): de app zegt de tekst dan zelf.
+const RING_MS = 1700;
+export function incomingCall({ mon, context = () => ({}), greeting: text, title = 'Mecha-Pof belt!', sub = '', tools = null, timeout = 40_000, onAnswer, onMissed, onClose } = {}) {
+  injectCss();
+  document.getElementById('wk-ring')?.remove();
+  if (document.getElementById('walkie')) { // de walkie is al open: niet bellen, de tekst meteen als context meegeven
+    return { close() {}, get open() { return false; }, answered: false };
+  }
+  const el = document.createElement('div'); el.id = 'wk-ring';
+  el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Inkomende oproep van Mecha-Pof');
+  const esc = s => String(s ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+  el.innerHTML = `
+    <div class="rg-top"><span class="rg-eye">📞 Inkomende oproep</span><h2>${esc(title)}</h2>${sub ? `<p class="rg-sub">${esc(sub)}</p>` : ''}</div>
+    <div class="mslot" data-size="lg"></div>
+    <div class="rg-btns"><button class="rg-answer" data-a="answer">📻 Opnemen</button><button class="rg-later" data-a="later">Later</button></div>`;
+  document.body.appendChild(el);
+  let home = null;
+  if (mon) { home = mon.el.parentNode; el.querySelector('.mslot').appendChild(mon.el); mon.setSize('lg'); try { mon.react?.('hint'); } catch {} }
+  let closed = false, answered = false;
+  const ring = () => { if (closed) return; audio.play('bel'); audio.buzz([220, 120, 220]); };
+  ring(); const ringTimer = setInterval(ring, RING_MS);
+  const missTimer = setTimeout(() => { if (!closed) { finish(); onMissed?.(text); } }, timeout);
+  function finish() { if (closed) return; closed = true; clearInterval(ringTimer); clearTimeout(missTimer); el.remove(); }
+  el.addEventListener('click', e => {
+    const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+    if (a === 'later') { finish(); onClose?.(); }
+    if (a === 'answer') {
+      answered = true; finish(); audio.play('zend');
+      const w = openWalkie({ mon, context, greeting: text, tools, incoming: true, onClose });
+      onAnswer?.(w);
+    }
+  });
+  return { close() { finish(); onClose?.(); }, get open() { return !closed; }, get answered() { return answered; } };
 }
