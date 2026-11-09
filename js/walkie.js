@@ -54,16 +54,16 @@ function injectCss() {
   s.textContent = `
 #walkie{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:space-between;
   padding:calc(env(safe-area-inset-top,0px) + 14px) 16px calc(env(safe-area-inset-bottom,0px) + 18px);
-  background:radial-gradient(120% 80% at 50% 30%,#3a2412 0%,#1c1108 70%);color:#FFF4DF;font-family:Nunito,system-ui,sans-serif;
+  background:linear-gradient(rgba(60,74,102,.35) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,rgba(60,74,102,.35) 1px,transparent 1px) 0 0/40px 40px,radial-gradient(120% 80% at 50% 30%,#33405A 0%,#0B0F18 72%);color:#EAF2FF;font-family:Nunito,system-ui,sans-serif;
   -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
 #walkie .wk-top{width:100%;max-width:480px;display:flex;align-items:center;gap:10px}
-#walkie .wk-top h2{flex:1;margin:0;font:400 1.35rem 'Lilita One',system-ui,sans-serif;letter-spacing:.02em;color:#F6C35B}
-#walkie .wk-led{width:12px;height:12px;border-radius:50%;background:#7a6a55;box-shadow:0 0 0 3px rgba(255,255,255,.06)}
+#walkie .wk-top h2{flex:1;margin:0;font:400 1.35rem 'Lilita One',system-ui,sans-serif;letter-spacing:.02em;color:#7FE8FF;text-shadow:0 0 12px rgba(127,232,255,.5)}
+#walkie .wk-led{width:12px;height:12px;border-radius:50%;background:#4A5058;box-shadow:0 0 0 3px rgba(255,255,255,.06)}
 #walkie .wk-led.on{background:#5BD27A;box-shadow:0 0 10px #5BD27A}
 #walkie .wk-led.tx{background:#FF5A4E;box-shadow:0 0 12px #FF5A4E}
-#walkie .wk-x{background:rgba(255,255,255,.1);color:#FFF4DF;border:0;border-radius:999px;padding:10px 16px;font:800 1rem Nunito,sans-serif}
+#walkie .wk-x{background:rgba(255,255,255,.1);color:#EAF2FF;border:0;border-radius:999px;padding:10px 16px;font:800 1rem Nunito,sans-serif}
 #walkie .wk-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;width:100%}
-#walkie .mslot{background:#FFF4DF;border-radius:28px;padding:8px;box-shadow:0 10px 40px rgba(0,0,0,.45),inset 0 0 0 4px #F6C35B}
+#walkie .mslot{background:radial-gradient(circle at 50% 40%,#1E3352,#0E1B2E 75%);border-radius:28px;padding:8px;box-shadow:0 10px 40px rgba(0,0,0,.5),0 0 24px rgba(127,232,255,.25),inset 0 0 0 3px #7FE8FF}
 #walkie .wk-state{font:800 1.15rem Nunito,sans-serif;min-height:1.6em;text-align:center}
 #walkie .wk-said{max-width:440px;min-height:2.6em;text-align:center;opacity:.75;font-size:.95rem}
 #walkie .wk-ptt{width:min(62vw,220px);aspect-ratio:1;border-radius:50%;border:0;color:#fff;font:400 1.3rem/1.15 'Lilita One',sans-serif;
@@ -74,7 +74,7 @@ function injectCss() {
 #walkie .wk-ptt small{display:block;font:800 .8rem Nunito,sans-serif;opacity:.85;margin-top:4px}
 #walkie .wk-diag{font:600 .72rem ui-monospace,Menlo,monospace;opacity:.45;text-align:center}
 #walkie .wk-err{color:#FFB4A8;text-align:center;max-width:420px}
-#walkie .wk-retry{margin-top:8px;background:#F6C35B;color:#3a2412;border:0;border-radius:999px;padding:12px 20px;font:800 1rem Nunito,sans-serif}
+#walkie .wk-retry{margin-top:8px;background:#F2BE62;color:#3A1C06;border:0;border-radius:999px;padding:12px 20px;font:800 1rem Nunito,sans-serif}
 @media (prefers-reduced-motion:reduce){#walkie .wk-ptt{transition:none}}`;
   document.head.appendChild(s);
 }

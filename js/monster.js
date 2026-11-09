@@ -316,21 +316,21 @@ function injectCss() {
 .pkmon.sm{width:110px}.pkmon.md{width:min(62vw,240px)}.pkmon.lg{width:min(80vw,320px)}
 .pkmon canvas,.pkmon img{display:block;width:100%;height:100%;touch-action:pan-y;cursor:grab}
 .pkmon canvas:active{cursor:grabbing}
-.pkmon .zzz{position:absolute;right:14%;top:6%;pointer-events:none;display:none;font-family:var(--display,'Lilita One',system-ui,sans-serif);color:#5A2E12}
+.pkmon .zzz{position:absolute;right:14%;top:6%;pointer-events:none;display:none;font-family:var(--display,'Lilita One',system-ui,sans-serif);color:#7FE8FF;text-shadow:0 0 8px rgba(127,232,255,.7)}
 .pkmon.slaap .zzz{display:block}
 .pkmon .zzz b{position:absolute;right:0;top:0;opacity:0;font-weight:400;animation:pkmon-z 3.6s linear infinite}
 .pkmon .zzz b:nth-child(2){animation-delay:1.2s;font-size:1.25em}.pkmon .zzz b:nth-child(3){animation-delay:2.4s;font-size:1.5em}
 .pkmon.sm .zzz{font-size:11px}.pkmon.md .zzz{font-size:18px}.pkmon.lg .zzz{font-size:22px}
 @keyframes pkmon-z{0%{transform:translate(0,10px) rotate(-8deg);opacity:0}15%{opacity:.85}100%{transform:translate(22px,-46px) rotate(10deg);opacity:0}}
-.pkmon-bubble{position:fixed;left:12px;top:12px;z-index:60;max-width:min(88vw,380px);background:#FFFCF5;color:#3B2410;border:3px solid #5A2E12;border-radius:20px;
-  padding:12px 16px;font:800 1.05rem/1.35 var(--body,'Nunito',system-ui,sans-serif);box-shadow:0 6px 0 rgba(90,46,18,.25),0 10px 30px rgba(0,0,0,.18);
+.pkmon-bubble{position:fixed;left:12px;top:12px;z-index:60;max-width:min(88vw,380px);background:linear-gradient(180deg,#0E1B2E,#16263F);color:#EAF2FF;border:3px solid #7FE8FF;border-radius:20px;
+  padding:12px 16px;font:800 1.05rem/1.35 var(--body,'Nunito',system-ui,sans-serif);box-shadow:0 0 18px rgba(127,232,255,.35),0 10px 30px rgba(0,0,0,.4);
   opacity:0;transform:scale(.85);transform-origin:var(--ox,50%) var(--oy,100%);transition:opacity .18s,transform .22s cubic-bezier(.3,1.6,.5,1);cursor:pointer}
 .pkmon-bubble.show{opacity:1;transform:none}
-.pkmon-bubble .tail{position:absolute;width:18px;height:18px;background:#FFFCF5;border:3px solid #5A2E12;border-top:0;border-left:0;left:var(--tx,50%);margin-left:-9px}
+.pkmon-bubble .tail{position:absolute;width:18px;height:18px;background:#16263F;border:3px solid #7FE8FF;border-top:0;border-left:0;left:var(--tx,50%);margin-left:-9px}
 .pkmon-bubble.up .tail{bottom:-11px;transform:rotate(45deg)}
 .pkmon-bubble.down .tail{top:-11px;transform:rotate(-135deg)}
 .pkmon-bubble.free .tail{display:none}
-.pkmon-bubble .cur{display:inline-block;width:.5em;animation:pkmon-blink .7s steps(1) infinite}
+.pkmon-bubble .cur{display:inline-block;width:.5em;color:#7FE8FF;animation:pkmon-blink .7s steps(1) infinite}
 @keyframes pkmon-blink{50%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.pkmon .zzz b{animation:none;opacity:.8;position:static;display:inline}.pkmon-bubble{transition:none}.pkmon-bubble .cur{animation:none}}
 `;

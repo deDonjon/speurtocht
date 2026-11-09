@@ -1,39 +1,40 @@
-// map.js — de wonderlandkaart: Leaflet met warme beslagtegels (overdag) of chocolade-avond (na 16:30),
-// een pannenkoek als doel, het gelopen stroopspoor, gevonden delen op hun plek en de andere bewakers als bessen.
+// map.js — de radarkaart van Mecha-Pof: Leaflet met blauwdruktegels (overdag) of een donkere nachtradar (na 16:30),
+// een pannenkoek met radarpuls als doel, het gelopen stroopspoor, gevonden delen op hun plek en de andere bewakers als gekleurde stippen.
 // Gebruik: const m = createMap(); host.appendChild(m.el); m.update({...}); m.fit();
 // Leaflet (window.L) moet al geladen zijn; zonder Leaflet geeft createMap() null.
 
 // OpenStreetMap-tegels (geen sleutel nodig; CARTO vraagt sinds kort wel een API-sleutel).
-// De wonderlandkleuren komen uit CSS-filters op de tegels: overdag warm beslag, 's avonds omgekeerd tot chocolade.
+// De radarkleuren komen uit CSS-filters op de tegels (omgekeerd en naar blauw gedraaid), plus een raster en scanlijnen erover.
 const TILES = { dag: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', avond: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png' };
 const ATTR = '&copy; OpenStreetMap';
 const TRAIL_KEY = 'pkm2_trail';
 const AVOND_UUR = 16.5; // vanaf 16:30 de avondkaart (zon onder rond 16:50)
 
 const css = `
-.wmap{position:relative;height:min(44vh,320px);width:100%;z-index:0;background:#F6E3BC}
-.wmap.avond{background:#2A1A10}
-.wmap .leaflet-tile-pane{filter:sepia(.5) saturate(1.35) hue-rotate(-10deg) brightness(1.05) contrast(.9)}
-.wmap.avond .leaflet-tile-pane{filter:invert(.92) hue-rotate(180deg) sepia(.55) saturate(1.5) brightness(.95) contrast(.95)}
+.wmap{position:relative;height:min(44vh,320px);width:100%;z-index:0;background:#0E1B2E}
+.wmap.avond{background:#070D18}
+.wmap .leaflet-tile-pane{filter:invert(.92) hue-rotate(185deg) saturate(.75) brightness(.95) contrast(.95)}
+.wmap.avond .leaflet-tile-pane{filter:invert(.95) hue-rotate(190deg) saturate(.6) brightness(.72) contrast(1.05)}
 .wmap::after{content:'';position:absolute;inset:0;z-index:401;pointer-events:none;
-  background:radial-gradient(circle at 20% 30%,rgba(255,255,255,.18) 0 2px,transparent 3px) 0 0/38px 38px,
-             radial-gradient(circle at 70% 60%,rgba(180,110,30,.10) 0 2px,transparent 3px) 0 0/52px 52px,
-             radial-gradient(ellipse at center,transparent 55%,rgba(120,70,20,.28) 100%)}
-.wmap.avond::after{background:radial-gradient(circle at 30% 40%,rgba(255,230,160,.10) 0 1.5px,transparent 2.5px) 0 0/44px 44px,
-             radial-gradient(ellipse at center,transparent 50%,rgba(10,5,0,.45) 100%)}
-.wmap .leaflet-control-attribution{font-size:9px;background:rgba(255,249,236,.7)}
+  background:linear-gradient(rgba(127,232,255,.07) 1px,transparent 1px) 0 0/32px 32px,
+             linear-gradient(90deg,rgba(127,232,255,.07) 1px,transparent 1px) 0 0/32px 32px,
+             repeating-linear-gradient(0deg,rgba(0,0,0,.08) 0 1px,transparent 1px 3px),
+             radial-gradient(ellipse at center,transparent 55%,rgba(5,10,20,.55) 100%)}
+.wmap .leaflet-control-attribution{font-size:9px;background:rgba(14,27,46,.75);color:#93A0B8}
+.wmap .leaflet-control-attribution a{color:#7FE8FF}
 .wm-target{position:relative;width:64px;height:64px}
-.wm-target .ring{position:absolute;inset:4px;border-radius:50%;border:4px solid rgba(214,140,30,.9);animation:wm-pulse 1.8s ease-out infinite}
-.wm-target .cake{position:absolute;inset:0;display:grid;place-items:center;font-size:34px;filter:drop-shadow(0 3px 2px rgba(80,40,10,.45));animation:wm-bob 2.4s ease-in-out infinite}
-.wm-target .steam{position:absolute;left:50%;top:-6px;width:6px;height:16px;margin-left:-3px;border-radius:6px;background:rgba(255,255,255,.75);filter:blur(1px);animation:wm-steam 2.2s ease-out infinite}
+.wm-target .ring{position:absolute;inset:4px;border-radius:50%;border:3px solid rgba(127,232,255,.95);box-shadow:0 0 12px rgba(127,232,255,.8);animation:wm-pulse 1.8s ease-out infinite}
+.wm-target .ring.b{animation-delay:.9s}
+.wm-target .cake{position:absolute;inset:0;display:grid;place-items:center;font-size:32px;filter:drop-shadow(0 0 6px rgba(127,232,255,.8)) drop-shadow(0 3px 2px rgba(0,0,0,.5));animation:wm-bob 2.4s ease-in-out infinite}
+.wm-target .steam{position:absolute;left:50%;top:-6px;width:6px;height:16px;margin-left:-3px;border-radius:6px;background:rgba(201,211,224,.75);filter:blur(1px);animation:wm-steam 2.2s ease-out infinite}
 .wm-target .steam.b{margin-left:6px;animation-delay:.8s}
-.wm-me{width:30px;height:30px;border-radius:50% 50% 46% 46%;background:radial-gradient(circle at 35% 30%,#FFF3C9,#F1BE55 60%,#C98A22);border:3px solid #FFF9EC;
-  box-shadow:0 2px 6px rgba(60,30,5,.45);display:grid;place-items:center;font-size:13px;animation:wm-wobble 3s ease-in-out infinite}
-.wm-friend{width:24px;height:24px;border-radius:50%;border:3px solid #FFF9EC;display:grid;place-items:center;font:900 11px/1 Nunito,system-ui,sans-serif;color:#fff;
-  box-shadow:0 2px 5px rgba(60,30,5,.4);text-shadow:0 1px 1px rgba(0,0,0,.4)}
-.wm-part{width:34px;height:34px;border-radius:50%;background:#FFF9EC;border:3px solid #E8B04A;display:grid;place-items:center;font-size:17px;box-shadow:0 2px 6px rgba(60,30,5,.35)}
-.wm-home{width:34px;height:34px;border-radius:12px;background:#5B3391;border:3px solid #FFF9EC;display:grid;place-items:center;font-size:17px}
-@keyframes wm-pulse{0%{transform:scale(.55);opacity:1}100%{transform:scale(1.7);opacity:0}}
+.wm-me{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#FCE3A6,#F2BE62 55%,#C9792C);border:3px solid #0E1B2E;
+  box-shadow:0 0 0 2px #F2BE62,0 0 14px rgba(242,190,98,.8);display:grid;place-items:center;font-size:13px;animation:wm-wobble 3s ease-in-out infinite}
+.wm-friend{width:24px;height:24px;border-radius:50%;border:3px solid #0E1B2E;display:grid;place-items:center;font:900 11px/1 Nunito,system-ui,sans-serif;color:#0E1B2E;
+  box-shadow:0 0 0 2px rgba(255,255,255,.5),0 0 10px rgba(0,0,0,.5)}
+.wm-part{width:34px;height:34px;border-radius:50%;background:#0E1B2E;border:2px solid #7FE8FF;display:grid;place-items:center;font-size:17px;box-shadow:0 0 10px rgba(127,232,255,.6)}
+.wm-home{width:34px;height:34px;border-radius:12px;background:#0E1B2E;border:2px solid #F2BE62;display:grid;place-items:center;font-size:17px;box-shadow:0 0 10px rgba(242,190,98,.6)}
+@keyframes wm-pulse{0%{transform:scale(.55);opacity:1}100%{transform:scale(1.8);opacity:0}}
 @keyframes wm-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 @keyframes wm-steam{0%{transform:translateY(6px) scaleY(.6);opacity:0}30%{opacity:.9}100%{transform:translateY(-14px) scaleY(1.1);opacity:0}}
 @keyframes wm-wobble{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
@@ -63,7 +64,7 @@ export function createMap() {
     el.classList.toggle('avond', a);
     if (tiles) tiles.remove();
     tiles = L.tileLayer(a ? TILES.avond : TILES.dag, { maxZoom: 19, attribution: ATTR }).addTo(map);
-    if (layers.trail) layers.trail.setStyle({ color: a ? '#F3C24E' : '#C7861E' });
+    if (layers.trail) layers.trail.setStyle({ color: '#F59E2E' });
   }
 
   /**
@@ -80,8 +81,8 @@ export function createMap() {
     if (pos && (!trail.length || dist(trail[trail.length - 1], pos) > 6)) { trail.push({ lat: +pos.lat.toFixed(6), lng: +pos.lng.toFixed(6) }); saveTrail(trailKey, trail); }
     const tl = trail.map(p => [p.lat, p.lng]);
     if (!layers.trail) {
-      layers.trailGlow = L.polyline(tl, { color: '#6B3A10', weight: 11, opacity: .35, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(map);
-      layers.trail = L.polyline(tl, { color: avond ? '#F3C24E' : '#C7861E', weight: 6, opacity: .95, lineCap: 'round', lineJoin: 'round', dashArray: '1 11', interactive: false }).addTo(map);
+      layers.trailGlow = L.polyline(tl, { color: '#F59E2E', weight: 12, opacity: .22, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(map);
+      layers.trail = L.polyline(tl, { color: '#F59E2E', weight: 6, opacity: .95, lineCap: 'round', lineJoin: 'round', dashArray: '1 11', interactive: false }).addTo(map);
     } else { layers.trailGlow.setLatLngs(tl); layers.trail.setLatLngs(tl); }
 
     // gevonden delen blijven op de kaart liggen
@@ -92,18 +93,18 @@ export function createMap() {
     const d = pos ? dist(pos, st) : null;
     if (o.seesTarget) {
       layers.cloud?.remove(); layers.cloud = null;
-      const html = st.key === 'home' ? '<div class="wm-target"><div class="ring"></div><div class="cake">🏠</div></div>'
-        : '<div class="wm-target"><div class="ring"></div><span class="steam"></span><span class="steam b"></span><div class="cake">🥞</div></div>';
+      const html = st.key === 'home' ? '<div class="wm-target"><div class="ring"></div><div class="ring b"></div><div class="cake">🏠</div></div>'
+        : '<div class="wm-target"><div class="ring"></div><div class="ring b"></div><span class="steam"></span><span class="steam b"></span><div class="cake">🥞</div></div>';
       if (!layers.target || lastStop !== st.id) { layers.target?.remove(); layers.target = L.marker(t, { interactive: false, icon: icon(html, 64), zIndexOffset: 500 }).addTo(map); }
       if (pos) {
         const ll = [[pos.lat, pos.lng], t];
-        if (!layers.line) layers.line = L.polyline(ll, { color: '#7A3E12', weight: 4, opacity: .8, dashArray: '2 10', lineCap: 'round', interactive: false }).addTo(map);
+        if (!layers.line) layers.line = L.polyline(ll, { color: '#7FE8FF', weight: 3, opacity: .85, dashArray: '2 10', lineCap: 'round', interactive: false }).addTo(map);
         else layers.line.setLatLngs(ll);
       }
     } else {
       layers.target?.remove(); layers.target = null; layers.line?.remove(); layers.line = null;
       const r = Math.max(30, Math.min(160, (d ?? 240) * .55)); // geurwolk: hoe dichterbij, hoe kleiner
-      if (!layers.cloud) layers.cloud = L.circle(t, { radius: r, color: '#D68C1E', weight: 3, dashArray: '4 8', fillColor: '#F6C35B', fillOpacity: .22, interactive: false }).addTo(map);
+      if (!layers.cloud) layers.cloud = L.circle(t, { radius: r, color: '#7FE8FF', weight: 2, dashArray: '4 8', fillColor: '#7FE8FF', fillOpacity: .12, interactive: false }).addTo(map);
       else layers.cloud.setLatLng(t).setRadius(r);
     }
     lastStop = st.id;
@@ -111,8 +112,8 @@ export function createMap() {
     // ik (het groepje op deze telefoon)
     if (pos) {
       const p = [pos.lat, pos.lng];
-      if (!layers.me) { layers.me = L.marker(p, { interactive: false, zIndexOffset: 1000, icon: icon('<div class="wm-me">🍓</div>', 30) }).addTo(map);
-        layers.acc = L.circle(p, { radius: pos.acc || 20, color: '#C8372D', weight: 1, fillOpacity: .06, interactive: false }).addTo(map); }
+      if (!layers.me) { layers.me = L.marker(p, { interactive: false, zIndexOffset: 1000, icon: icon('<div class="wm-me">🤖</div>', 30) }).addTo(map);
+        layers.acc = L.circle(p, { radius: pos.acc || 20, color: '#F2BE62', weight: 1, fillOpacity: .08, interactive: false }).addTo(map); }
       else { layers.me.setLatLng(p); layers.acc.setLatLng(p).setRadius(pos.acc || 20); }
     }
 
@@ -121,7 +122,7 @@ export function createMap() {
     for (const f of o.players || []) {
       if (!f.online || f.lat == null || (o.meIds || []).includes(f.id)) continue;
       seen.add(f.id);
-      const html = `<div class="wm-friend" style="background:${f.color || '#5B3391'}">${(f.name || '?')[0].toUpperCase()}</div>`;
+      const html = `<div class="wm-friend" style="background:${f.color || '#7FE8FF'}">${(f.name || '?')[0].toUpperCase()}</div>`;
       const m = layers.friends.get(f.id);
       if (!m) layers.friends.set(f.id, L.marker([f.lat, f.lng], { interactive: false, icon: icon(html, 24) }).addTo(map));
       else m.setLatLng([f.lat, f.lng]);

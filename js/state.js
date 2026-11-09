@@ -1,14 +1,14 @@
 // state.js — de spelstand in één object, met afgeleide waarden en events.
 // Zie CONTRACTS.md §1. Alleen sync.js schrijft hierin (apply / set); alle andere modules lezen en luisteren.
 
-export const PARTS = {
-  lijf:  { icon: '🥞', label: 'de pannenkoekenstapel', color: '#F6C35B' },
-  ogen:  { icon: '🫐', label: 'de bosbessenogen',      color: '#6D3FA6' },
-  neus:  { icon: '🍓', label: 'de aardbeienneus',      color: '#E0473C' },
-  mond:  { icon: '🍯', label: 'de stroopgrijns',       color: '#8A4A1C' },
-  armen: { icon: '🥓', label: 'de spekarmen',          color: '#E88AA0' },
-  benen: { icon: '🍌', label: 'de bananenbenen',       color: '#F3D34A' },
-  hoed:  { icon: '🧈', label: 'het boterhoedje',       color: '#FFE98A' },
+export const PARTS = { // Mecha-Pof: de keukenrobot (zie MECHA-POF.md)
+  lijf:  { icon: '🤖', label: 'het pannenkoekenpantser', color: '#F2BE62' },
+  ogen:  { icon: '🔦', label: 'de LED-ogen',             color: '#7FE8FF' },
+  neus:  { icon: '🍓', label: 'de aardbei-knop',         color: '#FF5A4E' },
+  mond:  { icon: '🔊', label: 'het luidsprekerrooster',  color: '#4ADE80' },
+  armen: { icon: '🍳', label: 'de spatel en de garde',   color: '#C9D3E0' },
+  benen: { icon: '⚙️', label: 'de zuigerbenen',          color: '#B794F6' },
+  hoed:  { icon: '🧈', label: 'de boterknop en de jetpack', color: '#F59E2E' },
 };
 export const TALENTS = {
   speurneus:        { part: 'ogen',  label: 'Speurneus' },
