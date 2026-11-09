@@ -184,6 +184,46 @@ if (!only || only === 'kern') {
   await K.page.close(); await R.page.close();
 }
 
+// ================================================================ bonus: regie.html tab Bonus → telefoon
+if (!only || only === 'bonus') {
+  console.log('— bonus (regie.html + index.html)');
+  const w = world({ phase: 'onderweg', active: 4, parts: ['lijf', 'ogen', 'neus', 'mond'] }); // onderweg naar stop 5 (groene kastje)
+  const R = await open('regie.html', w, { width: 1280, height: 800 });
+  await R.W('input[type=password]', 8000);
+  await R.page.fill('input[type=password]', 'job'); await R.page.keyboard.press('Enter');
+  await R.W('[data-tab=bonus]', 8000);
+  await R.page.click('[data-tab=bonus]');
+  await R.W('[data-a=bonus-in][data-b=B3]');
+  ok('regie: tab Bonus met B1–B3', (await R.page.$$('[data-a=bonus-in]')).length === 3 && (await R.txt('#panel')).includes('Het stalen huis'));
+  ok('regie: zegt waar de bonus komt (vóór het groene kastje)', (await R.txt('#panel')).includes('komt vóór Het groene kastje'));
+  await R.page.click('[data-a=bonus-in][data-b=B3]');
+  ok('regie: B3 als stop zonder deel aangemaakt', await R.until(() => window.__fake.db.stop.some(s => s.name === 'Het stalen huis' && !s.part && !s.key), 4000));
+  const ord = await R.page.evaluate(() => { const g = window.__fake.db.game, b = window.__fake.db.stop.find(s => s.name === 'Het stalen huis'); return { idx: g.stop_order.indexOf(b.id), len: g.stop_order.length, next: g.stop_order[g.stop_order.indexOf(b.id) + 1], b }; });
+  ok('regie: stop_order: bonus op plek 5, groene kastje erna', ord.idx === 4 && ord.len === 8 && ord.next === 's5', JSON.stringify(ord).slice(0, 160));
+  ok('regie: status "NU de actieve stop" + knop weg', await R.until(() => document.querySelector('#panel').textContent.includes('NU de actieve stop'), 4000));
+  ok('geen JavaScript-fouten (regie bonus)', !R.errors.length, R.errors.join(' | '));
+  const wb = await R.page.evaluate(() => ({ stop: window.__fake.db.stop, game: window.__fake.db.game }));
+  await R.page.close();
+  // de telefoon in dezelfde stand
+  const w2 = { ...w, stop: wb.stop, game: wb.game };
+  const T = await open('index.html?test=1', w2);
+  await T.W('input[aria-label="Code"]'); await T.page.fill('input[aria-label="Code"]', '5243');
+  await T.W('text=Het stalen huis');
+  ok('telefoon: onderweg naar de bonus, tab "Bonusopdracht"', (await T.txt('#screen')).includes('Bonusopdracht') && (await T.txt('#screen')).includes('magneet'));
+  await T.page.click('[data-n=tele]');
+  await T.W('.choices button', 8000);
+  ok('telefoon: keuzepuzzel van B3', (await T.txt('#pz')).includes('Stroopwafels'));
+  await T.page.click('.choices button:has-text("Staal")');
+  await T.W('#dosubmit'); await T.page.click('#dosubmit');
+  ok('telefoon: bonus-overlay zonder installatieritueel', await T.until(() => document.querySelector('#ov')?.textContent.includes('Bonus gelukt') && !document.querySelector('#ov .install'), 6000));
+  ok('telefoon: vreugdezin van Mecha-Pof', await T.until(() => __said.some(t => /Bonus binnen|Extra klus geklaard/.test(t)), 6000));
+  ok('telefoon: geen deel erbij (nog steeds 4)', await T.page.evaluate(() => window.pkm.state.get().game.parts.length === 4));
+  await T.page.click('#ov [data-x=close]');
+  ok('telefoon: daarna weer naar het groene kastje (plek 5 van 7)', await T.until(() => document.querySelector('#screen')?.textContent.includes('Het groene kastje') && document.querySelector('#screen').textContent.includes('Plek 5 van 7'), 6000));
+  ok('geen JavaScript-fouten (telefoon bonus)', !T.errors.length, T.errors.join(' | '));
+  await T.page.close();
+}
+
 if (globalThis.__chat7_more) await globalThis.__chat7_more({ open, world, fake, ok, sleep, only });
 console.log(`\n${n} goed, ${failed} fout.`);
 await browser.close(); server.close();
