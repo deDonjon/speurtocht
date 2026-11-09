@@ -13,5 +13,6 @@ Live op https://dedonjon.github.io/speurtocht/ (GitHub Pages, branch `main`).
 | Server (Supabase: schema en Edge Functions `monster-token`, `monster-tts`) | `supabase/` |
 | Uitspraakwoordenboek voor ElevenLabs | `elevenlabs/uitspraak.pls` |
 | Testpagina's | `test/monster.html` (monster, stem, walkie), `test/sync.html` |
+| Scouting (begeleider legt plekken, foto's rondom, video en gesproken notities vast) | `scout.html`, `supabase/scout.sql`, Edge Function `supabase/functions/scout-media` |
 
 Na een wijziging in een JS-bestand: de `?v=` ophogen op álle plekken waar het geladen wordt, anders laadt Safari een oude versie.

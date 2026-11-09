@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#141A26">
+<title>Mecha-Pof scout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* scout.html — plekken en ideeën verkennen voor Operatie Mecha-Pof. Alleen voor de begeleider (regiesleutel).
+   Werkt lokaal (localStorage) en stuurt elke plek door naar Supabase (tabel scout_place) zodra er verbinding is.
+   Foto's rondom, video en gesproken notities gaan via de Edge Function scout-media naar de bucket monster/scout/. */
+:root{
+  --bg:#141A26;--panel:#1E2636;--panel2:#273145;--line:#3C4A66;--ink:#EEF2F7;--muted:#9AA3B5;
+  --cyan:#7FE8FF;--pan:#F2BE62;--red:#FF5A4E;--green:#4ADE80;--butter:#FFE98A;
+  --display:'Lilita One','Arial Rounded MT Bold',sans-serif;--body:'Nunito',system-ui,sans-serif;color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg) radial-gradient(circle at 50% 30%,#2A3550 0,#141A26 70%);color:var(--ink);font:600 16px/1.45 var(--body);
+  padding-top:env(safe-area-inset-top,0);-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.35;
+  background-image:linear-gradient(#3C4A66 1px,transparent 1px),linear-gradient(90deg,#3C4A66 1px,transparent 1px);background-size:80px 80px}
+#app{position:relative;max-width:560px;margin:0 auto;padding:10px 14px calc(110px + env(safe-area-inset-bottom,0));display:flex;flex-direction:column;gap:12px}
+h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;line-height:1.1;letter-spacing:.01em}
+h1{font-size:1.7rem;color:var(--pan)}h2{font-size:1.25rem;color:var(--cyan)}h3{font-size:1rem;color:var(--ink)}
+p{margin:0}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sys{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);opacity:.8}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px}
+button{font:inherit;font-weight:800;cursor:pointer;border:0;border-radius:14px;padding:12px 16px;color:#1b1406;background:var(--pan);box-shadow:0 4px 0 #B8862E;touch-action:manipulation}
+button:active{transform:translateY(3px);box-shadow:0 1px 0 #B8862E}
+button.cyan{background:var(--cyan);box-shadow:0 4px 0 #2FA6C2}button.cyan:active{box-shadow:0 1px 0 #2FA6C2}
+button.plain{background:var(--panel2);color:var(--ink);box-shadow:0 3px 0 #141A26}
+button.ghost{background:transparent;box-shadow:none;color:var(--muted);text-decoration:underline;padding:6px 8px}
+button.ghost:active{transform:none}
+button.danger{background:transparent;color:var(--red);border:2px solid #6b2b27;box-shadow:none}
+button.rec{background:var(--red);color:#fff;box-shadow:0 4px 0 #a3302a;animation:blink 1s infinite}
+@keyframes blink{50%{filter:brightness(1.25)}}
+button.small{padding:8px 12px;border-radius:10px;font-size:.9rem;box-shadow:0 3px 0 rgba(0,0,0,.35)}
+button:disabled{opacity:.45;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.grow{flex:1;min-width:0}
+input,textarea,select{font:inherit;width:100%;border:2px solid var(--line);border-radius:12px;padding:11px 13px;background:#0F1420;color:var(--ink)}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid var(--cyan);outline-offset:2px}
+label{display:flex;flex-direction:column;gap:5px;font-size:.85rem;color:var(--muted)}
+textarea{min-height:80px}
+.mapwrap{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#0F1420}
+#map{height:min(44vh,360px);width:100%}
+.leaflet-container{background:#0F1420;font-family:var(--body)}
+.leaflet-tile{filter:invert(1) hue-rotate(190deg) saturate(.5) brightness(.85) contrast(.95)}
+.leaflet-control-attribution{font-size:9px;background:rgba(20,26,38,.8)!important;color:var(--muted)!important}
+.leaflet-control-attribution a{color:var(--cyan)!important}
+.leaflet-control-zoom a{background:var(--panel)!important;color:var(--ink)!important;border-color:var(--line)!important}
+.pin-me{width:20px;height:20px;border-radius:50%;background:var(--cyan);border:3px solid #fff;box-shadow:0 0 0 3px rgba(127,232,255,.35)}
+.pin{width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.pin span{transform:rotate(45deg);font-size:14px;line-height:1}
+.pin-stop{width:24px;height:24px;border-radius:50%;background:rgba(242,190,98,.35);border:2px dashed var(--pan);display:grid;place-items:center;font:400 11px var(--display);color:var(--pan)}
+.gps{display:flex;align-items:baseline;gap:10px;font-variant-numeric:tabular-nums}
+.gps b{font-family:var(--display);font-weight:400;font-size:1.7rem;color:var(--cyan);white-space:nowrap}
+.gps.bad b{color:var(--red)}
+.note{font-size:.85rem;color:var(--muted)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:7px 11px;border-radius:999px;background:var(--panel2);color:var(--ink);box-shadow:none;font-size:.85rem;border:2px solid transparent}
+.chip.on{border-color:var(--cyan);color:var(--cyan)}
+.stars button{background:transparent;box-shadow:none;font-size:1.6rem;padding:2px 4px;color:#4a5570}
+.stars button.on{color:var(--butter)}
+.place{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:14px;background:var(--panel2);border:1px solid var(--line)}
+.place .num{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font:400 15px var(--display);color:#1b1406;background:var(--pan)}
+.place .thumb{flex:none;width:54px;height:54px;border-radius:10px;object-fit:cover;background:#0F1420}
+.place small{display:block;color:var(--muted);font-size:.8rem}
+.place.gekozen .num{background:var(--green)}.place.afgevallen{opacity:.5}
+.place .st{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan)}
+.fab{position:fixed;left:0;right:0;bottom:0;padding:10px 14px calc(12px + env(safe-area-inset-bottom,0));display:flex;justify-content:center;gap:10px;z-index:600;
+  background:linear-gradient(transparent,rgba(20,26,38,.95) 40%)}
+.fab button{font-size:1.1rem;padding:16px 18px;border-radius:999px;max-width:560px;flex:1}
+.fab .mini{flex:none;width:58px;padding:0;font-size:1.3rem}
+.sheet{position:fixed;inset:0;background:rgba(10,14,22,.75);z-index:1200;display:flex;align-items:flex-end;justify-content:center}
+.sheet .card{width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:22px 22px 0 0;padding-bottom:calc(18px + env(safe-area-inset-bottom,0))}
+.media{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.media .m{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:#0F1420;border:1px solid var(--line);display:grid;place-items:center;font-size:1.4rem}
+.media .m img{width:100%;height:100%;object-fit:cover}
+.media .m small{position:absolute;left:4px;bottom:3px;font-size:.62rem;color:#fff;text-shadow:0 1px 2px #000;max-width:calc(100% - 8px);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.media .m .x{position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;padding:0;font-size:.8rem;box-shadow:none}
+.media .m.busy{opacity:.6}
+.slots{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.slots button{padding:10px 4px;font-size:.78rem;border-radius:10px;display:flex;flex-direction:column;gap:2px;align-items:center}
+.slots button.done{background:var(--green);box-shadow:0 3px 0 #2c8f55}
+.sr{position:absolute;left:-9999px}
+#toast{position:fixed;left:0;right:0;top:calc(10px + env(safe-area-inset-top,0));display:flex;flex-direction:column;align-items:center;gap:6px;z-index:1400;pointer-events:none}
+#toast div{background:var(--pan);color:#1b1406;padding:10px 16px;border-radius:999px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.4);max-width:92vw;text-align:center}
+.status{font-size:.8rem;color:var(--muted)}.status b{color:var(--green)}.status b.off{color:var(--red)}
+.totals{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.totals div{background:var(--panel2);border-radius:12px;padding:8px;text-align:center}
+.totals b{display:block;font-family:var(--display);font-weight:400;font-size:1.3rem;color:var(--pan)}
+.totals small{color:var(--muted);font-size:.72rem}
+textarea.mono{font-family:ui-monospace,Menlo,monospace;font-size:.75rem;min-height:70px}
+.zoom{position:fixed;inset:0;background:rgba(5,8,14,.94);z-index:1500;display:grid;place-items:center;padding:12px}
+.zoom img,.zoom video{max-width:100%;max-height:90vh;border-radius:10px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div class="fab" id="fab" hidden>
+  <button class="mini plain" data-a="fit" aria-label="Kaart centreren">🎯</button>
+  <button class="cyan" data-a="new">📍 Plek hier</button>
+  <button class="plain" data-a="idea" style="flex:.7">💡 Idee</button>
+  <button class="mini plain" data-a="sync" aria-label="Synchroniseren" id="syncbtn">☁️</button>
+</div>
+<script>
+'use strict';
+/* ============ instellingen (zelfde als js/sync.js) ============ */
+const SUPABASE_URL = 'https://lnhliamckstuwiwyzxyl.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_hoQWFp1gmy-qfG6IICNckw_ewEXmm_3';
+const GAME_CODE = 'hannah10';
+const HOME = { lat: 51.6168188, lng: 5.5622347 }; // reserve als de thuis-stop niet geladen kan worden
+const hasL = typeof L !== 'undefined'; // Leaflet geladen? Zonder kaart werkt de rest gewoon.
+const KINDS = {
+  puzzelplek: { icon: '🧩', label: 'Puzzelplek', color: '#F2BE62' },
+  start:      { icon: '🚀', label: 'Start', color: '#4ADE80' },
+  thuis:      { icon: '🏠', label: 'Thuis / finale', color: '#A78BFA' },
+  rustpunt:   { icon: '🪑', label: 'Rustpunt', color: '#7FE8FF' },
+  verrassing: { icon: '⚡', label: 'Verrassing', color: '#FF5A4E' },
+  qr:         { icon: '🔲', label: 'QR-kaartje ophangen', color: '#EEF2F7' },
+  oversteek:  { icon: '🚸', label: 'Oversteek / let op', color: '#FB923C' },
+  mooi:       { icon: '📸', label: 'Mooi plekje', color: '#F472B6' },
+  idee:       { icon: '💡', label: 'Idee / losse notitie', color: '#FFE98A' },
+  afgekeurd:  { icon: '🚫', label: 'Afgekeurd', color: '#6B7280' },
+};
+const SLOTS = ['aankomst', 'links', 'rechts', 'achter']; // foto's rondom: vanaf waar ze aankomen, dan links, rechts, achter
+const STATUS = ['kandidaat', 'gekozen', 'afgevallen', 'verwerkt'];
+const K = { places: 'scout_places', track: 'scout_track', key: 'scout_regie', pending: 'scout_pending' };
+const MEDIA_MAX_MB = 40, VIDEO_SEC = 30, AUDIO_SEC = 90;
+
+/* ============ opslag ============ */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { toast('⚠️ Opslag vol: sync eerst met ☁️.'); } },
+};
+let places = store.get(K.places, []);      // [{id, created_at, name, kind, notes, lat, lng, acc, photo, media:[…], rating, light, status, order_hint, tags, dirty}]
+let track = store.get(K.track, []);        // [[lat,lng,t], …] spoor van vandaag
+let regieKey = store.get(K.key, '');
+let stops = [], home = HOME, gameId = null;
+let pos = null, watchId = null, gpsErr = '';
+let sheet = null; // open formulier
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); }));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const $ = (s, r = document) => r.querySelector(s);
+function toast(t, ms = 3000) { const d = document.createElement('div'); d.textContent = t; $('#toast').appendChild(d); setTimeout(() => d.remove(), ms); }
+function dist(a, b) { if (!a || !b || a.lat == null || b.lat == null) return null; const R = 6371000, r = x => x * Math.PI / 180, dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(s)); }
+const fmtM = m => m == null ? '–' : m < 1000 ? Math.round(m) + ' m' : (m / 1000).toFixed(1) + ' km';
+const fmtT = iso => new Date(iso).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+const isIdea = p => p.kind === 'idee';
+
+/* ============ Supabase (REST, zonder SDK) ============ */
+async function rest(path, opts = {}) {
+  const r = await fetch(SUPABASE_URL + '/rest/v1/' + path, { ...opts, headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
+  if (!r.ok) { let m = r.statusText; try { m = (await r.json()).message || m; } catch {} throw new Error(m.replace(/^.*?: /, '')); }
+  return r.status === 204 ? null : r.json();
+}
+const rpc = (name, args) => rest('rpc/' + name, { method: 'POST', body: JSON.stringify(args) });
+async function uploadMedia(blob, placeId, kind) { // via de Edge Function scout-media (controleert de regiesleutel)
+  if (!regieKey) throw new Error('Log in met de regiesleutel om media te bewaren');
+  if (blob.size > MEDIA_MAX_MB * 1048576) throw new Error(`Bestand groter dan ${MEDIA_MAX_MB} MB; maak de video korter`);
+  const r = await fetch(SUPABASE_URL + '/functions/v1/scout-media', { method: 'POST', body: blob,
+    headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'Content-Type': blob.type || 'application/octet-stream', 'x-regie-key': regieKey, 'x-place': placeId, 'x-kind': kind } });
+  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || r.statusText); return j.url;
+}
+async function loadStops() {
+  try {
+    const g = await rest(`game?code=eq.${GAME_CODE}&select=id`); gameId = g[0]?.id;
+    if (!gameId) return;
+    stops = await rest(`stop?game_id=eq.${gameId}&select=id,seq,key,name,lat,lng,part&order=seq`);
+    const h = stops.find(s => s.key === 'home'); if (h?.lat) home = { lat: h.lat, lng: h.lng };
+  } catch (e) { console.warn('[scout] stops', e); }
+}
+async function checkKey(k) { await rpc('regie_check', { p_key: k }); }
+async function pull() { // plekken van de server erbij (server wint, behalve lokale wijzigingen die nog niet weg zijn)
+  const rows = await rpc('scout_list', { p_key: regieKey });
+  for (const r of rows) { const i = places.findIndex(p => p.id === r.id); if (i < 0) places.push({ ...r, dirty: false }); else if (!places[i].dirty) places[i] = { ...r, dirty: false }; }
+  places.sort((a, b) => a.created_at < b.created_at ? -1 : 1); store.set(K.places, places);
+}
+let syncing = false;
+async function push() {
+  if (syncing || !regieKey) return; syncing = true; setSyncUi();
+  let n = 0;
+  try {
+    for (const p of places.filter(p => p.dirty)) {
+      for (const m of (p.media || []).filter(m => !m.url && m.thumb)) { // foto waarvan de upload mislukte: alsnog, in miniatuurkwaliteit
+        try { m.url = await uploadMedia(await dataUrlToBlob(m.thumb), p.id, m.kind); } catch {} }
+      const { dirty, ...row } = p; row.media = (row.media || []).filter(m => m.url).map(({ thumb, ...m }) => m); // alleen geüploade media, zonder miniaturen
+      await rpc('scout_upsert', { p_key: regieKey, p_place: row }); p.dirty = false; n++;
+    }
+    for (const id of store.get(K.pending, [])) { try { await rpc('scout_delete', { p_key: regieKey, p_id: id }); } catch {} }
+    store.set(K.pending, []); store.set(K.places, places);
+    if (n) toast(`☁️ ${n} plek${n === 1 ? '' : 'ken'} opgeslagen in Supabase`);
+  } catch (e) { if (n === 0) toast('☁️ Nog niet gesynct: ' + e.message, 4000); }
+  finally { syncing = false; setSyncUi(); renderList(); }
+}
+function setSyncUi() { const b = $('#syncbtn'); if (!b) return; const d = places.filter(p => p.dirty).length; b.textContent = syncing ? '⏳' : d ? `☁️${d}` : '☁️'; b.style.background = d ? 'var(--red)' : ''; }
+addEventListener('online', () => push());
+// Twee telefoons tegelijk in het veld: elke minuut de plekken van de ander ophalen (eigen ongesyncte wijzigingen winnen).
+setInterval(() => { if (regieKey && !syncing && !sheet) pull().then(renderList).catch(() => {}); }, 60_000);
+
+/* ============ GPS ============ */
+function startGps() {
+  if (watchId != null || !navigator.geolocation) { if (!navigator.geolocation) gpsErr = 'Deze telefoon geeft geen locatie door.'; return; }
+  watchId = navigator.geolocation.watchPosition(p => {
+    gpsErr = ''; pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy || 50, at: Date.now() };
+    addTrack(pos); updateGpsUi(); updateMap();
+  }, e => { gpsErr = e.code === 1 ? 'Locatie geweigerd. iPhone: tik op AA in de adresbalk → Website-instellingen → Locatie → Toestaan.' : 'GPS zoekt nog… loop even de open lucht in.'; updateGpsUi(); },
+  { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 });
+}
+function addTrack(p) {
+  const last = track[track.length - 1];
+  if (last && dist({ lat: last[0], lng: last[1] }, p) < 8) return;
+  if (p.acc > 40) return;
+  track.push([+p.lat.toFixed(6), +p.lng.toFixed(6), Math.round(p.at / 1000)]);
+  if (track.length % 10 === 0) store.set(K.track, track);
+}
+function trackLength() { let m = 0; for (let i = 1; i < track.length; i++) m += dist({ lat: track[i - 1][0], lng: track[i - 1][1] }, { lat: track[i][0], lng: track[i][1] }); return m; }
+function gpsOnce() { return new Promise((res, rej) => navigator.geolocation ? navigator.geolocation.getCurrentPosition(p => res({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy || 50, at: Date.now() }), e => rej(new Error(e.code === 1 ? 'Locatie geweigerd' : 'Geen GPS-fix')), { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }) : rej(new Error('Geen GPS'))); }
+let wake = null;
+async function keepAwake() { try { if ('wakeLock' in navigator && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => wake = null); } } catch {} }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { keepAwake(); push(); } });
+function updateGpsUi() {
+  const el = $('#gps'); if (!el) return;
+  if (gpsErr) { el.className = 'gps bad'; el.innerHTML = `<b>!</b><span class="note">${esc(gpsErr)}</span>`; return; }
+  if (!pos) { el.className = 'gps'; el.innerHTML = `<b>…</b><span class="note">GPS zoekt je positie</span>`; return; }
+  const good = pos.acc <= 15;
+  el.className = 'gps' + (pos.acc > 30 ? ' bad' : '');
+  el.innerHTML = `<b>±${Math.round(pos.acc)} m</b><span class="note">${good ? 'Nauwkeurig genoeg om vast te leggen' : pos.acc <= 30 ? 'Redelijk; even stilstaan geeft beter' : 'Onnauwkeurig: loop uit de schaduw van huizen/bomen'}<br>${fmtM(dist(pos, home))} van huis · ${fmtM(trackLength())} gelopen</span>`;
+}
+
+/* ============ kaart ============ */
+let map = null, meM = null, accC = null, trackL = null, placeLayer = null, stopLayer = null, fitted = false, picking = false;
+function pinIcon(p, i) {
+  const k = KINDS[p.kind] || KINDS.puzzelplek;
+  return L.divIcon({ className: '', html: `<div class="pin" style="background:${k.color}"><span>${i + 1}</span></div>`, iconSize: [30, 30], iconAnchor: [15, 30] });
+}
+function initMap() {
+  const el = $('#map'); if (!el || map || !hasL) { if (el && !hasL) el.innerHTML = '<p class="note" style="padding:14px">Kaart niet geladen (geen verbinding met de kaartserver). GPS en vastleggen werken gewoon.</p>'; return; }
+  map = L.map(el, { zoomControl: true, attributionControl: true });
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+  map.setView([home.lat, home.lng], 16);
+  stopLayer = L.layerGroup().addTo(map); placeLayer = L.layerGroup().addTo(map);
+  trackL = L.polyline(track.map(t => [t[0], t[1]]), { color: '#7FE8FF', weight: 3, opacity: .6, dashArray: '2 8' }).addTo(map);
+  map.on('click', e => { if (!sheet || !picking) return; sheet.lat = +e.latlng.lat.toFixed(7); sheet.lng = +e.latlng.lng.toFixed(7); sheet.acc = 0; sheet.manual = true; endPick(); toast('Positie van de kaart genomen'); });
+  drawStops(); drawPlaces(); setTimeout(() => map.invalidateSize(), 50);
+}
+function drawStops() {
+  if (!stopLayer || !hasL) return; stopLayer.clearLayers();
+  for (const s of stops) if (s.lat != null) L.marker([s.lat, s.lng], { icon: L.divIcon({ className: '', html: `<div class="pin-stop">${s.key === 'home' ? '🏠' : s.key === 'start' ? 'S' : s.seq}</div>`, iconSize: [24, 24], iconAnchor: [12, 12] }) }).bindTooltip(`huidige stop ${s.seq}: ${s.name}`).addTo(stopLayer);
+  if (!stops.length) L.marker([home.lat, home.lng], { icon: L.divIcon({ className: '', html: '<div class="pin-stop">🏠</div>', iconSize: [24, 24], iconAnchor: [12, 12] }) }).addTo(stopLayer);
+}
+function drawPlaces() {
+  if (!placeLayer || !hasL) return; placeLayer.clearLayers();
+  places.forEach((p, i) => { if (p.lat == null || p.status === 'afgevallen') return;
+    L.marker([p.lat, p.lng], { icon: pinIcon(p, i) }).bindTooltip(`${i + 1}. ${p.name || KINDS[p.kind]?.label || ''}`).on('click', () => openSheet(p)).addTo(placeLayer); });
+  const pts = places.filter(p => p.lat != null && p.status !== 'afgevallen' && !isIdea(p)).map(p => [p.lat, p.lng]);
+  if (pts.length > 1) L.polyline(pts, { color: '#F2BE62', weight: 2, opacity: .5 }).addTo(placeLayer);
+}
+function updateMap() {
+  if (!map || !pos) return;
+  const ll = [pos.lat, pos.lng];
+  if (!meM) { meM = L.marker(ll, { icon: L.divIcon({ className: '', html: '<div class="pin-me"></div>', iconSize: [20, 20], iconAnchor: [10, 10] }), interactive: false }).addTo(map); accC = L.circle(ll, { radius: pos.acc, color: '#7FE8FF', weight: 1, fillOpacity: .08 }).addTo(map); }
+  else { meM.setLatLng(ll); accC.setLatLng(ll).setRadius(pos.acc); }
+  if (trackL) trackL.setLatLngs(track.map(t => [t[0], t[1]]));
+  if (!fitted) { fitted = true; map.setView(ll, 17); }
+}
+function fitAll() { if (!map || !hasL) return; const pts = [[home.lat, home.lng], ...(pos ? [[pos.lat, pos.lng]] : []), ...places.filter(p => p.lat != null).map(p => [p.lat, p.lng])];
+  pts.length > 1 ? map.fitBounds(L.latLngBounds(pts), { padding: [30, 30], maxZoom: 18 }) : map.setView(pts[0], 17); }
+function startPick() { // het formulier even weg, zodat je op de kaart kunt tikken
+  if (!map) return; picking = true; const sh = $('#sheet'); if (sh) sh.style.display = 'none';
+  const bar = document.createElement('div'); bar.id = 'pickbar'; bar.className = 'fab'; bar.style.zIndex = 1300;
+  bar.innerHTML = '<button class="cyan" data-a="pickdone">Tik op de kaart waar de plek is · Klaar</button>'; document.body.appendChild(bar);
+  if (sheet.lat != null) map.setView([sheet.lat, sheet.lng], 18); else if (pos) map.setView([pos.lat, pos.lng], 18);
+  $('#map').scrollIntoView({ block: 'center' });
+}
+function endPick() { picking = false; $('#pickbar')?.remove(); const sh = $('#sheet'); if (sh) sh.style.display = ''; renderSheet(); }
+
+/* ============ schermen ============ */
+const app = $('#app');
+function render() {
+  if (!regieKey) { app.innerHTML = viewLogin(); $('#fab').hidden = true; return; }
+  showMain();
+}
+function showMain() { app.innerHTML = viewMain(); $('#fab').hidden = false; initMap(); updateGpsUi(); setSyncUi(); renderList(); keepAwake(); startGps(); }
+function viewLogin() {
+  return `<div class="bar"><span class="sys">Systeem: verkenning</span></div><h1>Mecha-Pof scout</h1>
+  <div class="card"><h2>Regiesleutel</h2><p class="note">Alleen voor de begeleider. Dezelfde sleutel als in de app en regie.</p>
+    <form id="login" class="row" autocomplete="off"><input class="grow" type="password" placeholder="sleutel" aria-label="Regiesleutel" autocapitalize="off"><button class="cyan" type="submit">OK</button></form>
+    <p class="note" id="loginmsg"></p>
+    <p class="note">Geen verbinding? Je kunt ook <button class="ghost small" data-a="offline">zonder sleutel beginnen</button>; dan blijft alles op deze telefoon (zonder foto's/video) tot je later inlogt en synct.</p></div>`;
+}
+function viewMain() {
+  return `<div class="bar"><div><span class="sys">Systeem: verkenning</span><h1>Mecha-Pof scout</h1></div><button class="ghost small" data-a="help">?</button></div>
+  <div class="card">
+    <div class="mapwrap"><div id="map"></div></div>
+    <div class="gps" id="gps"><b>…</b><span class="note">GPS zoekt je positie</span></div>
+    <p class="note">Gestippeld: de huidige (voorbeeld)stops. Gekleurde pins: jouw plekken; tik erop om te bewerken. Loop naar de plek, wacht tot de nauwkeurigheid onder de 15 m zit en tik op <b>📍 Plek hier</b>. Iets bedacht onderweg? <b>💡 Idee</b> bewaart een notitie, gesproken of getypt, met of zonder plek.</p>
+  </div>
+  <div class="card" id="listcard"></div>
+  <div class="card">
+    <h2>Meenemen naar de chat</h2>
+    <p class="note">Alles gaat via ☁️ naar Supabase (tabel scout_place; foto's, video en geluid in de bucket monster/scout) en is daar direct leesbaar voor de volgende chat. De knoppen hieronder zijn de reserve.</p>
+    <div class="row"><button class="plain grow" data-a="report">📋 Kopieer rapport</button><button class="plain grow" data-a="json">⬇️ JSON</button></div>
+    <textarea class="mono" id="out" readonly aria-label="Rapport" placeholder="Hier verschijnt het rapport om te kopiëren"></textarea>
+    <details><summary class="note">Importeer JSON (van een andere telefoon)</summary><textarea class="mono" id="imp" placeholder="Plak hier"></textarea><button class="small plain" data-a="import">Importeer</button></details>
+    <div class="row"><button class="ghost small" data-a="cleartrack">Spoor van vandaag wissen</button><span class="grow"></span><button class="ghost small" data-a="logout">Sleutel vergeten</button></div>
+  </div>`;
+}
+const mediaIcon = m => m.kind === 'video' ? '🎬' : m.kind === 'audio' ? '🎙️' : m.kind === 'rondom' ? '🧭' : '📷';
+function renderList() {
+  const el = $('#listcard'); if (!el) return;
+  const live = places.filter(p => p.status !== 'afgevallen' && p.lat != null && !isIdea(p));
+  let route = 0; for (let i = 1; i < live.length; i++) route += dist(live[i - 1], live[i]) || 0;
+  const first = live[0], last = live[live.length - 1];
+  const loop = route + (first ? dist(home, first) || 0 : 0) + (last ? dist(last, home) || 0 : 0);
+  const puzzles = live.filter(p => p.kind === 'puzzelplek' || p.kind === 'start').length;
+  const minutes = Math.round(loop / 1000 / 3.5 * 60 + puzzles * 8);
+  el.innerHTML = `<div class="bar"><h2>Plekken en ideeën (${places.length})</h2>${places.some(p => p.dirty) ? `<span class="status"><b class="off">nog niet gesynct</b></span>` : regieKey ? `<span class="status"><b>gesynct</b></span>` : ''}</div>
+  <div class="totals"><div><b>${fmtM(loop)}</b><small>route in deze volgorde, van en naar huis</small></div><div><b>${minutes} min</b><small>met 8 min per puzzel</small></div><div><b>${puzzles}</b><small>puzzelplekken (7 nodig incl. start)</small></div></div>
+  ${places.length ? places.map((p, i) => {
+    const k = KINDS[p.kind] || KINDS.puzzelplek, prev = places.slice(0, i).reverse().find(q => q.lat != null && q.status !== 'afgevallen' && !isIdea(q));
+    const d = !isIdea(p) && prev ? dist(prev, p) : null, warn = d != null && d < 150 && p.kind === 'puzzelplek' && prev.kind === 'puzzelplek';
+    const media = p.media || [], pend = media.filter(m => !m.url).length;
+    return `<div class="place ${p.status}" data-id="${p.id}"><div class="num" style="background:${k.color}">${i + 1}</div>
+      ${p.photo ? `<img class="thumb" src="${p.photo}" alt="">` : `<div class="thumb" style="display:grid;place-items:center;font-size:1.4rem">${k.icon}</div>`}
+      <div class="grow"><span class="st">${k.label}${p.status !== 'kandidaat' ? ' · ' + p.status : ''}${p.dirty ? ' · ☁️ wacht' : ''}</span><div><b>${esc(p.name) || '<i>naamloos</i>'}</b> ${'★'.repeat(p.rating || 0)}</div>
+        <small>${fmtT(p.created_at)}${p.lat != null ? ` · ±${Math.round(p.acc || 0)} m · ${fmtM(dist(home, p))} van huis` : ' · zonder plek'}${d != null ? ` · ${warn ? '⚠️ ' : ''}${fmtM(d)} na vorige` : ''}${p.light ? ' · licht: ' + p.light : ''}${media.length ? ' · ' + media.map(mediaIcon).join('') + (pend ? ` (${pend} nog uploaden)` : '') : ''}</small>
+        ${p.notes ? `<small>${esc(p.notes)}</small>` : ''}</div>
+      <button class="small plain" data-a="edit" aria-label="Bewerk">✏️</button></div>`; }).join('')
+  : `<p class="note">Nog geen plekken. Loop naar je eerste kandidaat en tik op 📍.</p>`}`;
+  drawPlaces();
+}
+
+/* ============ formulier (sheet) ============ */
+function openSheet(p, kind) {
+  sheet = p ? { ...p, media: (p.media || []).slice() } : { id: uid(), created_at: new Date().toISOString(), name: '', kind: kind || (places.some(q => q.kind === 'start') ? 'puzzelplek' : 'start'), notes: '', lat: pos?.lat ?? null, lng: pos?.lng ?? null, acc: pos?.acc ?? null, photo: null, media: [], rating: 0, light: null, status: 'kandidaat', order_hint: null, tags: [], isNew: true };
+  renderSheet();
+  if (sheet.isNew && !isIdea(sheet) && (!pos || pos.acc > 15)) refineGps();
+  if (sheet.isNew && isIdea(sheet)) setTimeout(() => $('#f-notes')?.focus({ preventScroll: true }), 80);
+}
+let refining = false;
+async function refineGps() { // probeer 8 seconden lang een betere fix te krijgen, neem de beste
+  if (refining || !sheet || sheet.manual) return; refining = true;
+  const t0 = Date.now(); let best = pos;
+  while (Date.now() - t0 < 8000 && sheet && !sheet.manual) {
+    try { const p = await gpsOnce(); if (!best || p.acc < best.acc) best = p; } catch {}
+    if (best && best.acc <= 8) break;
+    await new Promise(r => setTimeout(r, 1200));
+  }
+  if (sheet && best && !sheet.manual && (sheet.acc == null || best.acc <= sheet.acc)) { sheet.lat = +best.lat.toFixed(7); sheet.lng = +best.lng.toFixed(7); sheet.acc = Math.round(best.acc); renderSheet(); }
+  refining = false;
+}
+function readFields() { const s = sheet; if (!s) return; const n = $('#f-name'), t = $('#f-notes'), o = $('#f-order'); if (n) s.name = n.value; if (t) s.notes = t.value; if (o) s.order_hint = o.value ? +o.value : null; }
+function renderSheet() {
+  let el = $('#sheet'); const existed = !!el; if (existed) readFields();
+  if (!el) { el = document.createElement('div'); el.className = 'sheet'; el.id = 'sheet'; document.body.appendChild(el); }
+  const s = sheet, idea = isIdea(s);
+  const near = places.filter(q => q.id !== s.id && q.lat != null && s.lat != null).map(q => ({ q, d: dist(q, s) })).sort((a, b) => a.d - b.d)[0];
+  const slotsDone = SLOTS.map(sl => s.media.find(m => m.kind === 'rondom' && m.slot === sl));
+  el.innerHTML = `<div class="card">
+    <div class="bar"><h2>${s.isNew ? (idea ? 'Nieuw idee' : 'Nieuwe plek') : 'Bewerken'}</h2><button class="ghost small" data-s="close">✕</button></div>
+    <div class="gps ${s.acc > 30 ? 'bad' : ''}"><b>${s.lat == null ? (idea ? '💡' : '…') : s.manual ? 'kaart' : '±' + Math.round(s.acc) + ' m'}</b>
+      <span class="note">${s.lat == null ? (idea ? 'Idee zonder plek; tik hieronder op 📡 om toch je positie mee te nemen' : 'Wachten op GPS') : `${s.lat.toFixed(5)}, ${s.lng.toFixed(5)} · ${fmtM(dist(home, s))} van huis${near ? ` · dichtstbijzijnde plek: ${fmtM(near.d)} (${esc(near.q.name) || 'naamloos'})` : ''}`}${refining ? '<br>⏳ betere fix zoeken…' : ''}</span></div>
+    <div class="row"><button class="small plain" data-s="regps">📡 ${s.lat == null ? 'Positie meten' : 'Opnieuw meten'}</button>${hasL ? '<button class="small plain" data-s="pick">🗺️ Kies op kaart</button>' : ''}${s.lat != null && idea ? '<button class="small ghost" data-s="nogps">Zonder plek</button>' : ''}</div>
+    <label>${idea ? 'Korte titel' : 'Naam van de plek'}<input id="f-name" type="text" value="${esc(s.name)}" placeholder="${idea ? 'bijv. Kruimelaar laten springen over het veldje' : 'bijv. het klimrek, de rode bank, de brievenbus'}" autocapitalize="sentences"></label>
+    <div><div class="note" style="margin-bottom:6px">Soort</div><div class="chips">${Object.entries(KINDS).map(([k, v]) => `<button class="chip ${s.kind === k ? 'on' : ''}" data-s="kind" data-v="${k}">${v.icon} ${v.label}</button>`).join('')}</div></div>
+    ${idea ? '' : `<div class="row"><div><div class="note">Hoe goed?</div><div class="stars">${[1, 2, 3].map(n => `<button class="${(s.rating || 0) >= n ? 'on' : ''}" data-s="rating" data-v="${n}" aria-label="${n} sterren">★</button>`).join('')}</div></div>
+      <div class="grow"><div class="note" style="margin-bottom:6px">Licht na 16:30</div><div class="chips">${['goed', 'matig', 'donker'].map(l => `<button class="chip ${s.light === l ? 'on' : ''}" data-s="light" data-v="${l}">${l}</button>`).join('')}</div></div></div>`}
+    <label>${idea ? 'Het idee (typen of inspreken)' : 'Notities (wat zie je, wat kan hier, waar hangt een kaartje, waar is het gevaarlijk)'}<textarea id="f-notes" placeholder="${idea ? 'bijv. hier zou Mecha-Pof kunnen zeggen dat zijn sensoren iets ruiken…' : 'bijv. drie bomen op een rij → formatie-puzzel; bankje voor de werkbank; lantaarn vlakbij'}">${esc(s.notes)}</textarea></label>
+    <div><div class="bar"><h3>Beeld en geluid</h3><span class="note">${regieKey ? 'gaat naar monster/scout' : 'log in om te bewaren'}</span></div>
+      ${s.media.length ? `<div class="media" style="margin:8px 0">${s.media.map((m, i) => `<div class="m ${m.url ? '' : 'busy'}" data-s="view" data-i="${i}">${m.kind === 'foto' || m.kind === 'rondom' ? (m.thumb || m.url ? `<img src="${m.thumb || m.url}" alt="">` : '📷') : mediaIcon(m)}<small>${m.kind === 'rondom' ? m.slot : m.kind === 'audio' ? (m.seconds || '?') + ' s' : m.kind === 'video' ? 'video' : 'foto'}${m.url ? '' : ' ⏳'}</small><button class="x" data-s="mdel" data-i="${i}" aria-label="Verwijder">✕</button></div>`).join('')}</div>` : ''}
+      <div class="row" style="margin-top:8px"><button class="plain grow" data-s="photo">📷 Foto</button><button class="plain grow" data-s="video">🎬 Video (max ${VIDEO_SEC} s)</button>
+        <button class="${recorder ? 'rec' : 'plain'} grow" data-s="audio">${recorder ? '⏹ Stop opname' : '🎙️ Inspreken'}</button></div>
+      ${idea ? '' : `<div class="note" style="margin:10px 0 6px">🧭 Rondom: vier foto's vanaf de plek, zodat we later de omgeving kennen</div>
+      <div class="slots">${SLOTS.map((sl, i) => `<button class="plain ${slotsDone[i] ? 'done' : ''}" data-s="slot" data-v="${sl}"><span>${['🚶', '👈', '👉', '🔄'][i]}</span>${sl}</button>`).join('')}</div>`}
+      <input type="file" accept="image/*" capture="environment" id="f-photo" class="sr"><input type="file" accept="video/*" capture="environment" id="f-video" class="sr">
+    </div>
+    ${idea ? '' : `<div class="row"><label class="grow">Volgorde-idee (stopnummer, mag leeg)<input id="f-order" type="number" inputmode="numeric" min="1" max="12" value="${s.order_hint ?? ''}"></label>
+      <label class="grow">Status<select data-s="status">${STATUS.map(x => `<option value="${x}" ${s.status === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>`}
+    <div class="row"><button class="cyan grow" data-s="save" ${s.lat == null && !idea ? 'disabled' : ''}>💾 Opslaan</button>${s.isNew ? '' : `<button class="danger small" data-s="delete">Verwijder</button>`}</div>
+  </div>`;
+  if (!existed && !idea) setTimeout(() => $('#f-name')?.focus({ preventScroll: true }), 50);
+}
+function closeSheet() { if (recorder) stopAudio(true); sheet = null; $('#sheet')?.remove(); $('#pickbar')?.remove(); picking = false; }
+function saveSheet() {
+  readFields(); const s = sheet; s.name = s.name.trim(); s.notes = s.notes.trim();
+  const { isNew, manual, ...row } = s; row.dirty = true;
+  if (!row.photo) { const first = row.media.find(m => m.thumb); if (first) row.photo = first.thumb; }
+  const i = places.findIndex(p => p.id === row.id); if (i < 0) places.push(row); else places[i] = row;
+  store.set(K.places, places); store.set(K.track, track);
+  closeSheet(); renderList(); setSyncUi(); toast(`💾 ${row.name || KINDS[row.kind].label} bewaard`); push();
+}
+function compressImage(file, max = 1400, q = .72, limit = 900000) {
+  return new Promise((res, rej) => { const url = URL.createObjectURL(file); const im = new Image();
+    im.onload = () => { const sc = Math.min(1, max / Math.max(im.width, im.height)); const c = document.createElement('canvas'); c.width = Math.round(im.width * sc); c.height = Math.round(im.height * sc);
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      let out = c.toDataURL('image/jpeg', q); let qq = q; while (out.length > limit && qq > .3) { qq -= .1; out = c.toDataURL('image/jpeg', qq); } res(out); };
+    im.onerror = rej; im.src = url; });
+}
+async function dataUrlToBlob(u) { return (await fetch(u)).blob(); }
+let pendingSlot = null;
+async function addPhoto(file, slot) {
+  if (!sheet) return; const s = sheet, kind = slot ? 'rondom' : 'foto';
+  toast('📷 Foto verkleinen…', 1500);
+  const full = await compressImage(file, 1400, .72), thumb = await compressImage(file, 420, .6, 120000);
+  if (slot) s.media = s.media.filter(m => !(m.kind === 'rondom' && m.slot === slot));
+  const m = { kind, slot: slot || undefined, thumb, url: null, at: new Date().toISOString() }; s.media.push(m); renderSheet();
+  try { m.url = await uploadMedia(await dataUrlToBlob(full), s.id, kind); toast(`📷 ${slot ? 'Foto ' + slot : 'Foto'} bewaard`); }
+  catch (e) { toast('📷 Foto lokaal bewaard, upload mislukt: ' + e.message, 4500); }
+  if (sheet === s) renderSheet();
+}
+async function addVideo(file) {
+  if (!sheet) return; const s = sheet;
+  const m = { kind: 'video', url: null, at: new Date().toISOString(), bytes: file.size }; s.media.push(m); renderSheet();
+  toast(`🎬 Video uploaden (${(file.size / 1048576).toFixed(1)} MB)…`, 4000);
+  try { m.url = await uploadMedia(file, s.id, 'video'); toast('🎬 Video bewaard'); }
+  catch (e) { s.media = s.media.filter(x => x !== m); toast('🎬 Video niet bewaard: ' + e.message, 5000); }
+  if (sheet === s) renderSheet();
+}
+/* gesproken notitie: MediaRecorder (iPhone: audio/mp4) */
+let recorder = null, recChunks = [], recTimer = null, recStart = 0, abortRec = false;
+async function startAudio() {
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') { toast('Inspreken wordt niet ondersteund in deze browser.'); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const type = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'].find(t => MediaRecorder.isTypeSupported(t)) || '';
+    const rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined); recorder = rec; recChunks = []; recStart = Date.now();
+    rec.ondataavailable = e => { if (e.data.size) recChunks.push(e.data); };
+    rec.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(recChunks, { type: rec.mimeType || type || 'audio/mp4' }), seconds = Math.round((Date.now() - recStart) / 1000);
+      recorder = null; clearInterval(recTimer);
+      if (!sheet || seconds < 1 || abortRec) { abortRec = false; if (sheet) renderSheet(); return; }
+      const s = sheet, m = { kind: 'audio', seconds, url: null, at: new Date().toISOString() }; s.media.push(m); renderSheet();
+      try { m.url = await uploadMedia(blob, s.id, 'audio'); toast(`🎙️ Opname van ${seconds} s bewaard`); }
+      catch (e) { s.media = s.media.filter(x => x !== m); toast('🎙️ Opname niet bewaard: ' + e.message, 5000); }
+      if (sheet === s) renderSheet();
+    };
+    rec.start(); renderSheet(); toast(`🎙️ Opname loopt (max ${AUDIO_SEC} s). Tik op Stop als je klaar bent.`, 2500);
+    recTimer = setInterval(() => { if (Date.now() - recStart > AUDIO_SEC * 1000) stopAudio(); }, 500);
+  } catch (e) { toast(e.name === 'NotAllowedError' ? 'Microfoon geweigerd. iPhone: AA → Website-instellingen → Microfoon.' : 'Microfoon: ' + e.message, 5000); }
+}
+function stopAudio(abort = false) { abortRec = abort; try { recorder?.stop(); } catch { recorder = null; } }
+function viewMedia(m) {
+  if (!m.url) { toast('Nog niet geüpload.'); return; }
+  const ov = document.createElement('div'); ov.className = 'zoom';
+  ov.innerHTML = m.kind === 'video' ? `<video src="${m.url}" controls autoplay playsinline></video>` : m.kind === 'audio' ? `<div class="card"><h3>🎙️ Opname (${m.seconds || '?'} s)</h3><audio src="${m.url}" controls autoplay></audio></div>` : `<img src="${m.url}" alt="">`;
+  ov.onclick = e => { if (e.target === ov || e.target.tagName === 'IMG') ov.remove(); }; document.body.appendChild(ov);
+}
+
+/* ============ export ============ */
+function report() {
+  const lines = [`# Scouting Operatie Mecha-Pof — ${new Date().toLocaleDateString('nl-NL')}`, `Thuis: ${home.lat.toFixed(6)}, ${home.lng.toFixed(6)} · gelopen vandaag: ${fmtM(trackLength())} · ${places.length} plekken/ideeën`];
+  places.forEach((p, i) => { const prev = places.slice(0, i).reverse().find(q => q.lat != null && q.status !== 'afgevallen' && !isIdea(q));
+    lines.push('', `## ${i + 1}. ${p.name || 'naamloos'} (${KINDS[p.kind]?.label || p.kind}${p.status !== 'kandidaat' ? ', ' + p.status : ''})`,
+      p.lat != null ? `- GPS: ${p.lat.toFixed(6)}, ${p.lng.toFixed(6)} (±${Math.round(p.acc || 0)} m) · ${fmtM(dist(home, p))} van huis${prev && !isIdea(p) ? ` · ${fmtM(dist(prev, p))} na plek ${places.indexOf(prev) + 1}` : ''}` : '- Zonder plek');
+    if (!isIdea(p)) lines.push(`- Sterren: ${p.rating || 0}${p.light ? ` · licht: ${p.light}` : ''}${p.order_hint ? ` · volgorde-idee: ${p.order_hint}` : ''}`);
+    if (p.notes) lines.push(`- Notities: ${p.notes}`);
+    for (const m of (p.media || []).filter(m => m.url)) lines.push(`- ${mediaIcon(m)} ${m.kind}${m.slot ? ' ' + m.slot : ''}${m.seconds ? ' ' + m.seconds + ' s' : ''}: ${m.url}`); });
+  return lines.join('\n');
+}
+function download(name, text, type = 'application/json') { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+async function copyText(t) { const o = $('#out'); if (o) o.value = t; try { await navigator.clipboard.writeText(t); toast('📋 Gekopieerd. Plak het in de chat.'); } catch { o?.focus(); o?.select(); toast('Selecteer de tekst hieronder en kopieer handmatig.'); } }
+
+/* ============ acties ============ */
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-a],[data-s]'); if (!b) return;
+  if (b.dataset.a) {
+    const a = b.dataset.a;
+    if (a === 'new') { if (!pos && !gpsErr) toast('Even wachten op GPS… je kunt de stip ook op de kaart zetten.'); openSheet(null); }
+    else if (a === 'idea') openSheet(null, 'idee');
+    else if (a === 'edit') openSheet(places.find(p => p.id === b.closest('[data-id]').dataset.id));
+    else if (a === 'fit') fitAll();
+    else if (a === 'pickdone') endPick();
+    else if (a === 'sync') { if (!regieKey) { toast('Log eerst in met de regiesleutel om te syncen.'); return; } toast('☁️ Synchroniseren…', 1500); try { await push(); await pull(); renderList(); } catch (err) { toast('☁️ ' + err.message); } }
+    else if (a === 'report') copyText(report());
+    else if (a === 'json') download(`scouting-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ exported: new Date().toISOString(), home, places, track }, null, 1));
+    else if (a === 'import') { try { const d = JSON.parse($('#imp').value); let n = 0; for (const p of d.places || []) if (!places.some(q => q.id === p.id)) { places.push({ ...p, dirty: true }); n++; } store.set(K.places, places); renderList(); setSyncUi(); toast(`${n} plekken geïmporteerd`); push(); } catch { toast('Dat kon ik niet lezen.'); } }
+    else if (a === 'cleartrack') { if (confirm('Spoor van vandaag wissen?')) { track = []; store.set(K.track, track); if (trackL) trackL.setLatLngs([]); updateGpsUi(); } }
+    else if (a === 'logout') { if (confirm('Regiesleutel vergeten op deze telefoon? Je plekken blijven staan.')) { regieKey = ''; store.set(K.key, ''); render(); } }
+    else if (a === 'offline') { regieKey = ''; showMain(); toast('Lokaal aan de slag. Log later in en sync met ☁️.'); }
+    else if (a === 'help') toast('📍 Plek: loop ernaartoe, wacht op ±15 m, naam/soort/sterren, foto of rondom, notitie, opslaan. 💡 Idee: typ of spreek in, met of zonder plek. Alles gaat vanzelf naar Supabase.', 8000);
+    return;
+  }
+  const s = b.dataset.s; if (!sheet) return;
+  if (s === 'close') closeSheet();
+  else if (s === 'kind') { readFields(); sheet.kind = b.dataset.v; renderSheet(); }
+  else if (s === 'rating') { sheet.rating = sheet.rating === +b.dataset.v ? 0 : +b.dataset.v; renderSheet(); }
+  else if (s === 'light') { sheet.light = sheet.light === b.dataset.v ? null : b.dataset.v; renderSheet(); }
+  else if (s === 'pick') { readFields(); startPick(); }
+  else if (s === 'regps') { readFields(); sheet.manual = false; if (sheet.lat == null || isIdea(sheet)) { try { const p = await gpsOnce(); sheet.lat = +p.lat.toFixed(7); sheet.lng = +p.lng.toFixed(7); sheet.acc = Math.round(p.acc); } catch (err) { toast(err.message); } renderSheet(); } else { sheet.acc = null; renderSheet(); refineGps(); } }
+  else if (s === 'nogps') { readFields(); sheet.lat = null; sheet.lng = null; sheet.acc = null; renderSheet(); }
+  else if (s === 'photo') { pendingSlot = null; $('#f-photo').click(); }
+  else if (s === 'slot') { pendingSlot = b.dataset.v; $('#f-photo').click(); }
+  else if (s === 'video') $('#f-video').click();
+  else if (s === 'audio') { readFields(); recorder ? stopAudio() : startAudio(); }
+  else if (s === 'view') { if (!e.target.closest('.x')) viewMedia(sheet.media[+b.dataset.i]); }
+  else if (s === 'mdel') { e.stopPropagation(); readFields(); sheet.media.splice(+b.dataset.i, 1); if (!sheet.media.some(m => m.thumb)) sheet.photo = null; renderSheet(); }
+  else if (s === 'save') saveSheet();
+  else if (s === 'delete') { if (confirm('Dit verwijderen?')) { places = places.filter(p => p.id !== sheet.id); store.set(K.places, places); const pend = store.get(K.pending, []); pend.push(sheet.id); store.set(K.pending, pend); closeSheet(); renderList(); push(); } }
+});
+document.addEventListener('change', async e => {
+  const t = e.target;
+  if (t.id === 'f-photo' && t.files?.[0] && sheet) { readFields(); const slot = pendingSlot; pendingSlot = null; try { await addPhoto(t.files[0], slot); } catch { toast('Foto kon niet worden gelezen.'); } t.value = ''; }
+  if (t.id === 'f-video' && t.files?.[0] && sheet) { readFields(); await addVideo(t.files[0]); t.value = ''; }
+  if (t.dataset.s === 'status' && sheet) sheet.status = t.value;
+});
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'login') return; e.preventDefault();
+  const k = $('#login input').value.trim(), m = $('#loginmsg');
+  if (!k) return; m.textContent = 'Controleren…';
+  try { await checkKey(k); regieKey = k; store.set(K.key, k); render(); try { await pull(); renderList(); push(); } catch (err) { toast('☁️ ' + err.message + ' (staat de scout-tabel al in Supabase? Lokaal werkt alles)', 6000); } }
+  catch (err) { m.textContent = /sleutel/i.test(err.message) ? 'Verkeerde regiesleutel.' : 'Geen verbinding: ' + err.message; }
+});
+
+/* ============ start ============ */
+(async () => {
+  render();
+  await loadStops(); drawStops(); if (map && !pos) map.setView([home.lat, home.lng], 16);
+  if (regieKey) { try { await pull(); renderList(); push(); } catch (e) { console.warn('[scout] pull', e); } }
+})();
+</script>
+</body>
+</html>
