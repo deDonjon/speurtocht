@@ -1,4 +1,9 @@
-// walkie.js — walkietalkie met Mecha-Pof: knop ingedrukt houden = praten, loslaten = het monster antwoordt.
+// walkie.js — videobellen met Mecha-Pof: een FaceTime-achtig scherm (het monster groot in beeld, jij klein in de hoek)
+// met een walkietalkie-knop eronder. Twee standen, te wisselen met de knop linksonder (onthouden op deze telefoon):
+//   • Houd vast  (standaard)  knop ingedrukt houden = praten, loslaten = het monster antwoordt. De microfoon staat
+//                             alleen open zolang de knop ingedrukt is en het monster zwijgt zolang je zendt (echt gedempt, ook op iPhone).
+//   • Vrij praten (test)      de lijn staat open zoals bij een gewoon telefoongesprek: gewoon praten, het monster luistert
+//                             zelf en onderbreekt zichzelf als jij begint. De grote knop is dan een microfoon aan/uit-knop.
 //
 // Contract:
 //   openWalkie({ mon, context, onClose, greeting?, tools?, incoming? }) → { update(text), close(), open }
@@ -14,8 +19,10 @@
 //     Niet opgenomen binnen `timeout` ms (40 s) → onMissed(greeting): index.html laat Mecha-Pof de tekst dan zelf zeggen.
 //
 // Techniek: ElevenLabs Agents via WebRTC (@elevenlabs/client). Het token komt van de Supabase Edge Function
-// `monster-token`, zodat de API-sleutel nooit in de app staat. De microfoon staat standaard dicht; alleen zolang
-// de knop ingedrukt is gaat hij open. Zo hoort het monster geen wind of geschreeuw van de rest.
+// `monster-token`, zodat de API-sleutel nooit in de app staat.
+// Dempen van het monster tijdens het zenden: de SDK speelt het geluid via <audio>-elementen en `setVolume()` zet daar
+// alleen `.volume` op — en dat negeert iOS (het volume van een <audio> is op de iPhone alleen-lezen). Daarom zetten we
+// bij het indrukken ook `.muted` op die elementen (duck()); dat werkt wél. kickPlayback() mag ze dan niet weer aanzetten.
 // Animatie: de mond volgt het echte uitgaande volume (getOutputVolume), dus het klopt bij elke zin.
 //
 // Walkietalkie-regels (ook in de prompt van de agent, zie MONSTER-AGENT.md):
@@ -35,6 +42,11 @@ const SDK = [
 const TOKEN_URL = SUPABASE_URL + '/functions/v1/monster-token';
 const TAIL_MS = 450;          // na loslaten nog even luisteren, anders valt het laatste woord weg
 const THINK_MAX_MS = 9000;    // zo lang mag het monster "denken" voordat we zeggen dat het niet antwoordt
+const MODE_KEY = 'pkm2_walkie_mode'; // 'hold' (knop vasthouden) | 'open' (vrij praten)
+const TALK_LEVEL = 0.22;      // vrij praten: vanaf dit microfoonvolume "luistert" het monster zichtbaar
+
+export const getWalkieMode = () => { try { return localStorage.getItem(MODE_KEY) === 'open' ? 'open' : 'hold'; } catch { return 'hold'; } };
+export const setWalkieMode = m => { try { localStorage.setItem(MODE_KEY, m === 'open' ? 'open' : 'hold'); } catch {} };
 
 let sdkPromise = null;
 function loadSdk() {
@@ -81,66 +93,125 @@ export function callGreeting({ part, naam, text } = {}) {
   return greeting('oproep', { naam });
 }
 // Eindigt dit bericht met "over en sluiten" (of "over en uit")? Spraakherkenning schrijft het soms los of met streepjes.
-const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
+const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
 export const saysSluiten = t => /\bover\s*(en\s*)?(sluiten|sluit|uit)$/.test(norm(t));
 export const saysOver = t => /\bover$/.test(norm(t)) || saysSluiten(t);
 
+const BG = 'linear-gradient(rgba(60,74,102,.35) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,rgba(60,74,102,.35) 1px,transparent 1px) 0 0/40px 40px,radial-gradient(120% 80% at 50% 30%,#33405A 0%,#0B0F18 72%)';
 function injectCss() {
   if (document.getElementById('walkie-css')) return;
   const s = document.createElement('style'); s.id = 'walkie-css';
   s.textContent = `
-#walkie{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:space-between;
-  padding:calc(env(safe-area-inset-top,0px) + 14px) 16px calc(env(safe-area-inset-bottom,0px) + 18px);
-  background:linear-gradient(rgba(60,74,102,.35) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,rgba(60,74,102,.35) 1px,transparent 1px) 0 0/40px 40px,radial-gradient(120% 80% at 50% 30%,#33405A 0%,#0B0F18 72%);color:#EAF2FF;font-family:Nunito,system-ui,sans-serif;
-  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
-#walkie .wk-top{width:100%;max-width:480px;display:flex;align-items:center;gap:10px}
-#walkie .wk-top h2{flex:1;margin:0;font:400 1.35rem 'Lilita One',system-ui,sans-serif;letter-spacing:.02em;color:#7FE8FF;text-shadow:0 0 12px rgba(127,232,255,.5)}
-#walkie .wk-led{width:12px;height:12px;border-radius:50%;background:#4A5058;box-shadow:0 0 0 3px rgba(255,255,255,.06)}
-#walkie .wk-led.on{background:#5BD27A;box-shadow:0 0 10px #5BD27A}
-#walkie .wk-led.tx{background:#FF5A4E;box-shadow:0 0 12px #FF5A4E}
-#walkie .wk-x{background:rgba(255,255,255,.1);color:#EAF2FF;border:0;border-radius:999px;padding:10px 16px;font:800 1rem Nunito,sans-serif}
-#walkie .wk-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;width:100%}
-#walkie .mslot{background:radial-gradient(circle at 50% 40%,#1E3352,#0E1B2E 75%);border-radius:28px;padding:8px;box-shadow:0 10px 40px rgba(0,0,0,.5),0 0 24px rgba(127,232,255,.25),inset 0 0 0 3px #7FE8FF}
-#walkie .wk-state{font:800 1.15rem Nunito,sans-serif;min-height:1.6em;text-align:center}
-#walkie .wk-said{max-width:440px;min-height:2.6em;text-align:center;opacity:.75;font-size:.95rem}
-#walkie .wk-ptt{width:min(62vw,220px);aspect-ratio:1;border-radius:50%;border:0;color:#fff;font:400 1.3rem/1.15 'Lilita One',sans-serif;
-  background:radial-gradient(circle at 50% 35%,#ff7a5c,#d8352a 70%);box-shadow:0 10px 0 #8f1f17,0 16px 30px rgba(0,0,0,.5);
-  transition:transform .08s,box-shadow .08s;touch-action:none;-webkit-tap-highlight-color:transparent}
-#walkie .wk-ptt.down{transform:translateY(8px) scale(.97);box-shadow:0 2px 0 #8f1f17,0 6px 16px rgba(0,0,0,.5);background:radial-gradient(circle at 50% 35%,#ff9a6c,#ff4a35 70%)}
-#walkie .wk-ptt:disabled{filter:grayscale(.8) brightness(.7)}
-#walkie .wk-ptt small{display:block;font:800 .8rem Nunito,sans-serif;opacity:.85;margin-top:4px}
-#walkie .wk-rules{font:700 .9rem Nunito,sans-serif;color:#BFEFFF;text-align:center;margin:6px 0 12px;opacity:.9}
-#walkie .wk-rules b{color:#7FE8FF}
-#walkie .wk-diag{font:600 .72rem ui-monospace,Menlo,monospace;opacity:.45;text-align:center}
-#walkie .wk-err{color:#FFB4A8;text-align:center;max-width:420px}
-#walkie .wk-retry{margin-top:8px;background:#F2BE62;color:#3A1C06;border:0;border-radius:999px;padding:12px 20px;font:800 1rem Nunito,sans-serif}
-#walkie .wk-tool{font:800 .85rem Nunito,sans-serif;color:#FFE98A;text-align:center;min-height:1.2em}
-/* inkomende oproep: de radiotelefoon gaat over */
-#wk-ring{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:space-between;
-  padding:calc(env(safe-area-inset-top,0px) + 22px) 18px calc(env(safe-area-inset-bottom,0px) + 22px);color:#EAF2FF;font-family:Nunito,system-ui,sans-serif;
-  background:linear-gradient(rgba(60,74,102,.35) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,rgba(60,74,102,.35) 1px,transparent 1px) 0 0/40px 40px,radial-gradient(120% 80% at 50% 30%,#33405A 0%,#0B0F18 72%);-webkit-user-select:none;user-select:none}
-#wk-ring .rg-top{text-align:center;display:flex;flex-direction:column;gap:6px;align-items:center}
-#wk-ring .rg-eye{font:700 .78rem 'Chakra Petch',ui-monospace,monospace;letter-spacing:.16em;text-transform:uppercase;color:#7FE8FF;animation:wk-blink 1.1s steps(1) infinite}
-#wk-ring h2{margin:0;font:400 2rem 'Lilita One',system-ui,sans-serif;color:#F2BE62;text-shadow:0 3px 0 #9A5419,0 0 24px rgba(242,190,98,.25)}
-#wk-ring .rg-sub{font-weight:800;color:#BFEFFF;max-width:420px}
-#wk-ring .mslot{background:radial-gradient(circle at 50% 40%,#1E3352,#0E1B2E 75%);border-radius:28px;padding:8px;box-shadow:0 10px 40px rgba(0,0,0,.5),0 0 24px rgba(127,232,255,.25),inset 0 0 0 3px #7FE8FF;animation:wk-ring 1.7s ease-in-out infinite}
-#wk-ring .rg-btns{width:100%;max-width:420px;display:flex;flex-direction:column;gap:12px;align-items:center}
-#wk-ring .rg-answer{width:100%;min-height:84px;border:0;border-radius:999px;color:#062814;font:400 1.6rem 'Lilita One',system-ui,sans-serif;letter-spacing:.02em;
-  background:linear-gradient(180deg,#86F0AE 0%,#4ADE80 50%,#2FBF66 100%);box-shadow:0 6px 0 #1F8A4C,0 0 24px rgba(74,222,128,.35);touch-action:manipulation}
+#walkie[role=dialog],#wk-ring{--led:#7FE8FF;--gold:#F2BE62;--red:#FF5A4E;--ok:#4ADE80;--ink:#EAF2FF;--muted:#93A0B8;--visor:#0E1B2E;
+  --display:'Lilita One','Arial Rounded MT Bold',system-ui,sans-serif;--body:Nunito,'Segoe UI',system-ui,sans-serif;--hud:'Chakra Petch',ui-monospace,Menlo,monospace;
+  position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;gap:10px;
+  padding:calc(env(safe-area-inset-top,0px) + 10px) 12px calc(env(safe-area-inset-bottom,0px) + 14px);
+  background:${BG};color:var(--ink);font-family:var(--body);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
+/* ---- het "videobeeld": Mecha-Pof groot in beeld */
+.wk-screen{position:relative;flex:1;width:100%;max-width:520px;min-height:0;border-radius:30px;overflow:hidden;
+  background:radial-gradient(circle at 50% 38%,#1E3352 0%,var(--visor) 70%,#070C15 100%);
+  box-shadow:0 14px 48px rgba(0,0,0,.55),0 0 28px rgba(127,232,255,.22),inset 0 0 0 3px var(--led);
+  display:flex;flex-direction:column}
+.wk-screen::before{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 1px,transparent 1px 4px),radial-gradient(90% 70% at 50% 50%,transparent 55%,rgba(0,0,0,.45) 100%)}
+.wk-screen::after{content:"";position:absolute;inset:3px;pointer-events:none;border-radius:27px;box-shadow:inset 0 0 40px rgba(127,232,255,.12)}
+.wk-screen.tx{box-shadow:0 14px 48px rgba(0,0,0,.55),0 0 34px rgba(255,90,78,.35),inset 0 0 0 3px var(--red)}
+.wk-screen.tx::after{box-shadow:inset 0 0 44px rgba(255,90,78,.18)}
+.wk-hud{position:relative;z-index:2;display:flex;align-items:center;gap:8px;padding:12px 14px 0;font:700 .72rem var(--hud);letter-spacing:.14em;text-transform:uppercase;color:var(--led)}
+.wk-live{display:flex;align-items:center;gap:7px;background:rgba(7,12,21,.55);border-radius:999px;padding:5px 10px 5px 7px;backdrop-filter:blur(4px)}
+.wk-led{width:9px;height:9px;border-radius:50%;background:#4A5058;box-shadow:0 0 0 2px rgba(255,255,255,.06);flex:none}
+.wk-led.on{background:var(--ok);box-shadow:0 0 10px var(--ok)}
+.wk-led.tx{background:var(--red);box-shadow:0 0 12px var(--red);animation:wk-blink .9s steps(1) infinite}
+.wk-led.wait{background:var(--gold);box-shadow:0 0 10px var(--gold);animation:wk-blink 1.1s steps(1) infinite}
+.wk-name{flex:1;font:400 1.15rem var(--display);letter-spacing:.02em;text-transform:none;color:var(--ink);text-shadow:0 2px 0 rgba(0,0,0,.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wk-time{font-variant-numeric:tabular-nums;color:var(--ink);opacity:.9}
+.wk-sig{display:flex;align-items:flex-end;gap:2px;height:14px}
+.wk-sig i{display:block;width:4px;border-radius:1px;background:rgba(127,232,255,.25)}
+.wk-sig i:nth-child(1){height:5px}.wk-sig i:nth-child(2){height:8px}.wk-sig i:nth-child(3){height:11px}.wk-sig i:nth-child(4){height:14px}
+.wk-sig.ok i{background:var(--led);box-shadow:0 0 6px rgba(127,232,255,.6)}
+.wk-sig.wait i{animation:wk-sig 1.2s ease-in-out infinite}
+.wk-sig.wait i:nth-child(2){animation-delay:.15s}.wk-sig.wait i:nth-child(3){animation-delay:.3s}.wk-sig.wait i:nth-child(4){animation-delay:.45s}
+/* jouw "camerabeeld" rechtsboven: je stem als balkjes */
+.wk-pip{position:absolute;z-index:2;top:46px;right:12px;width:74px;height:98px;border-radius:16px;background:rgba(7,12,21,.72);border:2px solid rgba(127,232,255,.35);
+  box-shadow:0 6px 18px rgba(0,0,0,.5);display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;padding:8px 6px;backdrop-filter:blur(6px);transition:border-color .2s,box-shadow .2s}
+.wk-pip.tx{border-color:var(--red);box-shadow:0 6px 18px rgba(0,0,0,.5),0 0 16px rgba(255,90,78,.45)}
+.wk-pip.live{border-color:var(--ok)}
+.wk-bars{display:flex;align-items:flex-end;gap:4px;height:38px;color:var(--led)}
+.wk-pip.tx .wk-bars{color:var(--red)}.wk-pip.live .wk-bars{color:var(--ok)}
+.wk-bars i{display:block;width:6px;height:100%;border-radius:3px;background:currentColor;transform:scaleY(.12);transform-origin:bottom;box-shadow:0 0 6px currentColor;will-change:transform}
+.wk-pip-lbl{font:700 .62rem var(--hud);letter-spacing:.14em;color:var(--muted)}
+.wk-pip.tx .wk-pip-lbl{color:var(--red)}.wk-pip.live .wk-pip-lbl{color:var(--ok)}
+.wk-stage{position:relative;z-index:1;flex:1;display:flex;align-items:center;justify-content:center;min-height:0;padding:6px 0}
+#walkie .mslot{display:flex;align-items:center;justify-content:center}
+#walkie .mslot .pkmon.lg{width:min(80vw,320px,44vh)}
+/* ondertitels onderaan het beeld */
+.wk-foot{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 14px 8px;text-align:center}
+.wk-state{font:800 1.05rem var(--body);min-height:1.5em;color:var(--ink);text-shadow:0 2px 6px rgba(0,0,0,.7)}
+.wk-said{max-width:100%;min-height:1.4em;font:700 .95rem/1.3 var(--body);color:var(--ink);background:rgba(7,12,21,.62);border-radius:12px;padding:6px 12px;backdrop-filter:blur(4px)}
+.wk-said:empty{display:none}
+.wk-tool{font:800 .85rem var(--body);color:#FFE98A;min-height:0}
+.wk-tool:empty{display:none}
+.wk-diag{position:relative;z-index:2;padding:0 10px 5px;font:600 .6rem var(--hud);opacity:.4;text-align:center;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wk-err{color:#FFB4A8;text-align:center;max-width:420px;font-weight:700}
+.wk-retry{margin-top:4px;background:var(--gold);color:#3A1C06;border:0;border-radius:999px;padding:12px 20px;font:800 1rem var(--body)}
+/* ---- regels + bedieningsbalk (zoals FaceTime: ronde knoppen, rood ophangen) */
+.wk-rules{font:700 .86rem var(--body);color:#BFEFFF;text-align:center;opacity:.9;min-height:1.2em}
+.wk-rules b{color:var(--led)}
+.wk-bar{width:100%;max-width:520px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;justify-items:center;gap:8px;padding:0 6px}
+.wk-rnd{display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;color:var(--ink);font:800 .72rem var(--body);padding:4px;-webkit-tap-highlight-color:transparent}
+.wk-rnd .ic{display:flex;align-items:center;justify-content:center;width:62px;height:62px;border-radius:50%;background:rgba(255,255,255,.12);box-shadow:inset 0 0 0 2px rgba(255,255,255,.08),0 6px 16px rgba(0,0,0,.4);font-size:1.6rem;transition:transform .08s}
+.wk-rnd:active .ic{transform:scale(.94)}
+.wk-rnd small{color:var(--muted);font:800 .72rem var(--body)}
+.wk-mode.open .ic{background:rgba(127,232,255,.18);box-shadow:inset 0 0 0 2px var(--led),0 6px 16px rgba(0,0,0,.4)}
+.wk-mode.open small{color:var(--led)}
+.wk-hang .ic{background:linear-gradient(180deg,#ff7a6e,#d8352a);box-shadow:0 5px 0 #8f1f17,0 10px 20px rgba(0,0,0,.45)}
+.wk-hang .ic span{display:block;transform:rotate(135deg)}
+.wk-hang:active .ic{transform:translateY(3px);box-shadow:0 2px 0 #8f1f17}
+/* de praatknop */
+.wk-ptt{width:132px;height:132px;border-radius:50%;border:0;color:#fff;font:400 1.15rem/1.1 var(--display);letter-spacing:.01em;
+  background:radial-gradient(circle at 50% 35%,#ff7a5c,#d8352a 70%);box-shadow:0 10px 0 #8f1f17,0 16px 30px rgba(0,0,0,.5),0 0 0 6px rgba(255,90,78,.15);
+  transition:transform .08s,box-shadow .08s,background .2s;touch-action:none;-webkit-tap-highlight-color:transparent}
+.wk-ptt.down{transform:translateY(8px) scale(.97);box-shadow:0 2px 0 #8f1f17,0 6px 16px rgba(0,0,0,.5),0 0 0 10px rgba(255,90,78,.25);background:radial-gradient(circle at 50% 35%,#ff9a6c,#ff4a35 70%)}
+.wk-ptt:disabled{filter:grayscale(.8) brightness(.7)}
+.wk-ptt small{display:block;font:800 .74rem var(--body);opacity:.85;margin-top:3px}
+/* vrij praten: de knop is een microfoon aan/uit */
+.wk-ptt.mic{background:radial-gradient(circle at 50% 35%,#86F0AE,#2FBF66 70%);box-shadow:0 10px 0 #1F8A4C,0 16px 30px rgba(0,0,0,.5),0 0 0 6px rgba(74,222,128,.15);color:#062814}
+.wk-ptt.mic small{opacity:.8}
+.wk-ptt.mic.off{background:radial-gradient(circle at 50% 35%,#6B7688,#3C4555 70%);box-shadow:0 10px 0 #232A36,0 16px 30px rgba(0,0,0,.5);color:var(--ink)}
+.wk-ptt.mic:active{transform:translateY(6px);box-shadow:0 3px 0 #1F8A4C,0 6px 16px rgba(0,0,0,.5)}
+.wk-ptt.mic.off:active{box-shadow:0 3px 0 #232A36,0 6px 16px rgba(0,0,0,.5)}
+/* ---- inkomende oproep: de radiotelefoon gaat over */
+#wk-ring{justify-content:space-between;gap:14px;padding-top:calc(env(safe-area-inset-top,0px) + 14px)}
+#wk-ring .rg-screen{position:relative;flex:1;width:100%;max-width:520px;min-height:0;border-radius:30px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:14px;
+  background:radial-gradient(circle at 50% 38%,#1E3352 0%,var(--visor) 70%,#070C15 100%);box-shadow:0 14px 48px rgba(0,0,0,.55),0 0 28px rgba(127,232,255,.22),inset 0 0 0 3px var(--led);animation:wk-ringglow 1.7s ease-in-out infinite}
+#wk-ring .rg-screen::before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 1px,transparent 1px 4px)}
+#wk-ring .rg-eye{position:absolute;z-index:1;top:14px;left:50%;transform:translateX(-50%);font:700 .74rem var(--hud);letter-spacing:.16em;text-transform:uppercase;color:var(--led);animation:wk-blink 1.1s steps(1) infinite;background:rgba(7,12,21,.55);border-radius:999px;padding:5px 12px}
+#wk-ring .mslot{position:relative;z-index:1;animation:wk-ring 1.7s ease-in-out infinite}
+#wk-ring .mslot .pkmon.lg{width:min(80vw,320px,42vh)}
+#wk-ring h2{position:relative;z-index:1;margin:0;font:400 2rem var(--display);color:var(--gold);text-shadow:0 3px 0 #9A5419,0 0 24px rgba(242,190,98,.25);text-align:center}
+#wk-ring .rg-sub{position:relative;z-index:1;margin:0;font-weight:800;color:#BFEFFF;max-width:420px;text-align:center}
+#wk-ring .rg-btns{width:100%;max-width:420px;display:flex;flex-direction:column;gap:10px;align-items:center}
+#wk-ring .rg-answer{width:100%;min-height:84px;border:0;border-radius:999px;color:#062814;font:400 1.6rem var(--display);letter-spacing:.02em;
+  background:linear-gradient(180deg,#86F0AE 0%,#4ADE80 50%,#2FBF66 100%);box-shadow:0 6px 0 #1F8A4C,0 0 24px rgba(74,222,128,.35);touch-action:manipulation;animation:wk-pulse 1.7s ease-in-out infinite}
 #wk-ring .rg-answer:active{transform:translateY(4px);box-shadow:0 2px 0 #1F8A4C}
-#wk-ring .rg-later{background:transparent;border:0;color:#93A0B8;text-decoration:underline;font:800 .95rem Nunito,sans-serif;min-height:44px;padding:8px 14px}
+#wk-ring .rg-later{background:transparent;border:0;color:var(--muted);text-decoration:underline;font:800 .95rem var(--body);min-height:44px;padding:8px 14px}
 @keyframes wk-ring{0%,100%{transform:rotate(0)}10%{transform:rotate(-3deg) translateX(-3px)}20%{transform:rotate(3deg) translateX(3px)}30%{transform:rotate(-2deg)}40%{transform:rotate(2deg)}50%{transform:none}}
+@keyframes wk-ringglow{0%,100%{box-shadow:0 14px 48px rgba(0,0,0,.55),0 0 28px rgba(127,232,255,.22),inset 0 0 0 3px var(--led)}50%{box-shadow:0 14px 48px rgba(0,0,0,.55),0 0 44px rgba(127,232,255,.5),inset 0 0 0 3px #B9F3FF}}
+@keyframes wk-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
 @keyframes wk-blink{0%,55%{opacity:1}56%,100%{opacity:.35}}
-@media (prefers-reduced-motion:reduce){#walkie .wk-ptt{transition:none}#wk-ring .mslot,#wk-ring .rg-eye{animation:none}}`;
+@keyframes wk-sig{0%,100%{opacity:.25}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.wk-ptt,.wk-rnd .ic{transition:none}#wk-ring .mslot,#wk-ring .rg-eye,#wk-ring .rg-screen,#wk-ring .rg-answer,.wk-led,.wk-sig i{animation:none}}`;
   document.head.appendChild(s);
 }
 
 // iPhone: het geluid van het monster speelt via een <audio>-element van de SDK. Safari start dat soms pas na een
-// echte tik, dus bij elke tik op de walkietalkie duwen we het afspelen nog eens aan.
-function kickPlayback(conv) {
+// echte tik, dus bij elke tik op de walkietalkie duwen we het afspelen nog eens aan. `unmute` false = laat gedempte
+// elementen gedempt (tijdens het zenden).
+function kickPlayback(conv, unmute = true) {
   try { conv?.connection?.getRoom?.()?.startAudio?.().catch?.(() => {}); } catch {}
-  for (const a of document.querySelectorAll('audio')) { try { a.muted = false; if (a.paused) a.play().catch(() => {}); } catch {} }
+  for (const a of document.querySelectorAll('audio')) { try { if (unmute) a.muted = false; if (a.paused) a.play().catch(() => {}); } catch {} }
 }
+const fmtTime = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
 
 export function openWalkie({ mon, context = () => ({}), onClose, greeting: firstGreeting = null, tools = null, incoming = false } = {}) {
   injectCss();
@@ -148,52 +219,122 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
   const el = document.createElement('div'); el.id = 'walkie';
   el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Walkietalkie met Mecha-Pof');
   el.innerHTML = `
-    <div class="wk-top"><span class="wk-led" aria-hidden="true"></span><h2>Mecha-Pof · walkietalkie</h2><button class="wk-x" data-a="close">Ophangen</button></div>
-    <div class="wk-mid"><div class="mslot" data-size="lg"></div><div class="wk-state" aria-live="polite">Verbinden…</div><div class="wk-said"></div><div class="wk-tool" aria-live="polite"></div><div class="wk-diag" aria-hidden="true"></div></div>
+    <div class="wk-screen">
+      <div class="wk-hud"><span class="wk-live"><i class="wk-led wait" aria-hidden="true"></i><span class="wk-livetxt">Verbinden</span></span><span class="wk-name">Mecha-Pof</span><span class="wk-time">00:00</span><span class="wk-sig wait" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div>
+      <div class="wk-pip" aria-label="Jouw microfoon"><span class="wk-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span class="wk-pip-lbl">Jij</span></div>
+      <div class="wk-stage"><div class="mslot" data-size="lg"></div></div>
+      <div class="wk-foot"><div class="wk-state" aria-live="polite">Verbinden…</div><div class="wk-said"></div><div class="wk-tool" aria-live="polite"></div></div>
+      <div class="wk-diag" aria-hidden="true"></div>
+    </div>
     <div class="wk-rules">Eindig met <b>“over”</b> · klaar? Zeg <b>“over en sluiten”</b></div>
-    <button class="wk-ptt" disabled aria-label="Houd ingedrukt om te praten">Houd vast<small>om te praten</small></button>`;
+    <div class="wk-bar">
+      <button class="wk-rnd wk-mode" data-a="mode" aria-label="Praatstand wisselen"><span class="ic">✋</span><small>Houd vast</small></button>
+      <button class="wk-ptt" disabled aria-label="Houd ingedrukt om te praten">Houd vast<small>om te praten</small></button>
+      <button class="wk-rnd wk-hang" data-a="close" aria-label="Ophangen"><span class="ic"><span>📞</span></span><small>Ophangen</small></button>
+    </div>`;
   document.body.appendChild(el);
   const $ = s => el.querySelector(s);
-  const led = $('.wk-led'), stateEl = $('.wk-state'), said = $('.wk-said'), ptt = $('.wk-ptt'), toolEl = $('.wk-tool');
+  const screen = $('.wk-screen'), led = $('.wk-led'), liveTxt = $('.wk-livetxt'), timeEl = $('.wk-time'), sig = $('.wk-sig'), pip = $('.wk-pip'), bars = [...el.querySelectorAll('.wk-bars i')];
+  const stateEl = $('.wk-state'), said = $('.wk-said'), ptt = $('.wk-ptt'), toolEl = $('.wk-tool'), modeBtn = $('.wk-mode');
   if (mon) { $('.mslot').appendChild(mon.el); mon.setSize('lg'); }
 
   const diag = el.querySelector('.wk-diag'); let diagN = 0, conn = 'verbinden';
-  let conv = null, closed = false, mode = 'listening', pressing = false, thinkingSince = 0, tailTimer = 0, raf = 0, prevVol = 1;
+  let conv = null, closed = false, mode = 'listening', pressing = false, thinkingSince = 0, tailTimer = 0, raf = 0;
+  let pttMode = getWalkieMode(), micOn = false, startedAt = 0, lastSec = -1;
   // over en sluiten: ending = kind zei het, het monster zegt nog gedag; daarna ophangen. calledBack = al een keer teruggebeld.
   let sessId = 0, ending = false, endSpoke = false, endTimer = 0, everConnected = false, calledBack = false, callbackMode = false;
   const setState = t => { stateEl.textContent = t; };
+  const setLed = (cls, txt) => { led.className = 'wk-led ' + cls; liveTxt.textContent = txt; };
+  const open = () => pttMode === 'open';
+  const transmitting = () => pressing || (open() && micOn && !!conv);
 
-  // ---- elk frame: fase + volumes naar het monster
+  // ---- dempen van het monster terwijl je zendt (zie kop: .muted, want iOS negeert .volume)
+  let ducked = false; const duckedEls = new Set();
+  function duck(on) {
+    ducked = !!on;
+    try { conv?.setVolume({ volume: on ? 0 : 1 }); } catch {}
+    if (on) { for (const a of document.querySelectorAll('audio')) { try { if (!a.muted) { a.muted = true; duckedEls.add(a); } } catch {} } }
+    else { for (const a of duckedEls) { try { a.muted = false; } catch {} } duckedEls.clear(); }
+  }
+
+  // ---- praatstand: knop vasthouden of vrij praten
+  function applyMode() {
+    const o = open();
+    modeBtn.classList.toggle('open', o);
+    modeBtn.querySelector('.ic').textContent = o ? '🎧' : '✋';
+    modeBtn.querySelector('small').textContent = o ? 'Vrij praten' : 'Houd vast';
+    ptt.classList.toggle('mic', o);
+    if (o) {
+      ptt.classList.toggle('off', !micOn);
+      ptt.innerHTML = micOn ? 'Mic aan<small>tik om te dempen</small>' : 'Mic uit<small>tik om te praten</small>';
+      ptt.setAttribute('aria-label', micOn ? 'Microfoon uitzetten' : 'Microfoon aanzetten');
+    } else {
+      ptt.classList.remove('off', 'down');
+      ptt.innerHTML = 'Houd vast<small>om te praten</small>';
+      ptt.setAttribute('aria-label', 'Houd ingedrukt om te praten');
+    }
+    $('.wk-rules').innerHTML = o ? 'Gewoon praten · eindig met <b>“over”</b> · klaar? <b>“over en sluiten”</b>' : 'Eindig met <b>“over”</b> · klaar? Zeg <b>“over en sluiten”</b>';
+    if (conv && !ending) {
+      if (o) { try { conv.setMicMuted(!micOn); } catch {} duck(false); setState(micOn ? '🎧 De lijn staat open. Praat maar!' : 'Tik op de knop om je microfoon aan te zetten'); }
+      else { pressing = false; clearTimeout(tailTimer); try { conv.setMicMuted(true); } catch {} duck(false); setState('Houd de knop vast om iets te zeggen'); }
+    }
+  }
+  function toggleMode() {
+    if (pressing) up();
+    pttMode = open() ? 'hold' : 'open'; setWalkieMode(pttMode);
+    micOn = open() && !!conv;          // vrij praten begint met de microfoon aan
+    audio.play('zend'); audio.buzz(20);
+    applyMode();
+  }
+  function toggleMic() {
+    if (!conv || !open()) return;
+    micOn = !micOn; kickPlayback(conv);
+    try { conv.setMicMuted(!micOn); } catch {}
+    audio.play(micOn ? 'zend' : 'over'); audio.buzz(micOn ? 25 : [15, 40, 15]);
+    applyMode();
+  }
+
+  // ---- elk frame: fase + volumes naar het monster, balkjes in je eigen beeldje, klok
   function frame() {
     raf = 0; if (closed) return;
+    const t = performance.now();
     let phase = 'praat', out = 0, inp = 0;
     if (conv) {
       try { out = conv.getOutputVolume?.() || 0; inp = conv.getInputVolume?.() || 0; } catch {}
       if (pressing) phase = 'luister';
       else if (mode === 'speaking') { phase = 'praat'; thinkingSince = 0; }
+      else if (open() && micOn && inp > TALK_LEVEL) { phase = 'luister'; thinkingSince = 0; }
       else if (thinkingSince) {
         phase = 'denk';
-        if (performance.now() - thinkingSince > THINK_MAX_MS) { thinkingSince = 0; setState('Hmm, het monster zegt niks. Probeer het nog eens.'); }
+        if (t - thinkingSince > THINK_MAX_MS) { thinkingSince = 0; setState('Hmm, het monster zegt niks. Probeer het nog eens.'); }
       }
     }
     // volume (0 = -100 dB, 1 = -30 dB) omzetten naar mondopening: stil = dicht, gewone spraak = halfopen, hard = wijd
     const mouth = Math.max(0, Math.min(1, (out - 0.12) * 1.7));
     const ear = Math.max(0, Math.min(1, (inp - 0.1) * 1.6));
     mon?.live(phase, { out: mouth, in: ear });
-    if (++diagN % 15 === 0) diag.textContent = conv ? `${conn} · ${mode} · monster ${out.toFixed(2)} · mic ${inp.toFixed(2)} · ${document.querySelectorAll('audio').length}🔈 · ${navigator.audioSession?.type || '-'}` : conn;
+    // jouw beeldje: vijf balkjes dansen op je stem (lichte golf zodat het leeft, ook als je stil bent)
+    const tx = transmitting(); pip.classList.toggle('tx', pressing); pip.classList.toggle('live', tx && !pressing); screen.classList.toggle('tx', pressing);
+    for (let i = 0; i < bars.length; i++) {
+      const wave = 0.5 + 0.5 * Math.sin(t / 160 + i * 1.3);
+      const h = tx ? 0.12 + ear * (0.45 + 0.55 * wave) : 0.08 + 0.05 * wave;
+      bars[i].style.transform = `scaleY(${Math.max(0.06, Math.min(1, h)).toFixed(3)})`;
+    }
+    if (startedAt) { const sec = Math.floor((t - startedAt) / 1000); if (sec !== lastSec) { lastSec = sec; timeEl.textContent = fmtTime(t - startedAt); } }
+    if (++diagN % 15 === 0) diag.textContent = conv ? `${conn} · ${mode} · ${pttMode}${open() ? (micOn ? '/mic' : '/stil') : ''} · monster ${out.toFixed(2)} · mic ${inp.toFixed(2)} · ${document.querySelectorAll('audio').length}🔈 · ${navigator.audioSession?.type || '-'}` : conn;
     raf = requestAnimationFrame(frame);
   }
 
-  // ---- knop: ingedrukt houden
+  // ---- knop vasthouden: indrukken = zenden (microfoon open, monster gedempt), loslaten = het monster antwoordt
   function down(e) {
-    if (!conv || pressing) return;
+    if (!conv || pressing || open()) return;
     e?.preventDefault?.();
     pressing = true; clearTimeout(tailTimer);
-    kickPlayback(conv);
+    kickPlayback(conv, false);
     try { ptt.setPointerCapture?.(e.pointerId); } catch {}
-    try { prevVol = 1; conv.setVolume({ volume: 0 }); } catch {}  // zenden = niet tegelijk horen (en geen echo)
+    duck(true);                                   // zenden = het monster niet tegelijk horen (en geen echo)
     try { conv.setMicMuted(false); } catch {}
-    ptt.classList.add('down'); led.className = 'wk-led tx';
+    ptt.classList.add('down'); setLed('tx', 'Zendt');
     audio.play('zend'); audio.buzz(25);
     setState('🎙️ Praat maar… het monster luistert');
   }
@@ -201,21 +342,26 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
     if (!pressing) return;
     e?.preventDefault?.();
     pressing = false;
-    ptt.classList.remove('down'); led.className = 'wk-led on';
+    ptt.classList.remove('down'); setLed('on', 'Live');
     audio.play('over'); audio.buzz([15, 40, 15]);
     tailTimer = setTimeout(() => {
       try { conv?.setMicMuted(true); } catch {}
-      try { conv?.setVolume({ volume: prevVol }); } catch {}
+      duck(false);
     }, TAIL_MS);
     thinkingSince = performance.now();
     setState('🤔 Het monster denkt na…');
   }
-  ptt.addEventListener('pointerdown', down);
+  ptt.addEventListener('pointerdown', e => { if (open()) return; down(e); });
   for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) ptt.addEventListener(ev, up);
+  ptt.addEventListener('click', () => { if (open()) toggleMic(); });
   ptt.addEventListener('contextmenu', e => e.preventDefault());
-  const onKey = e => { if (e.code === 'Space' && !e.repeat) { e.type === 'keydown' ? down(e) : up(e); } };
+  const onKey = e => {
+    if (e.code !== 'Space' || e.repeat) return;
+    if (open()) { if (e.type === 'keydown') toggleMic(); return; }
+    e.type === 'keydown' ? down(e) : up(e);
+  };
   addEventListener('keydown', onKey); addEventListener('keyup', onKey);
-  el.addEventListener('click', e => { const a = e.target.closest('[data-a]')?.dataset.a; if (a === 'close') close(); if (a === 'retry') { connect(); } });
+  el.addEventListener('click', e => { const a = e.target.closest('[data-a]')?.dataset.a; if (a === 'close') close(); if (a === 'retry') connect(); if (a === 'mode') toggleMode(); });
   // (close() zonder force belt terug als er niet met "over en sluiten" is afgesloten; zie callBack())
 
   // ---- client tools (ElevenLabs "Client" tools): de agent roept ze aan, de browser voert ze uit en geeft een korte tekst terug.
@@ -236,7 +382,7 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
   // ---- verbinden
   async function connect() {
     $('.wk-err')?.remove(); $('.wk-retry')?.remove(); ptt.hidden = false;
-    setState('📡 Verbinden met het monster…'); ptt.disabled = true; led.className = 'wk-led';
+    setState('📡 Verbinden met het monster…'); ptt.disabled = true; setLed('wait', 'Verbinden'); sig.className = 'wk-sig wait';
     try {
       setRecording(true); // iOS: anders "AudioSession category is not compatible with audio capture"
       const [El, token] = await Promise.all([loadSdk(), getToken()]);
@@ -253,7 +399,7 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
         dynamicVariables: vars({ ...ctx, begroeting }),
         clientTools: clientTools(),
         useWakeLock: true,
-        onConnect: () => { led.className = 'wk-led on'; conn = 'verbonden'; },
+        onConnect: () => { setLed('on', 'Live'); sig.className = 'wk-sig ok'; conn = 'verbonden'; if (!startedAt) startedAt = performance.now(); },
         onStatusChange: ({ status }) => { conn = status; },
         onModeChange: ({ mode: m }) => {
           if (!live()) return;
@@ -261,7 +407,7 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
           if (ending) { if (m === 'speaking') endSpoke = true; else if (endSpoke) { clearTimeout(endTimer); endTimer = setTimeout(() => close({ force: true }), 700); } }
           if (closed || pressing) return;
           if (m === 'speaking') setState('🤖 Mecha-Pof praat…');
-          else if (!thinkingSince) setState('Houd de knop vast om iets te zeggen');
+          else if (!thinkingSince) setState(open() ? (micOn ? '🎧 De lijn staat open. Praat maar!' : 'Tik op de knop om je microfoon aan te zetten') : 'Houd de knop vast om iets te zeggen');
         },
         onMessage: ({ source, message }) => {
           if (!live()) return;
@@ -269,6 +415,7 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
             said.textContent = '“' + message + '”';
             if (saysSluiten(message) && !ending) { // netjes afgesloten: monster zegt gedag, dan hangen we op
               ending = true; endSpoke = false; ptt.disabled = true; setState('👋 Over en sluiten…');
+              if (open()) { micOn = false; try { conv?.setMicMuted(true); } catch {} applyMode(); }
               clearTimeout(endTimer); endTimer = setTimeout(() => close({ force: true }), 9000); // vangnet als er geen gedag komt
             }
           }
@@ -279,10 +426,12 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
       });
       if (closed) { try { await conv.endSession(); } catch {} return; }
       firstGreeting = null; // de eigen openingszin geldt één keer; terugbellen krijgt een terugbelzin
-      try { conv.setMicMuted(true); } catch {}
-      kickPlayback(conv); setTimeout(() => kickPlayback(conv), 800);
-      el.addEventListener('pointerdown', () => kickPlayback(conv), { capture: true });
-      ptt.disabled = false; led.className = 'wk-led on'; everConnected = true;
+      micOn = open();      // vrij praten: lijn meteen open; vasthouden: microfoon dicht tot de knop ingedrukt wordt
+      try { conv.setMicMuted(!micOn); } catch {}
+      kickPlayback(conv); setTimeout(() => kickPlayback(conv, !ducked), 800);
+      el.addEventListener('pointerdown', () => kickPlayback(conv, !ducked), { capture: true });
+      ptt.disabled = false; setLed('on', 'Live'); everConnected = true;
+      applyMode();
       setState(callbackMode ? '📞 Mecha-Pof belt terug…' : incoming ? '📞 Opgenomen! Mecha-Pof praat zo…' : 'Mecha-Pof neemt op…');
       thinkingSince = performance.now(); // het eerste bericht (begroeting) komt vanzelf
     } catch (err) {
@@ -290,21 +439,21 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
     }
   }
   function fail(msg) {
-    conv = null; ptt.disabled = true; pressing = false; ptt.classList.remove('down'); led.className = 'wk-led'; thinkingSince = 0;
+    conv = null; ptt.disabled = true; pressing = false; ptt.classList.remove('down'); setLed('', 'Geen lijn'); sig.className = 'wk-sig'; thinkingSince = 0; duck(false);
     setState('📵 Geen verbinding'); ptt.hidden = true;
     const m = /audiosession/i.test(msg) ? 'De iPhone gaf de microfoon niet vrij. Tik op Opnieuw proberen.' : /permission|notallowed|denied/i.test(msg) ? 'De microfoon mag niet. Sta de microfoon toe voor deze website en probeer opnieuw.' : msg;
-    $('.wk-mid').insertAdjacentHTML('beforeend', `<p class="wk-err">${m.replace(/[<>&]/g, '')}</p><button class="wk-retry" data-a="retry">Opnieuw proberen</button>`);
+    $('.wk-foot').insertAdjacentHTML('beforeend', `<p class="wk-err">${m.replace(/[<>&]/g, '')}</p><button class="wk-retry" data-a="retry">Opnieuw proberen</button>`);
   }
 
   // Ophangen zonder "over en sluiten": meteen terugbellen (één keer). De tweede keer hangt de knop echt op.
   let switching = false;
   async function callBack() {
     calledBack = true; callbackMode = true; switching = true; sessId++;
-    const c = conv; conv = null; thinkingSince = 0; pressing = false; ptt.classList.remove('down');
+    const c = conv; conv = null; thinkingSince = 0; pressing = false; ptt.classList.remove('down'); duck(false);
     try { await c?.endSession(); } catch {}
     switching = false;
     if (closed) return;
-    ptt.disabled = true; led.className = 'wk-led tx';
+    ptt.disabled = true; setLed('wait', 'Belt terug'); sig.className = 'wk-sig wait';
     setState('📞 Tring tring… Mecha-Pof belt terug!'); said.textContent = 'Ophangen doe je met “over en sluiten”.';
     audio.play('bel'); audio.buzz([200, 120, 200]);
     setTimeout(() => { if (!closed) { audio.play('bel'); audio.buzz([200, 120, 200]); } }, 1100);
@@ -318,12 +467,14 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
     removeEventListener('keydown', onKey); removeEventListener('keyup', onKey);
     mon?.live(null);
     const c = conv; conv = null;
+    duck(false);
     try { await c?.endSession(); } catch {}
     setRecording(false);
     el.remove();
     onClose?.();
   }
 
+  applyMode();
   connect();
   raf = requestAnimationFrame(frame);
   return {
@@ -335,7 +486,7 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
 
 // ---------------------------------------------------------------- inkomende oproep (stop.arrived, monster.call)
 // Alleen de radiotelefoon (hasRole('radio'), index.html beslist dat). Belgeluid 'bel' uit audio.js elke 1,7 s plus trillen,
-// Mecha-Pof wiebelt in zijn slot, grote knop Opnemen. Opnemen → openWalkie met `greeting` als {{begroeting}}.
+// Mecha-Pof wiebelt in beeld, grote knop Opnemen. Opnemen → openWalkie met `greeting` als {{begroeting}}.
 // Later → onClose(); niets gezegd. Niet opgenomen binnen `timeout` → onMissed(greeting): de app zegt de tekst dan zelf.
 const RING_MS = 1700;
 export function incomingCall({ mon, context = () => ({}), greeting: text, title = 'Mecha-Pof belt!', sub = '', tools = null, timeout = 40_000, onAnswer, onMissed, onClose } = {}) {
@@ -348,8 +499,11 @@ export function incomingCall({ mon, context = () => ({}), greeting: text, title 
   el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Inkomende oproep van Mecha-Pof');
   const esc = s => String(s ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
   el.innerHTML = `
-    <div class="rg-top"><span class="rg-eye">📞 Inkomende oproep</span><h2>${esc(title)}</h2>${sub ? `<p class="rg-sub">${esc(sub)}</p>` : ''}</div>
-    <div class="mslot" data-size="lg"></div>
+    <div class="rg-screen">
+      <span class="rg-eye">📞 Inkomende oproep</span>
+      <div class="mslot" data-size="lg"></div>
+      <h2>${esc(title)}</h2>${sub ? `<p class="rg-sub">${esc(sub)}</p>` : ''}
+    </div>
     <div class="rg-btns"><button class="rg-answer" data-a="answer">📻 Opnemen</button><button class="rg-later" data-a="later">Later</button></div>`;
   document.body.appendChild(el);
 

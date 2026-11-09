@@ -239,7 +239,7 @@ stops gaat er nog steeds niet in.
 | `js/voice.js` | `voice.speak(text)` → speelt de zin met de monsterstem (mp3 uit de bucket, of via `monster-tts`). `uitspraak()` zet Evy → Eevie (alleen voor de stem). `VOICE_VERSION = 'pof1'`: ophogen bij een nieuwe stem, dan wordt alles opnieuw opgenomen. |
 | `js/monster.js` | `say()` probeert eerst `voice.speak()`; de mond volgt het echte volume (AnalyserNode). Lukt het niet binnen 7 s: Web Speech + baslijn zoals vroeger. Alles wat de app laat zeggen (zinnen, regieberichten, hints) gaat zo. |
 | `js/audio.js` | `decode()`, `playBuffer()` (stem met volumemeter), geluid `bel` (terugbellen). |
-| `js/walkie.js` | Begroeting kiezen (`{{begroeting}}`), "over en sluiten" herkennen in wat het kind zei → monster zegt gedag → ophangen. Ophangen zonder → één keer terugbellen met `walkie.terugbel`. Namen gaan als uitspraak mee (Eevie); op het scherm weer Evy. **Chat 5:** `openWalkie({ greeting, tools, incoming })` (eigen openingszin, client tools), `incomingCall()` (de radiotelefoon gaat over: belgeluid, knop Opnemen; niet opgenomen na 40 s → `onMissed`), `callGreeting({ part, naam, text })`. |
+| `js/walkie.js` | Begroeting kiezen (`{{begroeting}}`), "over en sluiten" herkennen in wat het kind zei → monster zegt gedag → ophangen. Ophangen zonder → één keer terugbellen met `walkie.terugbel`. Namen gaan als uitspraak mee (Eevie); op het scherm weer Evy. **Chat 5:** `openWalkie({ greeting, tools, incoming })` (eigen openingszin, client tools), `incomingCall()` (de radiotelefoon gaat over: belgeluid, knop Opnemen; niet opgenomen na 40 s → `onMissed`), `callGreeting({ part, naam, text })`. | **Walkie-scherm (9 nov):** FaceTime-achtig: Mecha-Pof groot in beeld met LIVE-lampje, gesprekstijd en signaalbalkjes, jouw stem als balkjes in het hoekje, ondertitels, ronde knoppen onderaan (praatstand · praatknop · rood Ophangen). Twee standen, onthouden in `localStorage pkm2_walkie_mode`: **Houd vast** (microfoon alleen open zolang de knop ingedrukt is; het monster is dan echt gedempt) en **Vrij praten** (test: lijn open als een gewoon telefoongesprek, de agent onderbreekt zichzelf; de grote knop is dan mic aan/uit). |
 | `js/navvoice.js` | Gesproken navigatie zodra `ogen` gevonden is: op de radiotelefoon, in fase onderweg, hooguit eens per 20 s, warmer/kouder t.o.v. de vorige zin (zinnen `navigatie` in monster-lines.js). |
 | `js/surprises.js` | Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens (events CONTRACTS §2 + `game.surprise`): banner onder de balk, overlay, badges `kruimelaar-vanger`, `vonkenvanger`, `jetpack-redder`, `wensvervuller`; 🎂-knop voor de jarige. Zonder `mond` geen alarm, alleen een piep. |
 | `js/puzzles/wachtwoord.js` | De wachtwoordstop (zie stap 6). |
@@ -268,7 +268,7 @@ dan zegt het scherm "geef de telefoon even aan …". Staat de walkie al open, da
    walkie-scherm roept `kickPlayback()` `room.startAudio()` en `audio.play()` aan.
 3. **Cache.** Bij elke wijziging in `audio.js` / `monster.js` / `walkie.js` / `voice.js` / `monster-lines.js` de `?v=` ophogen op álle plekken
    (index.html, test/monster.html, monster.js, walkie.js, voice.js), anders laadt Safari een oude versie zonder de nieuwe exports.
-   Stand nu (chat 5, 9 nov): monster 13, walkie 11, audio 9, lines 6, voice 3, roles 1, install 1, teaser 2, map 5, navvoice 1, surprises 1, `PUZZLE_V` 7.
+   Stand nu (9 nov, walkie-scherm): monster 13, walkie 12, audio 9, lines 6, voice 3, roles 1, install 1, teaser 2, map 5, navvoice 1, surprises 1, `PUZZLE_V` 7.
 4. **Diagnoseregel.** Het kleine grijze regeltje in de walkie (`connected · speaking · monster 0.45 · mic 0.00 · 1🔈 · auto`)
    blijft staan: daarmee zie je meteen of het monster praat, of er een geluidskanaal is en welke audioSession actief is.
 5. **Testen zonder microfoon** (bijv. de browser in de Claude-app): `getUserMedia` vervangen door een stille stream
@@ -293,6 +293,8 @@ dan zegt het scherm "geef de telefoon even aan …". Staat de walkie al open, da
 | De walkie zegt letterlijk "begroeting" of niets bij opnemen | First message is niet precies `{{begroeting}}` |
 | Andere stem gekozen, maar oude zinnen klinken nog | `VOICE_VERSION` in `js/voice.js` ophogen (+ `?v=` van voice.js) |
 | "De microfoon mag niet" | iPhone: Instellingen → Safari → Microfoon → Vraag/Sta toe; of "aA" in de adresbalk → Website-instellingen |
+| Het monster praat door terwijl je de knop indrukt (iPhone) | `setVolume()` zet `.volume` op het `<audio>`-element van de SDK en dat negeert iOS; walkie.js zet daarom ook `.muted` (`duck()`). Werkt het nog niet: kijk in de diagnoseregel of er 1🔈 staat |
+| Vrij praten: het monster onderbreekt zichzelf steeds of luistert niet | in het ElevenLabs-dashboard bij de agent: Advanced → Interruptions aan (barge-in), en Turn timeout wat ruimer; gebruik anders Houd vast |
 | Het monster blijft om "over" vragen terwijl ze het zeggen | iets duidelijker "over" zeggen en de knop pas daarna loslaten (er zit 0,45 s na-luistertijd in) |
 
 ## Privacy
