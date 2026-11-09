@@ -3,7 +3,7 @@
 // Geheimen (codes, missies, stop-geheimen) komen uit regie_state en staan alleen in `R`.
 import { state, PARTS, TALENTS } from './state.js';
 import { sync, IS_TEST } from './sync.js';
-import { LINES } from './monster-lines.js?v=10'; // wekzin (chat 7)
+import { LINES } from './monster-lines.js?v=11'; // wekzin (chat 7)
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);

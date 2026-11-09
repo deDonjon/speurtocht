@@ -3,7 +3,9 @@
 //   const fin = createFinale({ mon, state, audio, confetti, voice: () => true|false|undefined, onStage, key })
 //   fin.start()        speel de finale (kort, afwisselend zin / beeld / muziek): check → mega (onthulling) → rapje op dansmuziek
 //                      (dj, vers, hiep, dans) → dansstuk met confetti → taart (volgende missie) → eind. music() = speelt dit toestel de muziek
-//   fin.stage          'idle' | 'check' | 'mega' | 'vers' | 'confetti' | 'taart' | 'eind'
+//   fin.stage          'idle' | 'check' | 'mega' | 'vers' | 'confetti' | 'terugblik' | 'taart' | 'eind'
+//   fin.slide          tijdens 'terugblik': { i, n, item:{icon,title,sub} }
+//   highlights()       optioneel: (async) lijst dia's; anders buildHighlights(state.get())
 //   fin.done           true als de finale (op dit toestel) al gespeeld is; blijft bewaard per spel (localStorage)
 //   fin.reset()        opnieuw kunnen afspelen (kern.html: knop "Finale opnieuw")
 //   fin.voice()        doorgegeven aan mon.say: true = altijd hardop (kern), false = alleen tekst, undefined = alleen de radiotelefoon
@@ -12,7 +14,7 @@
 // Start: monster.js roept globalThis.pkm.finale.start() aan zodra het zevende deel (de hoed) na het installatieritueel geland is
 // en de installatiezin klaar is. Kern.html heeft ook een knop. Speelt per toestel één keer per spel.
 import { PARTS, TALENTS } from './state.js';
-import { LINES, NAAM_JARIGE } from './monster-lines.js?v=10';
+import { LINES, NAAM_JARIGE } from './monster-lines.js?v=11';
 
 const PART_KEYS = Object.keys(PARTS);
 const WOORDEN = ['nul', 'één', 'twee', 'drie', 'vier', 'vijf', 'zes', 'zeven', 'acht', 'negen', 'tien', 'elf', 'twaalf'];
@@ -77,11 +79,48 @@ export const END_CSS = `.fin-cards{display:grid;grid-template-columns:repeat(aut
 .fin-taart em{font-style:normal;font-size:clamp(2.4rem,7vw,5.5rem);line-height:1;animation:finPop .5s both}
 .fin-taart b{font-weight:900;font-size:clamp(.95rem,1.8vw,1.6rem);color:#fff}
 .fin-taart small{color:#93A0B8;font-weight:800;font-size:clamp(.75rem,1.1vw,1rem);letter-spacing:.12em;text-transform:uppercase}
-.fin-taart .pijl{font-size:clamp(1.6rem,3vw,2.6rem);color:#F2BE62}`;
+.fin-taart .pijl{font-size:clamp(1.6rem,3vw,2.6rem);color:#F2BE62}
+.fin-slide{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;animation:finSlide .45s both}
+.fin-slide em{font-style:normal;font-size:clamp(3rem,8vw,6.5rem);line-height:1.1}.fin-slide em.wide{font-size:clamp(1.6rem,4.2vw,3.4rem);letter-spacing:.06em}
+.fin-slide b{font-weight:900;font-size:clamp(1.3rem,2.8vw,2.6rem);color:#fff;line-height:1.15}
+.fin-slide small{color:#93A0B8;font-weight:800;font-size:clamp(.9rem,1.5vw,1.3rem)}
+.fin-dots{display:flex;gap:6px;margin-top:6px}.fin-dots i{width:9px;height:9px;border-radius:50%;background:#3C4A66}.fin-dots i.on{background:#F2BE62}
+@keyframes finSlide{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}`;
 // Beeld van de volgende missie (finale-stap 'taart' en het eindscherm): eerst taart versieren, dan pannenkoeken.
 export const TAART_HTML = `<div class="fin-taart"><div><small>Eerst</small><em>🎂</em><b>Taart versieren</b></div><span class="pijl">➜</span><div class="na"><small>Daarna</small><em style="animation-delay:.4s">🥞</em><b>Pannenkoeken</b></div></div>`;
+// Terugblik: de hoogtepunten van het spel als dia's (finale-stap 'terugblik', ±3 s per dia, alleen beeld en muziek).
+// d = { game, players, stops, puzzle_states?, events? } (kern.html: regie_state met alle puzzeltijden; telefoons: de eigen stand).
+export const SLIDE_MS = 3200;
+const mmss = ms => { const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const duur = ms => { const m = Math.max(1, Math.round(ms / 60000)), u = Math.floor(m / 60), r = m % 60; return u ? `${u} uur${r ? ' en ' + r + ' min' : ''}` : (m === 1 ? "1 minuut" : `${m} minuten`); };
+const namen = l => l.length <= 1 ? (l[0] || '') : l.slice(0, -1).join(', ') + ' en ' + l.at(-1);
+export function buildHighlights(d = {}) {
+  const g = d.game || {}, players = d.players || [], stops = (d.stops || []).filter(x => x.part), out = [];
+  const naam = id => players.find(p => p.id === id)?.name;
+  const met = b => players.filter(p => (p.badges || []).includes(b)).map(p => p.name);
+  const t0 = Date.parse(g.started_at || ''), t1 = Date.parse(g.finished_at || '') || Date.now();
+  if (t0) out.push({ icon: '⏱️', title: duur(t1 - t0) + ' op pad', sub: `${stops.length || 7} plekken, ${(g.parts || []).length || 7} onderdelen` });
+  out.push({ icon: Object.values(PARTS).map(p => p.icon).join(' '), title: 'Alle zeven onderdelen terug', sub: 'Pantser, ogen, neus, mond, armen, benen en de boterknop', wide: true });
+  const ps = (d.puzzle_states || []).filter(x => x.solved_at && x.arrived_at).map(x => ({ ...x, ms: Date.parse(x.solved_at) - Date.parse(x.arrived_at), stop: (d.stops || []).find(st => st.id === x.stop_id) }))
+    .filter(x => x.stop && x.stop.key !== 'home' && x.ms > 5000).sort((a, b) => a.ms - b.ms);
+  if (ps.length) { const f = ps[0], w = naam(f.solved_by); out.push({ icon: '⚡', title: `Snelste klus: ${mmss(f.ms)}`, sub: f.stop.name + (w ? ` · opgelost door ${w}` : '') }); }
+  if (ps.length > 2) { const l = ps.at(-1); out.push({ icon: '🧠', title: `Taaiste klus: ${mmss(l.ms)}`, sub: l.stop.name + ' · maar jullie gaven niet op' }); }
+  const ev = d.events || [];
+  const kr = met('kruimelaar-vanger'); if (kr.length || ev.some(e => e.type === 'thief.caught')) out.push({ icon: '🍪', title: 'De Kruimelaar gevangen', sub: kr.length ? 'door ' + namen(kr) : 'het onderdeel is terug' });
+  const storm = ev.find(e => e.type === 'storm.end'), vk = met('vonkenvanger');
+  if (storm || vk.length) out.push({ icon: '⚡', title: storm?.payload?.total ? `${storm.payload.total} vonken weggetikt` : 'Kortsluiting opgelost', sub: vk.length ? 'Vonkenvanger: ' + namen(vk) : 'samen sneller dan de stroom' });
+  const jp = met('jetpack-redder'); if (jp.length) out.push({ icon: '🔥', title: 'Jetpack gered', sub: 'op tijd thuis, nét voor de oververhitting' });
+  const wens = met('wensvervuller'); if (wens.length || g.wish_used) out.push({ icon: '🎂', title: 'De verjaardagswens', sub: (wens[0] || players.find(p => p.is_birthday)?.name || 'de jarige') + ' deed haar wens' });
+  out.push({ icon: '💧', title: `${g.drops || 0} stroopdruppels`, sub: (g.hints || 0) === 0 ? 'en geen enkele hint nodig' : `en ${g.hints} hint${g.hints === 1 ? '' : 's'}` });
+  return out.slice(0, 8);
+}
+export function slideHTML(sl, i = 0, n = 1) {
+  if (!sl) return '';
+  return `<div class="fin-slide"><em class="${sl.wide ? 'wide' : ''}">${sl.icon}</em><b>${esc(sl.title)}</b>${sl.sub ? `<small>${esc(sl.sub)}</small>` : ''}<span class="fin-dots">${Array.from({ length: n }, (_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</span></div>`;
+}
 // Beeld per finale-stap voor het kernscherm (groot). check en taart; mega = stroopmeter; vers/confetti = equalizer.
-export function stageHTML(stage) {
+export function stageHTML(stage, fin) {
+  if (stage === 'terugblik') return slideHTML(fin?.slide?.item, fin?.slide?.i, fin?.slide?.n);
   if (stage === 'check') return `<div class="fin-check">${Object.values(PARTS).map((p, i) => `<i style="animation-delay:${(i * CHECK_MS / 1000).toFixed(2)}s">${p.icon}</i>`).join('')}</div>`;
   if (stage === 'mega') return `<div class="fin-meter"><b></b><span>STROOPMETER · MEGA</span></div>`;
   if (stage === 'vers' || stage === 'confetti') return `<div class="fin-eq">${Array.from({ length: 12 }, (_, i) => `<i style="animation-delay:${(i * 0.07 % 0.5).toFixed(2)}s;animation-duration:${(0.35 + (i * 37 % 30) / 100).toFixed(2)}s"></i>`).join('')}</div>`;
@@ -92,8 +131,8 @@ export function stageHTML(stage) {
 // Dansnummer voor de finale (ElevenLabs Music, gemaakt met de functie monster-music). Laadt het niet, dan het eigen deuntje.
 export const CHECK_MS = 420; // per onderdeel in de check (kern.html en index.html animeren op dezelfde maat)
 export const DANS_URL = 'https://lnhliamckstuwiwyzxyl.supabase.co/storage/v1/object/public/monster/music/dans-a.mp3';
-export function createFinale({ mon, state, audio, confetti, voice = () => undefined, music = () => true, track = DANS_URL, onStage = () => {}, key = 'pkm2_finale' } = {}) {
-  let stage = 'idle', running = false, runId = 0;
+export function createFinale({ mon, state, audio, confetti, voice = () => undefined, music = () => true, track = DANS_URL, onStage = () => {}, key = 'pkm2_finale', highlights = null } = {}) {
+  let stage = 'idle', running = false, runId = 0, slide = null;
   const gameKey = () => key + ':' + (state.get().game?.started_at || 'x');
   const set = s => { stage = s; try { onStage(s); } catch (e) { console.error('[finale]', e); } };
   const jarige = () => state.get().players.find(p => p.is_birthday)?.name || NAAM_JARIGE;
@@ -120,9 +159,24 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
       await talk(w(pick(LINES.dans) || ''), 5000); if (!alive()) return;
       set('confetti');
       dance?.drop(); confetti?.(); audio?.play?.('badge'); setTimeout(() => confetti?.(), 1800); setTimeout(() => confetti?.(), 6000);
-      await sleep(dance ? dance.beat * 32 * 1000 : 1200); // dansstuk: acht maten (±16 s)
-    } finally { dance?.stop(1.8); dance = null; }
+      await sleep(dance ? dance.beat * 32 * 1000 : 1200); if (!alive()) return; // dansstuk: acht maten (±16 s)
+      await terugblik(alive); // muziek loopt zachter door onder de dia's
+    } finally { dance?.stop(1.8); dance = null; slide = null; }
     await sleep(1200);
+  }
+  // Terugblik: korte zin, dan de hoogtepunten als dia's met muziek eronder (geen gepraat).
+  async function terugblik(alive) {
+    let list = [];
+    try { list = await Promise.race([Promise.resolve(highlights ? highlights() : buildHighlights(state.get())), sleep(2500).then(() => null)]) || buildHighlights(state.get()); }
+    catch (e) { console.warn('[finale] terugblik', e); list = buildHighlights(state.get()); }
+    if (!list.length) return;
+    dance?.duck(true);
+    await say(fillLine(pick(LINES.terugblik), { jarige: jarige() }), { ms: 4000 }); if (!alive()) return;
+    for (let i = 0; i < list.length; i++) {
+      slide = { i, n: list.length, item: list[i] }; set('terugblik'); audio?.play?.('plop');
+      await sleep(SLIDE_MS); if (!alive()) return;
+    }
+    slide = null;
   }
   /** intro: zin die eerst gezegd moet worden (de installatiezin van de hoed, als die niet aan bod kwam).
    *  Kort en afwisselend (Job, 9 nov): steeds één korte zin, dan beeld of muziek. ±1,5 min tot de walkie.
@@ -166,6 +220,7 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
   return {
     start,
     get stage() { return stage; },
+    get slide() { return slide; },
     get running() { return running; },
     get done() { return store.get(gameKey()) === '1'; },
     reset() { runId++; running = false; dance?.stop(0.5); dance = null; store.del(gameKey()); set('idle'); },

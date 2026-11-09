@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 globalThis.localStorage = { _: {}, getItem(k) { return this._[k] ?? null; }, setItem(k, v) { this._[k] = String(v); }, removeItem(k) { delete this._[k]; } };
 const { LINES } = await import('../js/monster-lines.js');
-const { fillLine, badgeInfo, endCards, createFinale } = await import('../js/finale.js');
+const { fillLine, badgeInfo, endCards, createFinale, buildHighlights } = await import('../js/finale.js');
 const { createInstall } = await import('../js/install.js');
 const { TALENTS, PARTS } = await import('../js/state.js');
 let n = 0; const t = (name, fn) => { fn(); n++; console.log('✓', name); };
@@ -34,6 +34,17 @@ t('endCards: jarige eerst, zin per talent, badges', () => {
   assert.ok(html.indexOf('Hannah') < html.indexOf('Elin'));
   assert.match(html, /Elin vond mijn LED-ogen/); assert.match(html, /Ving de Kruimelaar/); assert.match(html, /Wensvervuller/); assert.match(html, /Isa hielp overal mee/);
 });
+t('terugblik: hoogtepunten uit spelstand en puzzeltijden', () => {
+  const t = m => new Date(Date.UTC(2026, 10, 13, 14, 30) + m * 60000).toISOString();
+  const d = { game: { started_at: t(0), finished_at: t(95), drops: 86, hints: 2, parts: ['lijf'] }, players: [{ id: 'a', name: 'Elin', badges: ['kruimelaar-vanger', 'vonkenvanger'] }, { id: 'b', name: 'Hannah', is_birthday: true, badges: ['wensvervuller'] }],
+    stops: [{ id: 's1', name: 'De palenrij', part: 'lijf' }, { id: 's2', name: 'Het bruggetje', part: 'ogen' }, { id: 's3', name: 'Het kastje', part: 'neus' }, { id: 'h', key: 'home', name: 'Thuis', part: 'hoed' }],
+    puzzle_states: [{ stop_id: 's1', arrived_at: t(5), solved_at: t(9) }, { stop_id: 's2', arrived_at: t(20), solved_at: t(21.2), solved_by: 'a' }, { stop_id: 's3', arrived_at: t(40), solved_at: t(47) }, { stop_id: 'h', arrived_at: t(90), solved_at: t(90.5) }],
+    events: [{ type: 'storm.end', payload: { total: 37 } }] };
+  const h = buildHighlights(d), txt = JSON.stringify(h);
+  assert.match(h[0].title, /1 uur en 35 min op pad/); assert.match(txt, /Snelste klus: 1:12/); assert.match(txt, /opgelost door Elin/); assert.match(txt, /Taaiste klus: 7:00/);
+  assert.match(txt, /Kruimelaar gevangen/); assert.match(txt, /37 vonken/); assert.match(txt, /Hannah deed haar wens/); assert.match(txt, /86 stroopdruppels/); assert.ok(h.length <= 8);
+  assert.ok(buildHighlights({ game: { started_at: 'x' }, players: [] }).length >= 2, 'werkt ook zonder tijden');
+});
 { // async: de volgorde van de finale met een nepmonster
   const said = [], stages = []; let confetti = 0;
   const mon = { say: async t => { said.push(t); return true; }, setParts() {}, setMood(m) { said.push('mood:' + m); } };
@@ -42,7 +53,8 @@ t('endCards: jarige eerst, zin per talent, badges', () => {
   const realTimeout = setTimeout; globalThis.setTimeout = (f, ms) => realTimeout(f, 0); // geen echte wachttijd
   await fin.start({ intro: 'Boterknop ingedrukt.' });
   globalThis.setTimeout = realTimeout;
-  assert.deepEqual(stages, ['check', 'mega', 'vers', 'confetti', 'taart', 'eind']);
+  assert.deepEqual(stages.filter((x, i) => x !== stages[i - 1]), ['check', 'mega', 'vers', 'confetti', 'terugblik', 'taart', 'eind']);
+  assert.ok(stages.filter(x => x === 'terugblik').length >= 2, 'een paar dia\'s');
   const zin = said.filter(x => !x.startsWith('mood:'));
   assert.equal(zin[0], 'Boterknop ingedrukt.'); assert.ok(said.indexOf('mood:compleet') > said.findIndex(x => /Systeemcontrole/.test(x)));
   assert.match(zin[1], /Systeemcontrole/); assert.match(zin[2], /MEGA-MECHA-POF/); assert.match(zin[3], /DJ Mecha-Pof/); assert.match(zin[4], /Hannah is vandaag tien/); assert.ok(said.some(x => /Hiep hiep/.test(x)) && said.some(x => /Robotdans/.test(x)));

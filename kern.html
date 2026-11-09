@@ -82,11 +82,11 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:75}
 <script type="module">
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync, IS_TEST } from './js/sync.js';
-import { createMonster, lineText } from './js/monster.js?v=19';
+import { createMonster, lineText } from './js/monster.js?v=20';
 import { audio } from './js/audio.js?v=11';
 import { voice } from './js/voice.js?v=7';
-import { LINES } from './js/monster-lines.js?v=10';
-import { createFinale, endCards, END_CSS, fillLine, stageHTML, TAART_HTML } from './js/finale.js?v=4';
+import { LINES } from './js/monster-lines.js?v=11';
+import { createFinale, endCards, END_CSS, fillLine, stageHTML, TAART_HTML, buildHighlights } from './js/finale.js?v=5';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -108,7 +108,9 @@ function confetti() {
   let t = 0; const step = () => { ctx.clearRect(0, 0, c.width, c.height); ps.forEach(p => { p.y += p.s; p.a += .1; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillStyle = p.c; ctx.fillRect(-p.r, -p.r / 2, p.r * 2, p.r); ctx.restore(); });
     if (++t < 320) requestAnimationFrame(step); else c.hidden = true; }; requestAnimationFrame(step);
 }
-const finale = createFinale({ mon, state, audio, confetti, voice: () => true, key: 'pkm2_finale_kern', onStage: () => render() });
+// Terugblik: de kern heeft de regiesleutel, dus alle puzzeltijden (regie_state); lukt dat niet, dan de eigen stand.
+const highlights = async () => { if (PROEF) return buildHighlights(demoSpel()); try { const r = await sync.regie.state(); return buildHighlights({ ...S(), ...r, game: r?.game || S().game }); } catch { return buildHighlights(S()); } };
+const finale = createFinale({ mon, state, audio, confetti, voice: () => true, key: 'pkm2_finale_kern', highlights, onStage: () => render() });
 
 /* ---------- event-router (zelfde vorm als index.html, zodat monster.js meeluistert) */
 const handlers = {}, seen = new Set(); let primed = false;
@@ -126,7 +128,19 @@ const wokeSinceReset = () => { // wekzin na de laatste reset (events nieuwste ee
   for (const e of S().events) { if (e.type === 'game.reset') return false; if (e.type === 'monster.say' && e.payload?.wake) return true; }
   return false;
 };
+// ?proef: de finale proefdraaien op dit scherm, los van de spelstand (altijd stand 'klaar', meldt zich niet als kernscherm,
+// schrijft niets naar het spel). Bedoeld met het testspel: kern.html?spel=test&proef
+const PROEF = new URLSearchParams(location.search).has('proef');
+function demoSpel() { // voorbeeld-terugblik voor de proef: de echte stops en spelers, verzonnen tijden en verrassingen
+  const t = m => new Date(Date.now() - (95 - m) * 60000).toISOString(), st = S().stops.filter(x => x.part), ps = S().players;
+  const mins = [[3, 9], [18, 19.3], [31, 36], [44, 52], [60, 63], [72, 76], [90, 91]];
+  return { game: { started_at: t(0), finished_at: t(95), drops: 86, hints: 2, wish_used: true, parts: st.map(x => x.part) },
+    players: ps.map((p, i) => ({ ...p, badges: [...(p.badges || []), ...(i === 1 ? ['kruimelaar-vanger'] : []), ...(i === 2 ? ['vonkenvanger'] : []), ...(p.is_birthday ? ['wensvervuller'] : [])] })),
+    stops: st, puzzle_states: st.map((x, i) => ({ stop_id: x.id, arrived_at: t((mins[i] || [80, 84])[0]), solved_at: t((mins[i] || [80, 84])[1]), solved_by: ps[i % Math.max(1, ps.length)]?.id })),
+    events: [{ type: 'storm.end', payload: { total: 37 } }] };
+}
 function modeFor() {
+  if (PROEF) return 'klaar';
   const g = S().game; if (!g) return 'slaap';
   if (g.phase === 'klaar') return 'klaar';
   if (g.phase !== 'lobby') return 'onderweg';
@@ -172,18 +186,18 @@ function render() {
       <div class="panel"><h2>Reparatieteam</h2><div class="reel">${S().players.map(talentRow).join('')}</div></div>`;
   } else if (m === 'klaar') {
     const showEnd = finale.stage === 'eind' || (finale.stage === 'idle' && finale.done);
-    eb.textContent = 'MEGA-MECHA-POF';
+    eb.textContent = PROEF ? 'PROEF · finale (schrijft niets naar het spel)' : 'MEGA-MECHA-POF';
     const stg = finale.stage;
-    cap.innerHTML = `<h1 class="title">${stg === 'idle' && !finale.done ? 'Alle zeven onderdelen!' : stg === 'check' ? 'Systeemcontrole…' : stg === 'taart' ? 'Nieuwe missie!' : 'MEGA-MECHA-POF!'}</h1>`;
+    cap.innerHTML = `<h1 class="title">${stg === 'idle' && !finale.done ? 'Alle zeven onderdelen!' : stg === 'check' ? 'Systeemcontrole…' : stg === 'taart' ? 'Nieuwe missie!' : stg === 'terugblik' ? 'Wat een spel!' : 'MEGA-MECHA-POF!'}</h1>`;
     // Eén vast blok per stap; alleen opnieuw tekenen als de stap verandert (anders herstarten de animaties).
-    const sig = showEnd ? 'eind:' + S().players.map(p => p.id + (p.badges || []).join()).join('|') : 'fin:' + stg;
+    const sig = showEnd ? 'eind:' + S().players.map(p => p.id + (p.badges || []).join()).join('|') : 'fin:' + stg + (finale.slide ? ':' + finale.slide.i : '');
     if (side.dataset.sig !== sig) {
       side.dataset.sig = sig;
       side.innerHTML = showEnd ? `<div class="panel"><h2>Volgende missie</h2>${TAART_HTML}</div>
         <div class="panel"><h2>Het Reparatieteam</h2><div class="fin-cards">${endCards(state)}</div></div>
         <div class="row" style="justify-content:center"><button data-t="foto">📸 Teamfoto</button></div>`
       : stg === 'idle' ? `<div class="panel"><h2>Finale</h2><p class="sub" style="text-align:left">De boterknop zit erop. Klaar voor Mega-Mecha-Pof?</p><button data-t="finale">▶ Finale afspelen</button></div>`
-      : `<div class="panel"><h2>${{ check: 'Systeemcontrole', mega: 'Stroopmeter', vers: 'DJ Mecha-Pof', confetti: 'Robotdans!', taart: 'Eerst taart, dan pannenkoeken' }[stg] || 'Finale'}</h2>${stageHTML(stg)}${{ vers: '<p class="sub">Na elk “hiep hiep”: HOERA!</p>', confetti: '<p class="sub">🎉 Poppers! Doe Mecha-Pof na.</p>' }[stg] || ''}</div>`;
+      : `<div class="panel"><h2>${{ check: 'Systeemcontrole', mega: 'Stroopmeter', vers: 'DJ Mecha-Pof', confetti: 'Robotdans!', terugblik: 'Terugblik', taart: 'Eerst taart, dan pannenkoeken' }[stg] || 'Finale'}</h2>${stageHTML(stg, finale)}${{ vers: '<p class="sub">Na elk “hiep hiep”: HOERA!</p>', confetti: '<p class="sub">🎉 Poppers! Doe Mecha-Pof na.</p>' }[stg] || ''}</div>`;
     }
     if (finale.stage === 'idle' && !landing) { mon.setParts(Object.keys(PARTS)); mon.setMood('compleet'); }
   }
@@ -257,7 +271,7 @@ document.addEventListener('click', async e => {
 });
 
 /* ---------- kern meldt zich (telefoons zwijgen dan in de finale) */
-async function heartbeat() { try { await sync.regie.patchGame({ settings: { kern_at: new Date().toISOString() } }); } catch (e) { console.warn('[kern] melden', e.message); } }
+async function heartbeat() { if (PROEF) return; try { await sync.regie.patchGame({ settings: { kern_at: new Date().toISOString() } }); } catch (e) { console.warn('[kern] melden', e.message); } }
 
 /* ---------- start */
 async function gateOk() {

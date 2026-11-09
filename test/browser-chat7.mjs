@@ -111,6 +111,7 @@ if (!only || only === 'finale') {
   ok('Mega-stand actief (galm op de stem)', await page.evaluate(() => window.pkm.mon.status.mega > 0.5));
   ok('vers', await until(() => __said.some(t => /tien jaar oud/.test(t)), 20000));
   ok('confetti', await until(() => ['confetti', 'taart', 'eind'].includes(window.pkm.finale.stage), 40000));
+  ok('terugblik: dia\'s op de telefoon', await until(() => !!document.querySelector('.fin-slide'), 40000));
   ok('taart: volgende missie in beeld en gezegd', await until(() => !!document.querySelector('.fin-taart') && __said.some(t => /taart/.test(t)), 30000));
   ok('eindscherm', await until(() => window.pkm.finale.stage === 'eind', 40000));
   console.log('   gezegd:', (await page.evaluate(() => __said)).map(t => t.slice(0, 50)).join(' ¦ '));
@@ -179,6 +180,8 @@ if (!only || only === 'kern') {
   ok('kern: fase klaar, finale start vanzelf na de hoed', await K.until(() => ['check', 'mega', 'vers', 'confetti', 'taart', 'eind'].includes(window.pkm.finale.stage), 25000));
   ok('kern: check in beeld (zeven onderdelen)', await K.until(() => document.querySelectorAll('#side .fin-check i').length === 7 || window.pkm.finale.stage !== 'check', 8000));
   ok('kern: finale met galm (Mega actief)', await K.until(() => window.pkm.mon.status.mega > 0.5, 15000));
+  ok('kern: terugblik met dia\'s', await K.until(() => !!document.querySelector('#side .fin-slide'), 90000));
+  await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-terugblik.png') }).catch(() => {});
   ok('kern: taart-missie in beeld', await K.until(() => !!document.querySelector('#side .fin-taart'), 90000));
   await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-taart.png') }).catch(() => {});
   ok('kern: eindscherm met zes kaarten', await K.until(() => document.querySelectorAll('.fin-card').length === 6, 90000));
@@ -186,6 +189,21 @@ if (!only || only === 'kern') {
   ok('geen JavaScript-fouten (kern)', !K.errors.length, K.errors.join(' | '));
   ok('geen JavaScript-fouten (regie)', !R.errors.length, R.errors.join(' | '));
   await K.page.close(); await R.page.close();
+}
+
+// ================================================================ proef: kern.html?proef speelt de finale los van de spelstand
+if (!only || only === 'proef') {
+  console.log('— proef (kern.html?proef)');
+  const K = await open('kern.html?proef', world({ phase: 'lobby' }), { width: 1280, height: 800 });
+  await K.W('#key'); await K.page.fill('#key', 'job'); await K.page.click('#gateform button');
+  ok('proef: stand klaar terwijl het spel in de lobby staat', await K.until(() => document.body.classList.contains('klaar') && /PROEF/.test(document.querySelector('#eyebrow').textContent), 4000));
+  await K.page.click('#side [data-t=finale]');
+  ok('proef: finale loopt', await K.until(() => window.pkm.finale.stage === 'check', 6000));
+  ok('proef: terugblik met voorbeeldtijden', await K.until(() => /Snelste klus/.test(document.querySelector('#side')?.textContent || '') || /1 uur en 35 min/.test(document.querySelector('#side')?.textContent || ''), 90000));
+  ok('proef: taart en eindscherm', await K.until(() => !!document.querySelector('#side .fin-taart') && window.pkm.finale.stage === 'eind', 90000));
+  ok('proef: meldt zich niet als kernscherm, spel blijft in de lobby', await K.page.evaluate(() => !window.pkm.state.get().game.settings?.kern_at && window.pkm.state.get().game.phase === 'lobby'));
+  ok('geen JavaScript-fouten (proef)', !K.errors.length, K.errors.join(' | '));
+  await K.page.close();
 }
 
 // ================================================================ bonus: regie.html tab Bonus → telefoon

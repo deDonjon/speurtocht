@@ -243,15 +243,15 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:35}
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync } from './js/sync.js';
 import { createMap } from './js/map.js?v=5'; // ?v ophogen bij elke wijziging: GitHub Pages en Safari bewaren oude bestanden
-import { createMonster, monsterImage, lineText } from './js/monster.js?v=19'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
+import { createMonster, monsterImage, lineText } from './js/monster.js?v=20'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
 import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole } from './js/roles.js?v=1'; // radio / kaart / werkbank, roterend per stop
 import { createInstall } from './js/install.js?v=3'; // installatieritueel: monteur schudt, deel klikt vast
-import { openWalkie, incomingCall, callGreeting, arrivalCall } from './js/walkie.js?v=21'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
+import { openWalkie, incomingCall, callGreeting, arrivalCall } from './js/walkie.js?v=22'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
 import { createNavVoice } from './js/navvoice.js?v=1'; // gesproken navigatie zodra de LED-ogen terug zijn (radiotelefoon)
 import { createSurprises } from './js/surprises.js?v=2'; // Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens
 import { audio } from './js/audio.js?v=11'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
 import { teaserActive, mountTeaser } from './js/teaser.js?v=2'; // voorpret vóór het feest (game.settings.teaser)
-import { createFinale, endCards, END_CSS, CHECK_MS, TAART_HTML } from './js/finale.js?v=4'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
+import { createFinale, endCards, END_CSS, CHECK_MS, TAART_HTML, slideHTML } from './js/finale.js?v=5'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -877,15 +877,15 @@ screens.puz = (el, id) => {
    De finale start vanzelf zodra de hoed na het installatieritueel geland is (monster.js → pkm.finale.start()).
    Staat het kernscherm thuis aan (kern.html meldt zich via settings.kern_at), dan praat alleen de laptop en tonen de telefoons de tekst. */
 const FIN_TEXT = { check: ['Systeemcontrole…', 'Alle zeven onderdelen klikken aan.'], mega: ['MEGA-MECHA-POF!', 'De stroopmeter staat op MEGA.'], vers: ['🎵 DJ Mecha-Pof', 'Roep HOERA na elk “hiep hiep”!'],
-  confetti: ['🎉 Robotdans!', 'Doe Mecha-Pof na. Poppers erbij!'], taart: ['Nieuwe missie!', ''] };
+  confetti: ['🎉 Robotdans!', 'Doe Mecha-Pof na. Poppers erbij!'], terugblik: ['Wat een spel!', ''], taart: ['Nieuwe missie!', ''] };
 // Beeld bij de finale op de telefoons (zelfde als op het kernscherm, kleiner): de check en de volgende missie.
 const finVisual = stg => stg === 'check' ? `<div class="fin-check">${Object.values(PARTS).map((p, i) => `<i style="animation-delay:${(i * CHECK_MS / 1000).toFixed(2)}s">${p.icon}</i>`).join('')}</div>`
-  : stg === 'taart' ? TAART_HTML : '';
+  : stg === 'taart' ? TAART_HTML : stg === 'terugblik' ? slideHTML(finale.slide?.item, finale.slide?.i, finale.slide?.n) : '';
 screens.klaar = el => {
   const update = () => {
     const g = S().game, stops = state.route().filter(x => x.part).length || 7, b = birthday(), stg = finale.stage;
     const showEnd = stg === 'eind' || finale.done || (stg === 'idle' && !install.busy);
-    const sig = showEnd ? 'end:' + S().players.map(p => p.id + (p.badges || []).join()).join('|') + (g.drops || 0) : 'fin:' + stg;
+    const sig = showEnd ? 'end:' + S().players.map(p => p.id + (p.badges || []).join()).join('|') + (g.drops || 0) : 'fin:' + stg + (finale.slide ? ':' + finale.slide.i : '');
     if (el.dataset.sig === sig) return; el.dataset.sig = sig;
     if (!showEnd) {
       const [h, p] = FIN_TEXT[stg] || ['Mecha-Pof start op…', 'De boterknop is ingedrukt. Even geduld…'];

@@ -127,7 +127,11 @@ export const LINES = {
   dans: [
     'Robotdans! Doe mij maar na. Bliep, bloep, stap!',
   ],
-  // Na de dans: de volgende missie (staat ook groot in beeld). Eerst taart versieren, dan pannenkoeken.
+  // Na de dans: één zin, daarna de hoogtepunten van het spel als dia's (zonder gepraat, muziek zachter eronder).
+  terugblik: [
+    'Terugblik! Kijk wat jullie allemaal gedaan hebben.',
+  ],
+  // Na de terugblik: de volgende missie (staat ook groot in beeld). Eerst taart versieren, dan pannenkoeken.
   taart: [
     'Nieuwe missie, monteurs! Eerst versieren jullie de taart. Zo mooi als ik. Daarna: pannenkoeken!',
   ],
