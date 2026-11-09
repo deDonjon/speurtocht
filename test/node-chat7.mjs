@@ -11,7 +11,8 @@ let n = 0; const t = (name, fn) => { fn(); n++; console.log('✓', name); };
 t('zinnen: wek, loting per talent, kern, bonus, afscheid, teamfoto, eind per talent', () => {
   assert.ok(LINES.wek?.length && LINES.kern?.wacht?.length && LINES.bonus?.gevonden?.length && LINES.afscheid?.length && LINES.teamfoto?.length);
   for (const k of Object.keys(TALENTS)) { assert.ok(LINES.loting[k]?.[0]?.includes('{naam}'), 'loting ' + k); assert.ok(LINES.eind[k]?.[0]?.includes('{naam}'), 'eind ' + k); }
-  assert.ok(LINES.walkie.briefing.bonus?.[0]?.trim().endsWith('Over!'));
+  assert.ok(LINES.walkie.briefing.bonus?.[0]?.trim()); // het slot ("… over en sluiten. Over!") komt uit walkie.briefingSlot
+  for (const k of ['werkbank', 'wachtwoord', 'hoed']) assert.ok(LINES.walkie.briefingSlot[k].tekst.endsWith('Over!') && LINES.walkie.briefingSlot[k].zeg.includes('over en sluiten'));
   for (const k of Object.keys(PARTS)) assert.ok(LINES.installatie[k]?.length, 'installatie ' + k);
   assert.equal(LINES.mega.length, 3);
   const all = JSON.stringify(LINES); assert.ok(!/\bzo'n\b/.test(all));
