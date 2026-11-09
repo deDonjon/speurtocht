@@ -236,6 +236,7 @@ import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole } from './js
 import { createInstall } from './js/install.js?v=1'; // installatieritueel: monteur schudt, deel klikt vast
 import { openWalkie } from './js/walkie.js?v=9'; // walkietalkie met het live monster (ElevenLabs, zie MONSTER-AGENT.md)
 import { audio } from './js/audio.js?v=7'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
+import { teaserActive, mountTeaser } from './js/teaser.js?v=1'; // voorpret vóór het feest (game.settings.teaser)
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -521,6 +522,7 @@ let cur = { key: null }, booted = false, bootError = '', wantLogin = false;
 function screenKey() {
   if (!booted) return 'boot';
   const g = S().game; if (!g) return 'boot';
+  if (teaserActive(g) && !sync.isLoggedIn() && !sync.regie.restore()) return 'teaser'; // vóór het feest: aftellen, nog niet inloggen
   if (!sync.isLoggedIn() || wantLogin) return 'login';
   if (g.phase === 'lobby') return 'lobby';
   if (g.phase === 'klaar') return 'klaar';
@@ -577,6 +579,9 @@ screens.boot = el => {
     ${bootError ? '<button class="wide" id="retry">Opnieuw proberen</button>' : ''}</div>`;
   const r = $('#retry', el); if (r) r.onclick = () => { bootError = ''; refresh('remount'); boot(); };
 };
+
+/* ---------- teaser: voorpret, nog niet inloggen (js/teaser.js) */
+screens.teaser = el => mountTeaser(el, { game: S().game, mon, esc, mslot, birthday: birthday()?.name, say: text => say(text, { voice: true, ms: 14000 }) });
 
 /* ---------- login met de code van de uitnodiging */
 screens.login = el => {
