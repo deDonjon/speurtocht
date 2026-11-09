@@ -70,6 +70,8 @@ function devices() { // telefoons: spelers gegroepeerd per device_id
   return [...m.values()].sort((a, b) => a.id < b.id ? -1 : 1);
 }
 const playerName = id => players().find(p => p.id === id)?.name || (id ? id.slice(0, 6) : '');
+const partOf = p => p?.part || TALENTS[p?.talent]?.part || null; // zelfde regel als guard() in index.html: geen deel → het deel van het talent
+const colorOf = p => p?.color || PARTS[partOf(p)]?.color || '#5B6680';
 const stopName = id => stops().find(s => s.id === id)?.name || '';
 const stopIndex = st => { const r = route(); const i = r.findIndex(x => x.id === st.id); return i >= 0 ? i : null; };
 const stopLabel = st => st.key === 'home' ? '🏠' : st.key === 'start' ? 'S' : (stopIndex(st) != null ? String(stopIndex(st) + 1) : String(st.seq));
@@ -133,7 +135,7 @@ function updateMap() {
   for (const d of devices()) {
     if (d.lat == null) continue; dseen.add(d.id);
     const stale = !d.online || !d.last || Date.now() - Date.parse(d.last) > 60_000;
-    const col = d.players[0]?.color || PARTS[d.players[0]?.part]?.color || '#7FE8FF';
+    const col = colorOf(d.players[0]);
     const html = `<div class="pin-dev ${stale ? 'stale' : ''}" style="background:${col}">${d.players.map(p => esc(p.name[0]?.toUpperCase())).join('+')}</div>`;
     let x = mk.devs.get(d.id), a = mk.accs.get(d.id);
     if (!x) { x = L.marker([d.lat, d.lng], { icon: icon(html, 36, 30), zIndexOffset: 1000 }).addTo(m); x.bindTooltip('', { className: 'rtip', direction: 'top', offset: [0, -14] }); mk.devs.set(d.id, x);
@@ -188,7 +190,7 @@ function renderBar() {
     ${g && g.phase !== 'lobby' ? `<span class="chip" title="stroopdruppels">💧 ${g.drops || 0}</span>` : ''}
     <span class="parts">${Object.keys(PARTS).map(k => `<span class="part ${got.includes(k) ? 'got' : ''}" title="${esc(PARTS[k].label)}">${got.includes(k) ? PARTS[k].icon : ''}</span>`).join('')}</span>
     <span class="grow"></span>
-    ${loggedIn ? `<button class="iconbtn" data-b="sound" aria-label="Geluid bij gebeurtenissen">${sound ? '🔔' : '🔕'}</button><button class="iconbtn" data-b="reload" aria-label="Opnieuw laden">↻</button><button class="ghost sm" data-b="logout">Afmelden</button>` : ''}
+    ${loggedIn ? `<button class="iconbtn" data-b="sound" aria-label="Geluid bij gebeurtenissen">${sound ? '🔔' : '🔕'}</button><button class="iconbtn" data-b="reload" aria-label="Opnieuw laden">↻</button><button class="ghost sm onlywide" data-b="logout">Afmelden</button>` : ''}
   </div>`;
 }
 bar.addEventListener('click', e => {
@@ -355,8 +357,8 @@ function tabSpelers() {
   const dup = talents.filter(t => ps.filter(p => p.talent === t).length > 1);
   return `<div class="page"><span class="tab">De speurders</span>
       ${dup.length ? `<p class="feedback">⚠️ Dubbel talent: ${dup.map(t => TALENTS[t].label).join(', ')}</p>` : ''}
-      <div class="list">${ps.map(p => `<div class="item" style="--acc:${p.color || PARTS[p.part]?.color || '#5B6680'}"><span class="ic">${p.is_birthday ? '🎂' : PARTS[p.part]?.icon || '🕵️'}</span>
-        <div class="txt"><b>${esc(p.name)} <span class="dot ${p.online ? 'on' : ''}"></span></b><small>${p.talent ? esc(TALENTS[p.talent]?.label) : 'geen talent'} · ${p.part ? esc(PARTS[p.part].label) : 'geen deel'} · code <span class="code">${esc(p.code || '????')}</span>${p.badges?.length ? ' · 🏅' + p.badges.length : ''}${p.mission ? (p.mission_done ? ' · missie ✓' : ' · missie') : ''}</small></div>
+      <div class="list">${ps.map(p => `<div class="item" style="--acc:${colorOf(p)}"><span class="ic">${p.is_birthday ? '🎂' : PARTS[partOf(p)]?.icon || '🕵️'}</span>
+        <div class="txt"><b>${esc(p.name)} <span class="dot ${p.online ? 'on' : ''}"></span></b><small>${p.talent ? esc(TALENTS[p.talent]?.label) : 'geen talent'} · ${partOf(p) ? esc(PARTS[partOf(p)].label) + (p.part ? '' : ' (via talent)') : 'geen deel'} · code <span class="code">${esc(p.code || '????')}</span>${p.badges?.length ? ' · 🏅' + p.badges.length : ''}${p.mission ? (p.mission_done ? ' · missie ✓' : ' · missie') : ''}</small></div>
         <button class="plain sm" data-a="editplayer" data-id="${p.id}">✏️</button></div>`).join('')}</div>
       <div class="row"><button class="plain" data-a="addplayer">+ Speurder toevoegen</button><button class="ghost sm" data-a="copycodes">Codes kopiëren</button></div>
     </div>`;
@@ -481,7 +483,7 @@ function editPlayer(id) {
       <div class="grid2"><label>Naam<input name="name" value="${esc(p.name)}" required></label><label>Code (4 cijfers)<input name="code" value="${esc(p.code || '')}" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="${id ? '' : 'leeg = willekeurig'}"></label></div>
       <div class="grid2"><label>Monsterdeel<select name="part"><option value="">— geen —</option>${opts(Object.keys(PARTS), p.part || '', k => PARTS[k].icon + ' ' + PARTS[k].label)}</select></label>
         <label>Talent<select name="talent"><option value="">— geen —</option>${opts(Object.keys(TALENTS), p.talent || '', k => TALENTS[k].label)}</select></label></div>
-      <div class="grid2"><label>Kleur<input type="color" name="color" value="${esc(p.color || PARTS[p.part]?.color || '#7FE8FF')}"></label><label class="inline" style="align-self:end"><input type="checkbox" name="is_birthday" ${p.is_birthday ? 'checked' : ''}> Dit is de jarige</label></div>
+      <div class="grid2"><label>Kleur<input type="color" name="color" value="${esc(colorOf(p))}"></label><label class="inline" style="align-self:end"><input type="checkbox" name="is_birthday" ${p.is_birthday ? 'checked' : ''}> Dit is de jarige</label></div>
       <label>Geheime missie (verschijnt 10 s bij het inloggen)<textarea name="mission">${esc(p.mission || '')}</textarea></label>
       <label class="inline"><input type="checkbox" name="mission_done" ${p.mission_done ? 'checked' : ''}> Missie volbracht</label>
       ${id ? `<p class="note">Badges: ${p.badges?.length ? p.badges.map(esc).join(', ') : 'nog geen'} · toestel ${p.device_id ? p.device_id.slice(0, 8) : '—'} · laatst gezien ${ago(p.last_seen_at)} geleden</p>` : ''}

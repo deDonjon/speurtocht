@@ -75,7 +75,8 @@ label.inline{flex-direction:row;align-items:center;gap:10px;color:var(--ink);fon
 /* ---------- balk */
 #bar{position:sticky;top:0;z-index:20;background:rgba(20,26,38,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:2px solid var(--line);
   padding:calc(env(safe-area-inset-top,0px) + 8px) max(12px,env(safe-area-inset-right,0px)) 8px max(12px,env(safe-area-inset-left,0px))}
-#bar .in{max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#bar .in{max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+@media (max-width:600px){#bar h1{font-size:1.05rem}#bar .parts,#bar .onlywide{display:none}#bar .chip{font-size:.76rem;padding:2px 8px}}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--visor);border:2px solid var(--line2);border-radius:999px;padding:3px 10px;font-weight:900;font-size:.82rem;white-space:nowrap}
 .chip.phase{border-color:var(--led);color:var(--led)}
 .chip.phase.klaar{border-color:var(--ok);color:var(--ok)}
@@ -183,6 +184,6 @@ details.adv summary{cursor:pointer;color:var(--muted);font-weight:800;font-size:
 <header id="bar"></header>
 <main id="app"></main>
 <div id="toast" role="status" aria-live="polite"></div>
-<script type="module" src="./js/regie.js?v=2"></script>
+<script type="module" src="./js/regie.js?v=3"></script>
 </body>
 </html>
