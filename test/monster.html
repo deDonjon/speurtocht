@@ -104,8 +104,31 @@ textarea{min-height:70px}
 
   <section>
     <h2>Walkietalkie (live monster)</h2>
-    <p class="note">Praat met het echte AI-monster. Werkt pas als de agent en de Supabase-functie klaarstaan (zie MONSTER-AGENT.md). Houd de rode knop vast om te praten.</p>
+    <p class="note">Praat met het echte AI-monster. Werkt pas als de agent en de Supabase-functie klaarstaan (zie MONSTER-AGENT.md). Houd de rode knop vast om te praten. De client tool <code>unlock_stop</code> is hier een nep: hij zegt alleen in de console wat er binnenkwam.</p>
     <button id="walkie">📻 Open walkietalkie</button>
+  </section>
+
+  <section>
+    <h2>Inkomende oproep (chat 5)</h2>
+    <p class="note">De radiotelefoon gaat over (belgeluid, knop Opnemen). Opnemen opent de walkie met de briefing van dat onderdeel als begroeting. Niet opgenomen binnen 40 s: Mecha-Pof zegt de briefing zelf.</p>
+    <div class="row" style="margin-top:8px"><select id="callpart" style="flex:1"></select><button id="call">📞 Bel met briefing</button><button id="callfree" class="alt">📞 Bel voor Elin</button></div>
+  </section>
+
+  <section>
+    <h2>Verrassingen (chat 5, nep-spel)</h2>
+    <p class="note">Zelfde module als in de app (js/surprises.js), met een nep-spelstand: Hannah (jarig) en Elin op deze telefoon, geen GPS. Badges en stemmen gaan naar de console. Kies welke delen "gevonden" zijn met de vinkjes hierboven: zonder <b>mond</b> alleen een piep, zonder <b>armen</b> gaat het gestolen deel naar het reservelaatje.</p>
+    <div class="row" style="margin-top:8px">
+      <button id="s-thief">🍪 Kruimelaar</button><button id="s-jump" class="alt">⏭ Springt</button><button id="s-caught" class="alt">🫳 Gevangen</button><button id="s-end" class="alt">✖ Weg</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button id="s-storm">⚡ Kortsluiting 15 s</button><button id="s-stormend" class="alt">🛑 Tel op</button>
+      <button id="s-fork">📡 Dubbel signaal</button><button id="s-forkres" class="alt">Kies A</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button id="s-timer">🔥 Jetpack 1 min</button><button id="s-home" class="alt">🏠 Thuis (gered)</button>
+      <button id="s-wish">🎂 Wens: dansje</button><button id="s-wishbtn" class="alt">🎂 Wensknop aan/uit</button>
+    </div>
+    <pre id="slog" class="note" style="white-space:pre-wrap;margin:8px 0 0;font:600 .8rem/1.4 ui-monospace,Menlo,monospace;max-height:8em;overflow:auto"></pre>
   </section>
 
   <section>
@@ -130,9 +153,10 @@ textarea{min-height:70px}
   </section>
 </main>
 <script type="module">
-import { createMonster, monsterImage, ready, PART_KEYS, MOODS, speechStatus, dutchVoices, middlePitch, setVoicePref, getVoicePref, VOICE_DEFAULT } from '../js/monster.js?v=13';
+import { createMonster, monsterImage, ready, PART_KEYS, MOODS, speechStatus, dutchVoices, middlePitch, setVoicePref, getVoicePref, VOICE_DEFAULT, lineText } from '../js/monster.js?v=13';
 import { audio } from '../js/audio.js?v=9';
-import { openWalkie } from '../js/walkie.js?v=11';
+import { openWalkie, incomingCall, callGreeting } from '../js/walkie.js?v=11';
+import { createSurprises } from '../js/surprises.js?v=1';
 import { LINES } from '../js/monster-lines.js?v=6';
 import { voice } from '../js/voice.js?v=3';
 
@@ -179,7 +203,7 @@ for (const k of Object.keys(LINES)) {
   if (subKeyed) for (const sub of Object.keys(v)) $('#sit').add(new Option(`${k} · ${sub}`, `${k}|${sub}`));
   else $('#sit').add(new Option(k, k));
 }
-$('#sayl').onclick = () => { const [sit, sub] = $('#sit').value.split('|'); mon.line(sit, sub); };
+$('#sayl').onclick = () => { const [sit, sub] = $('#sit').value.split('|'); if (sit === 'navigatie') mon.say(lineText('navigatie', { sub, vars: { afstand: 10 * (3 + Math.floor(Math.random() * 30)) } })); else mon.line(sit, sub); };
 // robotstem: aan/uit en alle vaste zinnen vooraf opnemen
 $('#elon').checked = voice.enabled();
 $('#elon').onchange = e => { voice.setEnabled(e.target.checked); status('robotstem ' + (e.target.checked ? 'aan' : 'uit')); };
@@ -191,7 +215,7 @@ function allLines() {
     out.push(l.replace(/\{jarige\}|\{naam\}/g, j));
   };
   const walk = v => Array.isArray(v) ? v.forEach(add) : v && typeof v === 'object' && Object.values(v).forEach(walk);
-  for (const [k, v] of Object.entries(LINES)) if (k !== 'walkie') walk(v);
+  for (const [k, v] of Object.entries(LINES)) if (k !== 'walkie' && k !== 'navigatie') walk(v); // navigatie-zinnen krijgen een afstand en worden ter plekke gemaakt
   // vaste zinnen uit index.html
   ['Ik heb de rollen geschud. Kijk maar eens wat je nu kunt.', 'Eén telefoon is in slaap gevallen. Ik verdeel de talenten opnieuw.'].forEach(add);
   return out;
@@ -266,15 +290,65 @@ $('#vsave').onclick = () => { setVoicePref(curPref()); status('stem bewaard: ' +
 $('#vauto').onclick = () => { setVoicePref(null); fillVoices(); status('stem: automatisch'); };
 fillVoices(); globalThis.speechSynthesis?.addEventListener?.('voiceschanged', fillVoices);
 // walkietalkie met een nep-spelstand
-$('#walkie').onclick = () => {
-  const home = mon.el.parentNode;
-  openWalkie({ mon, onClose: () => home?.appendChild(mon.el), context: () => ({
+const fakeTools = { unlock_stop: async p => { console.log('[test] unlock_stop', p); status('unlock_stop: ' + JSON.stringify(p)); return 'Testpagina: wachtwoord ontvangen (' + (p.wachtwoord || '') + '), er is geen echte stop om open te zetten.'; } };
+const fakeContext = () => ({
     jarige: $('#jarige').value || 'Hannah', spelers: 'Hannah, Elin, Isa, Evy, Lauren, Julia', fase: 'bij een puzzel',
     stop_naam: 'De speeltuin', stop_nummer: 2, stops_totaal: 7, aanwijzing: 'Zoek de plek waar je het hoogst kunt klimmen.',
     puzzel_vraag: 'Hoeveel letters heeft het woord PANNENKOEKENMONSTER?', puzzel_hint: 'Tel de letters één voor één, met je vinger erbij.',
     delen_gevonden: 'het pannenkoekenpantser', delen_nog: 'de ledogen in de koekenpanhelm, de aardbei-knop, het luidsprekerrooster, de spatel en de garde, de zuigerbenen, de boterknop en de stroop-jetpack', hints_gebruikt: 1,
-  }) });
+    wachtwoord: 'stroopwafel',
+  });
+let monHome = null;
+const backHome = () => { if (monHome && mon.el.parentNode !== monHome) monHome.appendChild(mon.el); };
+$('#walkie').onclick = () => { monHome = mon.el.parentNode; openWalkie({ mon, context: fakeContext, tools: fakeTools, onClose: backHome }); };
+// inkomende oproep (chat 5)
+for (const p of PART_KEYS) $('#callpart').add(new Option(`${ICON[p]} ${p}`, p));
+const ring = greeting => { monHome = mon.el.parentNode; incomingCall({ mon, context: fakeContext, greeting, tools: fakeTools, sub: 'Testpagina', onClose: backHome, onMissed: text => { backHome(); mon.say(text, { voice: true, ms: 14000 }); } }); };
+$('#call').onclick = () => ring(callGreeting({ part: $('#callpart').value }));
+$('#callfree').onclick = () => ring(callGreeting({ naam: 'Elin' }));
+
+// verrassingen (chat 5) met een nep-spelstand en nep-router
+const slog = t => { const el = $('#slog'); el.textContent = (new Date().toLocaleTimeString() + ' ' + t + '\n' + el.textContent).slice(0, 2000); };
+const fakeGame = { id: 'g', phase: 'puzzel', parts: [], surprise: null, wish_used: false, hints: 0 };
+const fakePlayers = [{ id: 'h', name: 'Hannah', is_birthday: true, talent: 'sleutelbewaarder', device_id: 'test', online: true }, { id: 'e', name: 'Elin', talent: 'rekenmeester', device_id: 'test', online: true }];
+const fakeStops = [{ id: 's1', key: null, name: 'De speeltuin', lat: 51.6168, lng: 5.5622, part: 'ogen', puzzles: [{ type: 'vraag', question: 'Hoeveel poten heeft een kat?', hint: 'Tel ze maar: één, twee...' }] }, { id: 'home', key: 'home', name: 'Thuis', lat: 51.616, lng: 5.5615, part: 'hoed', puzzles: [] }];
+const sListeners = {}, sEvents = [];
+const sState = {
+  get: () => ({ game: { ...fakeGame, parts }, players: fakePlayers, stops: fakeStops, puzzle: { stop_id: 's1', variant: 0 }, events: sEvents, pos: null, device: { id: 'test', players: ['h', 'e'] } }),
+  activeStop: () => fakeStops[0], stop: id => fakeStops.find(s => s.id === id), player: id => fakePlayers.find(p => p.id === id), me: () => fakePlayers,
+  on: (evt, fn) => { (sListeners[evt] ||= []).push(fn); return () => {}; },
 };
+const sRouter = { handlers: {}, on(t, fn) { (this.handlers[t] ||= []).push(fn); return () => {}; }, dispatch(ev) { for (const fn of this.handlers[ev.type] || []) fn(ev.payload || {}, ev); } };
+const emitGame = () => (sListeners.game || []).forEach(fn => fn(sState.get().game));
+const regie = (type, payload = {}) => {
+  if (['thief.start', 'storm.start', 'fork.open', 'finale.timer'].includes(type)) fakeGame.surprise = { kind: type.split('.')[0], started_at: new Date().toISOString(), data: payload };
+  else if (['thief.caught', 'thief.end', 'storm.end', 'fork.result'].includes(type)) fakeGame.surprise = null;
+  const ev = { id: Math.random().toString(36).slice(2), type, actor: 'regie', player_id: null, at: new Date().toISOString(), payload };
+  sEvents.unshift(ev); slog('event ' + type + ' ' + JSON.stringify(payload).slice(0, 80));
+  sRouter.dispatch(ev); emitGame();
+};
+const sSync = {
+  badge: async (pid, b) => slog(`badge ${b} → ${fakePlayers.find(p => p.id === pid)?.name}`),
+  log: async (t, p) => { slog(`log ${t} ${JSON.stringify(p)}`); if (t === 'fork.vote') { sEvents.unshift({ id: Math.random().toString(36).slice(2), type: t, actor: 'player', player_id: p.player_id || 'h', at: new Date().toISOString(), payload: p }); sRouter.dispatch({ type: t, payload: p }); } },
+  logAs: async (pid, t, p) => sSync.log(t, { ...p, player_id: pid }),
+  wish: async f => { slog('wish ' + f); fakeGame.wish_used = true; regie('wish.used', { for: f }); },
+};
+const surprises = createSurprises({ mon: { say: (t, o) => mon.say(t, { ...o, voice: true }), react: k => mon.react(k) }, state: sState, sync: sSync, router: sRouter, audio, lineText, PARTS: { lijf: { label: 'het pannenkoekenpantser' }, ogen: { label: 'de LED-ogen' }, neus: { label: 'de aardbei-knop' }, mond: { label: 'het luidsprekerrooster' }, armen: { label: 'de spatel en de garde' }, benen: { label: 'de zuigerbenen' }, hoed: { label: 'de boterknop en de jetpack' } }, TALENTS: { rekenmeester: { part: 'armen' } }, toast: t => status(t), confetti: () => slog('confetti!') });
+window.surprises = surprises;
+document.querySelectorAll('#parts input').forEach(i => i.addEventListener('change', emitGame));
+let thiefI = 0;
+$('#s-thief').onclick = () => { thiefI = 0; const b = fakeStops[0]; regie('thief.start', { part: parts[0] || 'lijf', points: [0, 1, 2, 3].map(i => ({ lat: b.lat + 0.0009 * Math.cos(i * 1.7), lng: b.lng + 0.0009 * Math.sin(i * 1.7) })) }); };
+$('#s-jump').onclick = () => regie('thief.jump', { i: ++thiefI });
+$('#s-caught').onclick = () => regie('thief.caught', {});
+$('#s-end').onclick = () => regie('thief.end', {});
+$('#s-storm').onclick = () => regie('storm.start', { seconds: 15 });
+$('#s-stormend').onclick = () => regie('storm.end', { total: 37 });
+$('#s-fork').onclick = () => regie('fork.open', { a: 'Linksaf langs het water', b: 'Rechtsaf door het steegje' });
+$('#s-forkres').onclick = () => regie('fork.result', { choice: 'a' });
+$('#s-timer').onclick = () => regie('finale.timer', { seconds: 60 });
+$('#s-home').onclick = () => sRouter.dispatch({ type: 'stop.arrived', payload: { stop_id: 'home' } });
+$('#s-wish').onclick = () => regie('wish.used', { for: 'dansje van Mecha-Pof' });
+$('#s-wishbtn').onclick = () => { fakeGame.wish_used = !fakeGame.wish_used; emitGame(); slog('wens ' + (fakeGame.wish_used ? 'gebruikt' : 'vrij') + ' (knop linksonder)'); };
 let frames = 0, t0 = performance.now();
 (function fps(t) { frames++; if (t - t0 > 1000) { $('#status').dataset.fps = Math.round(frames * 1000 / (t - t0)); frames = 0; t0 = t; } requestAnimationFrame(fps); })(t0);
 </script>

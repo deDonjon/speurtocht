@@ -144,7 +144,7 @@ function kickPlayback(conv) {
 
 export function openWalkie({ mon, context = () => ({}), onClose, greeting: firstGreeting = null, tools = null, incoming = false } = {}) {
   injectCss();
-  document.getElementById('walkie')?.remove(); document.getElementById('wk-ring')?.remove();
+  document.querySelector('#walkie[role=dialog]')?.remove(); document.getElementById('wk-ring')?.remove(); // (niet de knop #walkie van test/monster.html)
   const el = document.createElement('div'); el.id = 'walkie';
   el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Walkietalkie met Mecha-Pof');
   el.innerHTML = `
@@ -341,7 +341,7 @@ const RING_MS = 1700;
 export function incomingCall({ mon, context = () => ({}), greeting: text, title = 'Mecha-Pof belt!', sub = '', tools = null, timeout = 40_000, onAnswer, onMissed, onClose } = {}) {
   injectCss();
   document.getElementById('wk-ring')?.remove();
-  if (document.getElementById('walkie')) { // de walkie is al open: niet bellen, de tekst meteen als context meegeven
+  if (document.querySelector('#walkie[role=dialog]')) { // de walkie is al open: niet bellen (index.html geeft de tekst dan als context mee)
     return { close() {}, get open() { return false; }, answered: false };
   }
   const el = document.createElement('div'); el.id = 'wk-ring';
