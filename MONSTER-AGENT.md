@@ -1,8 +1,9 @@
 # Mecha-Pof: de stem en de walkietalkie
 
-> **Status (9 nov 2026):** de walkietalkie werkt (getest op de iPhone van Job). Vandaag omgebouwd naar **Mecha-Pof**:
-> nieuwe robotstem, één stem voor álles wat het monster zegt, wisselende begroetingen en walkietalkie-regels
-> ("over" / "over en sluiten", terugbellen). Wat Job nog in ElevenLabs en Supabase moet doen: **stap 1 t/m 5 hieronder**.
+> **Status (9 nov 2026): klaar en getest.** Omgebouwd naar **Mecha-Pof**: robotstem in ElevenLabs, één stem voor álles
+> wat het monster zegt (walkie én app), wisselende begroetingen en walkietalkie-regels ("over" / "over en sluiten",
+> terugbellen). Stap 1 t/m 5 hieronder zijn door Job gedaan; de vaste zinnen staan in `monster/tts/pof1/`.
+> De stappen blijven staan als naslag (bijv. voor een nieuwe stem).
 
 ```
                      ┌────────── walkietalkie (live gesprek) ──────────┐
@@ -173,7 +174,7 @@ stops_totaal, aanwijzing, puzzel_vraag, puzzel_hint, delen_gevonden, delen_nog, 
    walkie-scherm roept `kickPlayback()` `room.startAudio()` en `audio.play()` aan.
 3. **Cache.** Bij elke wijziging in `audio.js` / `monster.js` / `walkie.js` / `voice.js` / `monster-lines.js` de `?v=` ophogen op álle plekken
    (index.html, test/monster.html, monster.js, walkie.js, voice.js), anders laadt Safari een oude versie zonder de nieuwe exports.
-   Stand nu: monster 8, walkie 8, audio 7, lines 4, voice 1.
+   Stand nu: monster 9, walkie 8, audio 7, lines 4, voice 1.
 4. **Diagnoseregel.** Het kleine grijze regeltje in de walkie (`connected · speaking · monster 0.45 · mic 0.00 · 1🔈 · auto`)
    blijft staan: daarmee zie je meteen of het monster praat, of er een geluidskanaal is en welke audioSession actief is.
 5. **Testen zonder microfoon** (bijv. de browser in de Claude-app): `getUserMedia` vervangen door een stille stream
