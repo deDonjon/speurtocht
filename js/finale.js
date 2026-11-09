@@ -62,7 +62,9 @@ export const END_CSS = `.fin-cards{display:grid;grid-template-columns:repeat(aut
 .fin-badges{display:flex;gap:6px;flex-wrap:wrap}.fin-badge{background:#1A1F2A;border:1px solid #15A4C8;color:#7FE8FF;border-radius:999px;padding:2px 9px;font-size:.8rem;font-weight:800;white-space:nowrap}
 .fin-badge.dim{border-color:#3C4A66;color:#93A0B8}`;
 
-export function createFinale({ mon, state, audio, confetti, voice = () => undefined, music = () => true, onStage = () => {}, key = 'pkm2_finale' } = {}) {
+// Dansnummer voor de finale (ElevenLabs Music, gemaakt met de functie monster-music). Laadt het niet, dan het eigen deuntje.
+export const DANS_URL = 'https://lnhliamckstuwiwyzxyl.supabase.co/storage/v1/object/public/monster/music/dans-a.mp3';
+export function createFinale({ mon, state, audio, confetti, voice = () => undefined, music = () => true, track = DANS_URL, onStage = () => {}, key = 'pkm2_finale' } = {}) {
   let stage = 'idle', running = false, runId = 0;
   const gameKey = () => key + ':' + (state.get().game?.started_at || 'x');
   const set = s => { stage = s; try { onStage(s); } catch (e) { console.error('[finale]', e); } };
@@ -74,10 +76,12 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
     if (!(await mon.say(text, opts))) await mon.say(text, opts);
   }
   // Het verjaardagsrapje op het dansmuziekje. Muziek alleen op het toestel dat praat (music()), anders gewoon de zinnen.
-  let dance = null;
+  let dance = null, trackP = null;
   async function rapje(alive) {
     const J = { jarige: jarige() }, w = l => fillLine(l, J);
-    dance = music() ? audio?.dance?.() || null : null;
+    let buffer = null;
+    if (music()) buffer = await Promise.race([trackP || audio?.loadTrack?.(track) || null, sleep(2500).then(() => null)]); // te traag: eigen deuntje
+    dance = music() ? audio?.dance?.({ buffer }) || null : null;
     const talk = async (t, ms) => { dance?.duck(true); await say(t, ms ? { ms } : {}); dance?.duck(false); };
     try {
       await talk(w(pick(LINES.dj) || '')); if (!alive()) return;
@@ -98,6 +102,7 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
     running = true; const id = ++runId;
     const alive = () => id === runId;
     try {
+      trackP = music() ? audio?.loadTrack?.(track) : null; // alvast laden tijdens de Mega-zinnen
       if (intro) { await say(intro); if (!alive()) return; }
       mon.setParts(PART_KEYS); mon.setMood('compleet');
       set('mega');

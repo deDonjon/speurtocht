@@ -82,11 +82,11 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:75}
 <script type="module">
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync, IS_TEST } from './js/sync.js';
-import { createMonster, lineText } from './js/monster.js?v=17';
-import { audio } from './js/audio.js?v=10';
-import { voice } from './js/voice.js?v=6';
+import { createMonster, lineText } from './js/monster.js?v=18';
+import { audio } from './js/audio.js?v=11';
+import { voice } from './js/voice.js?v=7';
 import { LINES } from './js/monster-lines.js?v=9';
-import { createFinale, endCards, END_CSS, fillLine } from './js/finale.js?v=2';
+import { createFinale, endCards, END_CSS, fillLine } from './js/finale.js?v=3';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

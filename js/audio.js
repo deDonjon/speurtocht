@@ -4,7 +4,8 @@
 //   audio.play('plop')            // naam uit SOUNDS hieronder (installatie: 'vlieg' en 'vast'; 'holo'; 'mega'; verrassingen: 'alarm', 'vonk', 'klok', 'stem', 'kruimel')
 //   audio.playBuffer(buf, { galm })  // stem afspelen; galm = lichte nagalm voor Mega-Mecha-Pof
 //   audio.hum()  → { pulse(strength), stop() }   // funky wah-baslijn onder de stem van het monster
-//   audio.dance() → { duck(on), drop(), stop(fade), beat }  // dansmuziekje voor de finale (eigen deuntje)
+//   audio.dance({ buffer? }) → { duck(on), drop(), stop(fade), beat }  // dansmuziek finale: mp3 (loadTrack) of eigen deuntje
+//   audio.loadTrack(url) → Promise<AudioBuffer|null>                    // dansnummer vooraf laden
 //   audio.buzz(patroon)           // trillen via pkm.buzz (iPhone: alleen een tikje direct na een tik)
 //   audio.muted()                 // dempknop (localStorage pkm2_muted, gezet door index.html)
 //   audio.chime([freq…])          // oude toonreeks, voor wie nog chime gebruikt
@@ -150,6 +151,23 @@ export const SOUNDS = {
   kruimel()  { [0, 0.09, 0.18, 0.27].forEach((at, i) => blip(1900 - i * 120, 2300 - i * 120, at, 0.1, 0.05)); hiss({ at: 0.05, dur: 0.3, vol: 0.05, from: 3000, to: 1500, q: 0.8 }); }, // het kruimelrobotje trippelt weg
 };
 
+// Dansnummer als mp3 (zelfde vorm als het zelfgemaakte deuntje in dance()): loopt door, zachter onder de stem, harder bij drop().
+const tracks = {};
+function trackPlayer(buf, bpm) {
+  const c = ctx, src = c.createBufferSource(), bus = c.createGain();
+  src.buffer = buf; src.loop = true;
+  bus.gain.setValueAtTime(0.0001, c.currentTime); bus.gain.exponentialRampToValueAtTime(0.7, c.currentTime + 0.8);
+  src.connect(bus).connect(master); src.start();
+  const ramp = (v, sec) => { const n = c.currentTime; bus.gain.cancelScheduledValues(n); bus.gain.setValueAtTime(Math.max(0.0001, bus.gain.value), n); bus.gain.exponentialRampToValueAtTime(Math.max(0.0001, v), n + sec); };
+  let stopped = false, ducked = false;
+  return {
+    beat: 60 / bpm,
+    duck(on = true) { if (stopped || ducked === !!on) return; ducked = !!on; ramp(on ? 0.22 : 0.7, on ? 0.15 : 0.5); },
+    drop() { if (stopped) return; ducked = false; ramp(0.95, 0.3); },
+    stop(fade = 1.5) { if (stopped) return; stopped = true; ramp(0.0001, fade); setTimeout(() => { try { src.stop(); bus.disconnect(); } catch {} }, fade * 1000 + 300); },
+  };
+}
+
 export const audio = {
   muted,
   unlock,
@@ -211,9 +229,10 @@ export const audio = {
       huppelende bas en een chiptune-melodie met robotpiepjes. Akkoorden C · Am · F · G, 8 maten in een lus.
       → { duck(on) (zachter onder de stem), drop() (melodie + extra hihat aan, voor het dansstuk), stop(fadeSec), beat (s per tel) }.
       Stil (en een leeg object) als de dempknop aan staat. */
-  dance({ bpm = 122 } = {}) {
+  dance({ bpm = 122, buffer = null } = {}) {
     const none = { duck() {}, drop() {}, stop() {}, beat: 60 / bpm };
     if (muted() || !context()) return none;
+    if (buffer) return trackPlayer(buffer, bpm);
     const c = ctx, beat = 60 / bpm, bar = beat * 4;
     const bus = c.createGain(); bus.gain.setValueAtTime(0.0001, c.currentTime); bus.gain.exponentialRampToValueAtTime(0.5, c.currentTime + 0.6);
     bus.connect(master);
@@ -267,6 +286,12 @@ export const audio = {
         setTimeout(() => { clearInterval(timer); try { bus.disconnect(); } catch {} }, fade * 1000 + 300);
       },
     };
+  },
+  /** Dansnummer (mp3 van ElevenLabs Music, bucket monster/music/) vooraf laden → Promise<AudioBuffer|null>. Eén keer per url. */
+  loadTrack(url) {
+    if (!url) return Promise.resolve(null);
+    return tracks[url] ||= fetch(url).then(r => { if (!r.ok) throw new Error('nummer ' + r.status); return r.arrayBuffer(); })
+      .then(arr => this.decode(arr)).catch(e => { console.warn('[audio] dansnummer', e); delete tracks[url]; return null; });
   },
   /** mp3 (ArrayBuffer) → AudioBuffer, voor de monsterstem (js/voice.js). */
   async decode(arr) {
