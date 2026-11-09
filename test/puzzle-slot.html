@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test: puzzel slot</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
+<link rel="stylesheet" href="puzzle-panels.css">
+</head>
+<body>
+<h2>Test: puzzel <code>slot</code> — Het stroopslot</h2>
+<p class="note">Elk paneel is een telefoon met één bewaker; ze delen één zettenlijst (nep-sync, geen server). Kies het aantal telefoons: met 1 krijg je de 1-telefoonvariant. Rollen roteren zoals in de app (📻 radio · 🗺️ kaart · 🔧 werkbank).</p>
+<div class="bar"><label>Telefoons <select id="phonesSel"><option>1</option><option>2</option><option>3</option></select></label><button class="plain" id="reset">↺ Opnieuw (nieuwe seed)</button></div>
+<div id="phones" class="phones"></div>
+<p id="state"></p>
+<div id="log"></div>
+<script type="module">
+import { mountPuzzleTest } from './puzzle-panels.js';
+mountPuzzleTest({ type: 'slot', phones: 3, config: { type: 'slot', question: 'Mijn gereedschapskist zit op slot. Elke telefoon draait aan één schijf; los het raadsel bij je schijf op.', dials: [ { clue: 'Hoeveel pannenkoeken zitten er in mijn pantser?', answer: '4' }, { clue: 'Hoeveel LED-ogen scannen er in mijn vizier?', answer: '2' }, { clue: 'Hoeveel armen heb ik: een spatel en een garde?', answer: '2' } ], hint: 'Kijk goed naar Mecha-Pof op het scherm.' } });
+</script>
+</body>
+</html>

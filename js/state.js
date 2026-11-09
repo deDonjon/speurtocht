@@ -71,10 +71,16 @@ export const state = {
   myTalents() { return state.me().map(p => p.talent).filter(Boolean); },
   hasTalent(t) { return state.myTalents().includes(t); },
   onlinePlayers() { return s.players.filter(p => p.online); },
-  phones() { // aantal toestellen met minstens één ingelogde bewaker, online (presence)
-    let n = 0; for (const d of presence.values()) if (d.players?.length) n++;
-    return Math.max(1, n);
+  /** Gesorteerde lijst van toestel-id's die meedoen: presence met minstens één bewaker, bewakers die online zijn (last_seen_at)
+   *  en dit toestel zelf zodra er hier iemand is ingelogd. Dezelfde lijst op elke telefoon → dezelfde rolverdeling (js/roles.js). */
+  devices() {
+    const ids = new Set();
+    for (const [k, d] of presence) if (d.players?.length) ids.add(k);
+    for (const p of s.players) if (p.online && p.device_id) ids.add(p.device_id);
+    if (s.device.players.length) ids.add(s.device.id);
+    return [...ids].sort();
   },
+  phones() { return Math.max(1, state.devices().length); }, // aantal toestellen online (1, 2 of 3)
   partsMissing() { const have = new Set(s.game?.parts || []); return Object.keys(PARTS).filter(p => !have.has(p)); },
   partsFound() { return s.game?.parts || []; },
   isBirthday(id) { return !!state.player(id)?.is_birthday; },

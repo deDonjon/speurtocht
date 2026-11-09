@@ -13,6 +13,7 @@
 //   Hardop alleen op de telefoon met het laagste device-id dat online is; de rest toont alleen de ballon.
 // - Luistert zelf naar pkm.router / pkm.state (als die er zijn): aankomst, hints, foute antwoorden, stilte.
 // ?v=… tegen oude bestanden in de cache (GitHub Pages/Safari). Ophogen bij een wijziging, ook in index.html en test/monster.html.
+import { hasRole } from './roles.js?v=1';
 import { audio } from './audio.js?v=7';
 import { LINES, NAAM_JARIGE } from './monster-lines.js?v=5';
 import { voice as monsterVoice, uitspraak } from './voice.js?v=1';
@@ -533,17 +534,8 @@ function wordTimes(text, rate) {
   return { times: out, total: t };
 }
 
-// Wie praat hardop? De telefoon met het laagste device-id dat online is.
-export function isSpeakerPhone() {
-  const s = globalThis.pkm?.state?.get?.();
-  if (!s) return true;
-  const me = s.device?.id, mine = (s.device?.players || []).length > 0;
-  const ids = new Set((s.players || []).filter(p => p.online && p.device_id).map(p => p.device_id));
-  if (mine && me) ids.add(me);
-  if (!ids.size) return true;
-  if (!mine || !me) return false;
-  return [...ids].sort()[0] === me;
-}
+// Wie praat hardop? De telefoon met de rol `radio` (js/roles.js; roteert per stop). Oude naam blijft bestaan voor test/monster.html.
+export function isSpeakerPhone() { return hasRole('radio'); }
 function jarigeNaam() { return globalThis.pkm?.state?.get?.().players?.find(p => p.is_birthday)?.name || NAAM_JARIGE; }
 function isJarige(playerId) { return !!playerId && !!globalThis.pkm?.state?.get?.().players?.find(p => p.id === playerId && p.is_birthday); }
 const WORDS = ['nul', 'één', 'twee', 'drie', 'vier', 'vijf', 'zes', 'zeven', 'acht', 'negen', 'tien', 'elf', 'twaalf', 'dertien', 'veertien', 'vijftien', 'zestien', 'zeventien', 'achttien', 'negentien', 'twintig'];

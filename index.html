@@ -31,6 +31,7 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important} /* anders wint .row{display:flex} van hidden (formulieren in de puzzels) */
 html,body{height:100%}
 html{background:var(--bg)}
 body{margin:0;background:transparent;color:var(--ink);font-family:var(--body);font-weight:600;font-size:17px;line-height:1.45;-webkit-text-size-adjust:100%;overscroll-behavior:none;overflow-x:hidden}
@@ -159,6 +160,39 @@ input.big:focus{border-color:var(--led);box-shadow:inset 0 2px 8px rgba(0,0,0,.5
 .stile{min-height:0;padding:0;border-radius:8px;background-size:300% 300%;background-color:#FFF4DF;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
 .stile.empty{background:#0A1322;box-shadow:inset 0 2px 6px rgba(0,0,0,.6)}
 .big-btn{min-height:64px;font-size:1.15rem}
+/* rollen (js/roles.js): radio, kaart, werkbank */
+.roles{display:flex;gap:6px;justify-content:center;max-width:540px;margin:6px auto 0;flex-wrap:wrap}
+.role{font-family:var(--hud);font-size:.72rem;letter-spacing:.06em;color:var(--muted);background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:2px 9px;white-space:nowrap}
+.role.mine{color:var(--led);border-color:var(--led-dark);box-shadow:0 0 8px rgba(127,232,255,.3)}
+/* installatieritueel (js/install.js): schudmeter */
+.shake{height:14px;border-radius:999px;background:var(--visor);border:2px solid var(--line2);overflow:hidden;width:100%}
+.shake i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--led-dark),var(--led));transition:width .15s;box-shadow:0 0 10px rgba(127,232,255,.5)}
+/* splits: stukken van het signaal */
+.piece-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px}
+.piece{min-height:76px;padding:8px 6px;border-radius:12px;background:var(--visor);border:2px dashed var(--line2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--ink);text-align:center}
+.piece small{font-size:.68rem;color:var(--muted);font-family:var(--hud);letter-spacing:.04em;line-height:1.2}
+.piece b{font-family:var(--hud);font-size:1.5rem;letter-spacing:.08em;color:var(--led);text-shadow:0 0 10px rgba(127,232,255,.5)}
+.piece.open{border-style:solid;border-color:var(--led-dark);box-shadow:0 0 14px rgba(127,232,255,.25)}
+.piece.seen:not(.open) b{color:var(--muted);text-shadow:none}
+button.piece{box-shadow:none;font-weight:800}
+/* slot: draaischijven */
+.dials{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:10px}
+.dial{background:var(--visor);border:2px solid var(--line2);border-radius:14px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.dial.mine{border-color:var(--led-dark);box-shadow:0 0 14px rgba(127,232,255,.22)}
+.dial.ok{border-color:var(--ok);box-shadow:0 0 14px rgba(74,222,128,.3)}
+.dial small{font-size:.68rem;color:var(--muted);font-family:var(--hud);letter-spacing:.04em;line-height:1.2;min-height:2.4em}
+.dial .sym{font-family:var(--hud);font-size:2.6rem;line-height:1.1;color:var(--gold);text-shadow:0 0 12px rgba(242,190,98,.4);padding:4px 0}
+.dial .turn{min-height:44px;width:100%;padding:0;font-size:1.1rem;display:block}
+.dial span.turn{min-height:44px}
+.dial-clue{font-size:.82rem;color:var(--ink);font-weight:700;line-height:1.25}
+/* sync: lichtbalk (één telefoon) en lampje op de maat (meer telefoons) */
+.sweep{position:relative;height:36px;border-radius:999px;background:var(--visor);border:2px solid var(--line2);overflow:hidden}
+.sweep .zone{position:absolute;top:0;bottom:0;background:rgba(74,222,128,.35);border-left:2px solid var(--ok);border-right:2px solid var(--ok)}
+.sweep .light{position:absolute;top:4px;bottom:4px;width:14px;margin-left:-7px;border-radius:999px;background:var(--led);box-shadow:0 0 14px var(--led)}
+.beat{display:flex;align-items:center;gap:12px;background:var(--visor);border:2px solid var(--line2);border-radius:14px;padding:10px 12px}
+.beat .lamp{flex:none;width:34px;height:34px;border-radius:50%;background:#2A3142;animation:beat 2s steps(1) infinite}
+@keyframes beat{0%,34%{background:var(--ok);box-shadow:0 0 18px var(--ok)}35%,100%{background:#2A3142;box-shadow:none}}
+button.press{min-height:96px;font-size:1.6rem;letter-spacing:.06em}
 .hint{background:var(--visor);border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:12px;padding:10px 12px;font-weight:800}
 .submit{border-top:2px dashed var(--line2);padding-top:12px;display:flex;flex-direction:column;gap:8px}
 
@@ -197,7 +231,9 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:35}
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync } from './js/sync.js';
 import { createMap } from './js/map.js?v=5'; // ?v ophogen bij elke wijziging: GitHub Pages en Safari bewaren oude bestanden
-import { createMonster, monsterImage, isSpeakerPhone } from './js/monster.js?v=10'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
+import { createMonster, monsterImage } from './js/monster.js?v=11'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
+import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole } from './js/roles.js?v=1'; // radio / kaart / werkbank, roterend per stop
+import { createInstall } from './js/install.js?v=1'; // installatieritueel: monteur schudt, deel klikt vast
 import { openWalkie } from './js/walkie.js?v=9'; // walkietalkie met het live monster (ElevenLabs, zie MONSTER-AGENT.md)
 import { audio } from './js/audio.js?v=7'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
 
@@ -268,6 +304,7 @@ const monsterUrl = () => monsterImage(); // stilstaand plaatje van het complete 
    Schermen zetten alleen <div class="mslot" data-size="sm|md|lg"></div> neer; placeMonster() hangt het monster in de bovenste. */
 const mon = createMonster();
 let walkie = null; // open walkietalkie (js/walkie.js) of null
+const install = createInstall({ mon, sync, state, PARTS, TALENTS, audio, buzz, confetti, overlay: (...a) => overlay(...a), closeOverlay: () => closeOverlay(), mslot: (...a) => mslot(...a), esc });
 function moodFor() {
   const g = S().game, n = g?.parts?.length || 0;
   if (!g || g.phase === 'lobby') return 'slaap';
@@ -294,26 +331,24 @@ const router = {
 };
 state.on('event', ev => { if (!ev || seen.has(ev.id)) return; seen.add(ev.id); if (primed) router.dispatch(ev); });
 
-router.on('game.start', () => { celebrate = null; overlay(`<div class="page"><span class="tab">Systeem opgestart</span>${mslot('lg')}<h2>Mecha-Pof wordt wakker…</h2><p>Zoek de eerste plek. Het monster kijkt mee.</p></div>`, 2600); mon.setMood('wakker'); mon.react('start'); audio.play('start'); buzz([80, 60, 120]); });
-router.on('game.reset', () => { celebrate = null; closeOverlay(); toast('Het spel is opnieuw klaargezet.'); });
+router.on('game.start', () => { overlay(`<div class="page"><span class="tab">Systeem opgestart</span>${mslot('lg')}<h2>Mecha-Pof wordt wakker…</h2><p>Zoek de eerste plek. Het monster kijkt mee.</p></div>`, 2600); mon.setMood('wakker'); mon.react('start'); audio.play('start'); buzz([80, 60, 120]); });
+router.on('game.reset', () => { closeOverlay(); toast('Het spel is opnieuw klaargezet.'); });
 router.on('stop.arrived', () => { audio.play('aankomst'); buzz([80, 40, 80]); });
 router.on('stop.solved', p => {
-  const st = state.stop(p.stop_id); celebrate = { part: p.part, last: st?.key === 'home', by: p.by };
-  audio.play('deel'); buzz([60, 40, 60, 40, 120]); if (celebrate.last) confetti(); showCelebrate();
+  const st = state.stop(p.stop_id);
+  audio.play('ok'); buzz([60, 40, 60]);
+  install.start({ part: p.part, stop_id: p.stop_id, by: p.by, last: st?.key === 'home' }); // monteur schudt, deel klikt vast
 });
 router.on('hint.given', p => { audio.play('hint'); if (p.text) say(p.text, 9000); else toast('💡 Er is een hint vrijgegeven.'); });
 router.on('monster.say', p => say(p.text || '…'));
 router.on('roles.shuffle', () => { say('Ik heb de rollen geschud. Kijk maar eens wat je nu kunt.'); buzz([40, 40, 40]); });
 router.on('plan_b', () => say('Eén telefoon is in slaap gevallen. Ik verdeel de talenten opnieuw.'));
 router.on('gps.skip', p => { if (p.stop_id === state.activeStop()?.id && sync.isLoggedIn()) arrive(p.stop_id); });
-router.on('badge.awarded', p => { const me = state.me().find(x => x.id === p.player_id); if (me) toast(`🏅 ${me.name} krijgt de badge ${p.badge}!`); });
+router.on('badge.awarded', p => { if (install.onBadge(p.badge)) return; const me = state.me().find(x => x.id === p.player_id); if (me) toast(`🏅 ${me.name} krijgt de badge ${p.badge}!`); });
 
 /* ================================================================ walkietalkie (js/walkie.js)
-   Per groep één walkietalkie: alleen de spreektelefoon (die ook hardop praat) krijgt de knop. */
-function speakerNames() {
-  const ps = S().players || [], ids = [...new Set(ps.filter(p => p.online && p.device_id).map(p => p.device_id))].sort();
-  return ps.filter(p => p.device_id === ids[0]).map(p => p.name).join(' & ');
-}
+   Per groep één walkietalkie: alleen de radiotelefoon (rol `radio`, js/roles.js; die praat ook hardop) krijgt de knop. */
+const speakerNames = () => whoHas('radio');
 function walkieContext() {
   const g = S().game || {}, st = state.activeStop(), route = state.route(), got = g.parts || [];
   const cfg = st?.puzzles?.[S().puzzle?.variant ?? 0] || st?.puzzles?.[0] || {};
@@ -353,20 +388,6 @@ function overlay(html, ms) {
   if (ms) ovTimer = setTimeout(closeOverlay, ms); placeMonster(); return o;
 }
 function closeOverlay() { clearTimeout(ovTimer); $('#ov')?.remove(); placeMonster(); }
-let celebrate = null;
-function showCelebrate() {
-  if (!celebrate) return;
-  const p = PARTS[celebrate.part] || { icon: '⭐', label: 'een geheim deel' };
-  const got = [...new Set([...(S().game?.parts || []), celebrate.part])];
-  const by = state.player(celebrate.by);
-  const o = overlay(`<div class="page"><span class="tab">Deel gevonden</span>
-    <div style="font-size:4rem;line-height:1">${p.icon}</div><h2>Gevonden!</h2>
-    <p>Jullie hebben <strong>${esc(p.label)}</strong> van Mecha-Pof terug${by ? ` (ingediend door ${esc(by.name)})` : ''}.</p>
-    ${mslot('md', 'data-parts="1"')}
-    <button class="ok wide">${celebrate.last ? '🥞 Pannenkoeken!' : 'Op naar de volgende plek ▶'}</button></div>`);
-  mon.setParts(got, { land: celebrate.part }); mon.setMood(moodFor()); mon.react('goed');
-  $('button', o).onclick = () => { celebrate = null; closeOverlay(); };
-}
 function showMission(m, name) {
   const text = typeof m === 'string' ? m : (m?.text || m?.mission || JSON.stringify(m));
   let n = 10;
@@ -504,7 +525,7 @@ function screenKey() {
   if (g.phase === 'lobby') return 'lobby';
   if (g.phase === 'klaar') return 'klaar';
   const st = state.activeStop(); if (!st) return 'lobby';
-  return (g.phase === 'onderweg' ? 'nav:' : 'puz:') + st.id;
+  return (g.phase === 'onderweg' ? 'nav:' + st.id + ':' + (hasRole('kaart') ? 'k' : '-') : 'puz:' + st.id + ':' + (hasRole('werkbank') ? 'w' : '-'));
 }
 function mount(key) {
   cur.destroy?.();
@@ -525,16 +546,22 @@ function syncGps() { if (inGame() && !test) startGps(); else if (!inGame()) stop
 
 /* ---------- balk */
 const conn = c => `<svg class="conn" viewBox="0 0 16 20" aria-label="${c === 'online' ? 'verbonden' : 'geen verbinding'}"><path d="M8 1C5 6 2 9.5 2 13a6 6 0 0 0 12 0c0-3.5-3-7-6-12z" fill="${c === 'online' ? '#4ADE80' : c === 'connecting' ? '#F2BE62' : '#5B6680'}"/></svg>`;
+function rolesHtml() { // rollen van deze telefoon bij de huidige stop, plus wie de andere heeft
+  const mine = myRoles();
+  return ROLES.map(r => { const own = mine.includes(r), who = own ? '' : whoHas(r);
+    return `<span class="role ${own ? 'mine' : ''}" title="${esc(ROLE_INFO[r].short)}">${ROLE_INFO[r].icon} ${own ? ROLE_INFO[r].label : esc(who || '…')}</span>`; }).join('');
+}
 function renderBar() {
   const g = S().game, me = state.me(), got = g?.parts || [];
   $('#bar').innerHTML = `<div class="in">
     <div class="chips">${me.map(p => { const x = guard(p); return `<span class="chip" style="--acc:${x.color}"><i>${x.icon}</i>${esc(p.name)}</span>`; }).join('') || '<span class="eyebrow">Mecha-Pof</span>'}</div>
     ${g && g.phase !== 'lobby' ? `<span class="drops" title="stroopdruppels">💧${g.drops || 0}</span>` : ''}
     ${conn(S().conn)}${sync.outboxSize() ? `<span class="note">${sync.outboxSize()}</span>` : ''}
-    ${me.length && g ? (isSpeakerPhone() ? '<button class="iconbtn" data-b="walkie" aria-label="Walkietalkie met het monster">📻</button>' : `<span class="note" title="De walkietalkie zit op één telefoon per groep">📻 bij ${esc(speakerNames() || 'een ander')}</span>`) : ''}
+    ${me.length && g ? (hasRole('radio') ? '<button class="iconbtn" data-b="walkie" aria-label="Walkietalkie met het monster">📻</button>' : `<span class="note" title="De walkietalkie zit op de radiotelefoon">📻 bij ${esc(speakerNames() || 'een ander')}</span>`) : ''}
     <button class="iconbtn" data-b="mute" aria-label="Geluid">${muted ? '🔇' : '🔊'}</button>
     <button class="iconbtn" data-b="tray" aria-label="Begeleider">⚙︎</button></div>
-    ${g && g.phase !== 'lobby' ? `<div class="parts">${Object.keys(PARTS).map(k => `<span class="part ${got.includes(k) ? 'got' : ''}" title="${esc(PARTS[k].label)}">${got.includes(k) ? PARTS[k].icon : ''}</span>`).join('')}</div>` : ''}`;
+    ${g && g.phase !== 'lobby' ? `<div class="parts">${Object.keys(PARTS).map(k => `<span class="part ${got.includes(k) ? 'got' : ''}" title="${esc(PARTS[k].label)}">${got.includes(k) ? PARTS[k].icon : ''}</span>`).join('')}</div>` : ''}
+    ${me.length && g && g.phase !== 'lobby' && g.phase !== 'klaar' ? `<div class="roles">${rolesHtml()}</div>` : ''}`;
 }
 $('#bar').addEventListener('click', e => {
   const b = e.target.closest('[data-b]')?.dataset.b;
@@ -591,7 +618,9 @@ screens.lobby = el => {
       <div class="row"><span style="font-size:2.4rem">${x.icon}</span><div class="grow"><h2>${esc(p.name)}</h2>
       <p>${x.part ? 'Bewaker van ' + esc(PARTS[x.part].label) : 'Je deel wordt nog geloot…'}</p></div></div>
       ${x.talent ? `<div class="talent">Talent: <b>${esc(x.talent)}</b></div>` : ''}
-      <button class="ghost" data-out="${p.id}">Afmelden op deze telefoon</button></div>`; }).join('');
+      <button class="ghost" data-out="${p.id}">Afmelden op deze telefoon</button></div>`; }).join('')
+      + (state.me().length ? `<div class="page"><span class="tab">Deze telefoon</span><p>De rollen wisselen bij elke plek. Bij de eerste plek is deze telefoon: <b>${myRoles().map(r => ROLE_INFO[r].icon + ' ' + ROLE_INFO[r].label).join(', ') || '…'}</b>.</p>
+        <p class="note">📻 Radio: Mecha-Pof praat en belt · 🗺️ Kaart: ziet de kaart en de afstand · 🔧 Werkbank: maakt de puzzel.</p></div>` : '');
     $('#guards', el).innerHTML = ps.map(p => { const x = guard(p); return `<div class="guard ${mine.has(p.id) ? 'mine' : ''}" style="--acc:${x.color}"><span class="ic">${x.icon}</span>
       <div><b>${esc(p.name)}<span class="dot ${p.online ? 'on' : ''}"></span></b><small>${esc(x.talent || 'nog geen talent')}</small></div></div>`; }).join('');
     const on = ps.filter(p => p.online).length;
@@ -600,44 +629,48 @@ screens.lobby = el => {
   update(); return { update };
 };
 
-/* ---------- onderweg naar de actieve stop */
+/* ---------- onderweg naar de actieve stop
+   Alleen de kaarttelefoon (rol `kaart`) toont de kaart, de afstand en warmer/kouder; de andere telefoons zien de aanwijzing
+   en wie de kaart heeft. Elke telefoon blijft wel zelf de aankomst controleren (GPS), zodat de puzzel opengaat zodra één toestel er is. */
 screens.nav = (el, id) => {
-  const st = state.stop(id), { n, total } = stopNo(st);
+  const st = state.stop(id), { n, total } = stopNo(st), kaart = hasRole('kaart');
   lastDist = null;
   el.innerHTML = `${mslot('sm')}
     <div class="page"><span class="tab">${st.key === 'home' ? 'Laatste plek' : `Plek ${n} van ${total}`}</span>
-      <div class="row" style="justify-content:space-between"><span class="eyebrow">${PARTS[st.part]?.icon || ''} ${esc(PARTS[st.part]?.label || '')}</span></div>
+      <div class="row" style="justify-content:space-between"><span class="eyebrow">${PARTS[st.part]?.icon || ''} ${esc(PARTS[st.part]?.label || '')}</span><span class="eyebrow">${kaart ? '🗺️ Kaart' : ''}</span></div>
       <h2>${esc(st.name)}</h2><p class="clue">${esc(st.clue)}</p>
-      ${hasL ? '<div class="mapwrap"><div id="mapslot"></div><button class="mapbtn plain" id="fit" aria-label="Kaart centreren">🎯</button></div>' : ''}
-      <div id="dist"></div><div class="meter" aria-hidden="true"><i></i></div>
+      ${kaart && hasL ? '<div class="mapwrap"><div id="mapslot"></div><button class="mapbtn plain" id="fit" aria-label="Kaart centreren">🎯</button></div>' : ''}
+      ${kaart ? '<div id="dist"></div><div class="meter" aria-hidden="true"><i></i></div>' : '<div class="rolenote" id="rolenote"></div>'}
       <p class="status" id="status"></p>
       <div id="navbtns" class="row"></div>
     </div>`;
-  if (hasL) { $('#mapslot', el).appendChild(wmap.el); $('#fit', el).onclick = fitMap; }
+  if (kaart && hasL) { $('#mapslot', el).appendChild(wmap.el); $('#fit', el).onclick = fitMap; }
   el.addEventListener('click', e => { const b = e.target.closest('[data-n]')?.dataset.n;
     if (b === 'tele') arrive(id); if (b === 'gps') { gpsError = ''; stopGps(); startGps(); update(); } });
   const update = () => {
-    const pos = S().pos, r = radiusOf(st), kl = S().players.find(p => p.talent === 'kaartlezer');
-    const seesMeters = !kl || state.hasTalent('kaartlezer');
+    const pos = S().pos, r = radiusOf(st);
     let dist = '…', pct = 0, warm = '', status = gpsError || (test ? 'Testmodus: geen GPS. Gebruik de teleportknop.' : 'GPS zoekt jullie positie…');
     if (pos && !test) {
       const d = haversine(pos, st); pct = Math.max(0, Math.min(100, 100 - ((d - r) / 300) * 100));
       warm = lastDist == null ? '' : d < lastDist - 1 ? '🔥 Warmer!' : d > lastDist + 1 ? '🧊 Kouder…' : ''; lastDist = d;
-      dist = seesMeters ? Math.round(d) : '?';
-      status = (d <= r + 30 ? 'Bijna! Nog een klein stukje.' : seesMeters ? 'Volg de stippellijn op de kaart.' : `Alleen ${esc(kl.name)} (Kaartlezer) ziet de meters. Vraag het haar!`) + ` · GPS ±${Math.round(pos.acc)} m`;
+      dist = Math.round(d);
+      status = kaart ? (d <= r + 30 ? 'Bijna! Nog een klein stukje.' : 'Volg de stippellijn op de kaart.') + ` · GPS ±${Math.round(pos.acc)} m` : (d <= r + 30 ? 'Bijna! Nog een klein stukje.' : '');
     }
-    $('#dist', el).innerHTML = `<div class="dist">${dist}<small> m</small></div><div class="status">${warm}</div>`;
-    $('.meter i', el).style.width = pct + '%';
+    if (kaart) { $('#dist', el).innerHTML = `<div class="dist">${dist}<small> m</small></div><div class="status">${warm}</div>`; $('.meter i', el).style.width = pct + '%'; updateMap(st, true); }
+    else { const who = whoHas('kaart'); $('#rolenote', el).innerHTML = `<p class="clue" style="font-size:1rem">🗺️ De kaart en de afstand staan op de telefoon van <b>${esc(who || 'de kaartlezer')}</b>. Loop samen op!</p>`; }
     const s = $('#status', el); s.textContent = status; s.classList.toggle('bad', !!gpsError);
     $('#navbtns', el).innerHTML = (test ? '<button class="berry grow" data-n="tele">🛸 Teleporteer naar deze plek</button>' : '') + (gpsError ? '<button class="berry grow" data-n="gps">📡 Locatie opnieuw proberen</button>' : '');
-    updateMap(st, seesMeters); checkArrival();
+    checkArrival();
   };
   update(); return { update, destroy: () => wmap?.el.remove() };
 };
 
-/* ---------- puzzel bij de actieve stop (ook de finale thuis) */
+/* ---------- puzzel bij de actieve stop (ook de finale thuis)
+   Alleen de werkbanktelefoon (rol `werkbank`) krijgt de puzzelinvoer; de andere telefoons zien de vraag en wie de werkbank heeft.
+   Puzzels met `multi: true` (splits, slot, sync) worden op elke telefoon getekend: ieder toestel heeft daar zijn eigen stuk;
+   via api.roles weet de puzzel of dit de werkbank is. */
 const modCache = {};
-const PUZZLE_V = 5; // ophogen bij wijzigingen in js/puzzles/
+const PUZZLE_V = 6; // ophogen bij wijzigingen in js/puzzles/
 const loadPuzzle = type => modCache[type] ||= import(`./js/puzzles/${type}.js?v=${PUZZLE_V}`).then(m => m.default);
 screens.puz = (el, id) => {
   const st = state.stop(id), { n, total } = stopNo(st);
@@ -651,8 +684,7 @@ screens.puz = (el, id) => {
   let modType = null;
   const ps = () => { const p = S().puzzle; return p && p.stop_id === st.id ? p : null; };
   const config = p => (st.puzzles || [])[p?.variant ?? 0] || st.puzzles?.[0] || { type: 'opdracht', question: '' };
-  const ctxOf = p => ({ seed: p.seed, variant: p.variant, players: S().players, phones: state.phones(),
-    devices: [...new Set(S().players.filter(x => x.online && x.device_id).map(x => x.device_id))] });
+  const ctxOf = p => ({ seed: p.seed, variant: p.variant, players: S().players, phones: state.phones(), devices: state.devices() });
 
   // Zet direct lokaal tonen (pending) en naar de server sturen; zodra de server hem terugstuurt valt hij uit pending.
   function move(m) {
@@ -678,12 +710,20 @@ screens.puz = (el, id) => {
     if (!mod) return;
     pending = pending.filter(x => !p.moves.some(m => m.id === x.id));
     const cfg = config(p), ctx = ctxOf(p), moves = [...p.moves, ...pending];
-    const s = [p.id, moves.length, p.hints, p.solved_at, ctx.phones, submitting, state.myTalents().join(), S().game?.settings?.any_can_submit, keyHolder()?.id].join('|');
+    const roles = myRoles(), werkbank = roles.includes('werkbank') || !!mod.multi;
+    const s = [p.id, moves.length, p.hints, p.solved_at, ctx.phones, ctx.devices.join(), roles.join(), submitting, state.myTalents().join(), S().game?.settings?.any_can_submit, keyHolder()?.id].join('|');
     if (s === sig && !force) return; sig = s;
     let data; try { data = moves.reduce((d, m) => mod.reduce(d, m, ctx), mod.init(cfg, ctx)); }
     catch (e) { console.error(e); pz.innerHTML = '<p class="feedback">Deze puzzel struikelt. Vraag de begeleider.</p>'; return; }
     const solved = !!p.solved_at || mod.isSolved(data, cfg, ctx);
-    mod.render(pz, data, { me: state.me(), talents: state.myTalents(), phones: ctx.phones, config: cfg, hints: p.hints, move, hint: () => sync.hint(st.id).catch(e => toast(e.message)), solve: submit });
+    if (werkbank) {
+      mod.render(pz, data, { me: state.me(), talents: state.myTalents(), phones: ctx.phones, config: cfg, hints: p.hints, move, hint: () => sync.hint(st.id).catch(e => toast(e.message)), solve: submit,
+        roles, deviceIndex: ctx.devices.indexOf(S().device.id), devices: ctx.devices, players: ctx.players, werkbankDevice: deviceWithRole('werkbank') });
+    } else { // niet de werkbank: alleen de vraag, en wie hem maakt
+      mod.destroy?.(pz);
+      pz.innerHTML = `${cfg.image ? `<img class="pimg" src="${esc(cfg.image)}" alt="">` : ''}<p class="question">${esc(cfg.question || '')}</p>
+        <p class="clue" style="font-size:1rem">🔧 De werkbank staat op de telefoon van <b>${esc(whoHas('werkbank') || 'een ander')}</b>. ${solved ? 'De puzzel is opgelost!' : 'Help mee denken en roep het antwoord!'}</p>`;
+    }
     // hint: op elke telefoon zichtbaar zodra één bewaker hem vraagt
     $('#hintbox', el).innerHTML = !cfg.hint ? '' : p.hints > 0 ? `<div class="hint">💡 ${esc(cfg.hint)}</div>` : solved ? '' : '<button class="ghost" id="askhint">💡 Hint nodig? (kost stroopdruppels)</button>';
     const ah = $('#askhint', el); if (ah) ah.onclick = () => { if (confirm('Hint vragen? Dat kost de groep stroopdruppels.')) sync.hint(st.id).catch(e => toast(e.message)); };
@@ -725,7 +765,7 @@ async function boot() {
   } catch (e) { bootError = e.message || 'Geen verbinding'; }
   refresh('remount');
 }
-window.pkm = { state, sync, router, PARTS, TALENTS, mon, monsterUrl, monsterImage, audio, toast, say, bubble, chime: audio.chime, buzz, refresh };
+window.pkm = { state, sync, router, PARTS, TALENTS, mon, monsterUrl, monsterImage, audio, toast, say, bubble, chime: audio.chime, buzz, refresh, roles: { myRoles, hasRole, whoHas, deviceWithRole }, install };
 renderBar(); refresh('remount'); boot();
 </script>
 </body>

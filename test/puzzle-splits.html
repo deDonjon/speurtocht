@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test: puzzel splits</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
+<link rel="stylesheet" href="puzzle-panels.css">
+</head>
+<body>
+<h2>Test: puzzel <code>splits</code> — Gesplitst signaal</h2>
+<p class="note">Elk paneel is een telefoon met één bewaker; ze delen één zettenlijst (nep-sync, geen server). Kies het aantal telefoons: met 1 krijg je de 1-telefoonvariant. Rollen roteren zoals in de app (📻 radio · 🗺️ kaart · 🔧 werkbank).</p>
+<div class="bar"><label>Telefoons <select id="phonesSel"><option>1</option><option>2</option><option>3</option></select></label><button class="plain" id="reset">↺ Opnieuw (nieuwe seed)</button></div>
+<div id="phones" class="phones"></div>
+<p id="state"></p>
+<div id="log"></div>
+<script type="module">
+import { mountPuzzleTest } from './puzzle-panels.js';
+mountPuzzleTest({ type: 'splits', phones: 3, config: { type: 'splits', question: 'Bzzzt! Mijn wachtwoord is in drie stukken versplinterd. Elke telefoon vangt er één op. Zeg ze hardop en plak ze aan elkaar!', question_solo: 'Bzzzt! Mijn wachtwoord is in drie stukken versplinterd en flitst maar even voorbij. Onthoud ze en plak ze aan elkaar!', pieces: ['STRO', 'OPME', 'TER'], answer: 'stroopmeter|stroop meter', hint: 'Het is het ding op mijn borst dat altijd in het rood staat.' } });
+</script>
+</body>
+</html>
