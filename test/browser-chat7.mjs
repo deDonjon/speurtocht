@@ -128,6 +128,62 @@ if (!only || only === 'finale') {
   await page.close();
 }
 
+// ================================================================ kern.html + regie.html (wekknop, loting)
+if (!only || only === 'kern') {
+  console.log('— kern (kern.html + regie.html)');
+  const w = world({ phase: 'lobby', talents: false });
+  w.player[0].talent = 'speurneus'; // zoals nu in de database: de loting moet Hannah vast op Sleutelbewaarder zetten
+  const K = await open('kern.html', w, { width: 1280, height: 800 });
+  await K.W('#key');
+  await K.page.fill('#key', 'job'); await K.page.click('#gateform button');
+  ok('kern: ingelogd met de regiesleutel', await K.until(() => document.querySelector('#gate').hidden, 4000));
+  ok('kern: slaapstand', await K.until(() => document.body.classList.contains('slaap') && window.pkm.mon.mood === 'slaap', 3000) && (await K.txt('#caption')).includes('STAND-BY'));
+  ok('kern meldt zich (settings.kern_at)', await K.until(() => !!window.pkm.state.get().game.settings.kern_at, 4000));
+  // regie.html in dezelfde nep-wereld: een tweede pagina heeft een eigen nep-database, dus de regieknoppen testen we via de RPC's van de kern-pagina
+  const R = await open('regie.html', w, { width: 1280, height: 800 });
+  await R.W('input[type=password]', 8000);
+  await R.page.fill('input[type=password]', 'job'); await R.page.keyboard.press('Enter');
+  await R.W('[data-a=wake]', 8000);
+  ok('regie: paneel Thuis met wekknop en loting (Hannah vast)', !!(await R.page.$('[data-a=wake]')) && (await R.txt('[data-a=loting]')).includes('Hannah vast'));
+  ok('regie: startknop zegt "route in volgorde"', (await R.txt('[data-a=start]')).includes('volgorde'));
+  await R.page.click('[data-a=wake]');
+  const wakeEv = await R.page.evaluate(() => window.__fake.db.event.find(e => e.type === 'monster.say'));
+  ok('regie: wekknop stuurt monster.say met wake + kern', wakeEv?.payload?.wake === true && wakeEv.payload.kern === true && /wakker/.test(wakeEv.payload.text), JSON.stringify(wakeEv?.payload));
+  await R.page.click('[data-a=loting]');
+  const lot = await R.page.evaluate(() => window.__fake.db.event.find(e => e.type === 'roles.shuffle'));
+  const tv = Object.values(lot?.payload?.talents || {});
+  ok('regie: loting = roles.shuffle met loting:true, Hannah sleutelbewaarder, zes verschillende talenten', lot?.payload?.loting && lot.payload.talents.p1 === 'sleutelbewaarder' && new Set(tv).size === 6, JSON.stringify(lot?.payload));
+  // dezelfde events naar de kern
+  await fake(K.page, (f, _pkm, pl) => f.rpc('regie_event', { p_key: 'job', p_type: 'monster.say', p_payload: pl }), wakeEv.payload);
+  ok('kern: wakker na de wekknop', await K.until(() => !document.body.classList.contains('slaap') && window.pkm.mon.mood !== 'slaap', 4000));
+  ok('kern: zegt de wekzin', await K.until(() => __said.some(t => /wie maakt mij wakker/.test(t)), 6000));
+  ok('kern: daarna een startzin', await K.until(() => __said.length >= 2, 15000));
+  await fake(K.page, (f, _pkm, pl) => f.rpc('regie_event', { p_key: 'job', p_type: 'roles.shuffle', p_payload: pl }), lot.payload);
+  ok('kern: loting-animatie (draaiende rol)', await K.until(() => !!document.querySelector('.slot.spin'), 20000));
+  ok('kern: eerste naam klikt vast met aankondiging', await K.until(() => __said.some(t => /\.\.\. (Speurneus|Kaartlezer|Codekraker|Rekenmeester|Tijdbewaker)!/.test(t)), 15000));
+  ok('kern: Hannah als laatste: Sleutelbewaarder', await K.until(() => __said.some(t => /Hannah\.\.\. Sleutelbewaarder/.test(t)), 70000));
+  ok('kern: loting klaar, talenten in beeld', await K.until(() => !document.querySelector('#reel') && document.querySelectorAll('#side .slot.lock').length === 6, 35000));
+  ok('kern: voorstelronde-uitleg', (await K.txt('#side')).includes('Voorstelronde'));
+  // start → onderdelen vliegen in
+  await fake(K.page, f => f.rpc('regie_start', { p_key: 'job' }));
+  ok('kern: onderweg-scherm', await K.until(() => /0 van 7/.test(document.querySelector('#caption').textContent), 4000));
+  ok('kern: zegt dat hij thuis wacht', await K.until(() => __said.some(t => /Ik wacht hier/.test(t)), 8000));
+  await sleep(7000); // "ik wacht hier" laten uitpraten
+  await fake(K.page, f => f.rpc('regie_approve_stop', { p_key: 'job', p_drops: 10 }));
+  ok('kern: lijf vliegt in (hologram)', await K.until(() => window.pkm.mon.parts.includes('lijf'), 4000));
+  ok('kern: installatiezin lijf hardop', await K.until(() => __said.some(t => /Pantser vastgeklikt|Pannenkoekenpantser gemonteerd/.test(t)), 12000));
+  ok('kern: 1 van 7', await K.until(() => /1 van 7/.test(document.querySelector('#caption').textContent), 8000));
+  // naar thuis: zes delen binnen, thuis goedkeuren → hoed vliegt in → finale op de kern
+  await fake(K.page, f => { f.patchGame({ parts: ['lijf', 'ogen', 'neus', 'mond', 'armen', 'benen'], active_index: 6, phase: 'finale' }); return f.rpc('regie_approve_stop', { p_key: 'job', p_drops: 10 }); });
+  ok('kern: fase klaar, finale start vanzelf na de hoed', await K.until(() => ['mega', 'vers', 'confetti', 'finale', 'eind'].includes(window.pkm.finale.stage), 25000));
+  ok('kern: finale met galm (Mega actief)', await K.until(() => window.pkm.mon.status.mega > 0.5, 6000));
+  ok('kern: eindscherm met zes kaarten', await K.until(() => document.querySelectorAll('.fin-card').length === 6, 90000));
+  ok('kern: hardop (voice:true) — vers gezegd', await K.page.evaluate(() => __said.some(t => /tien jaar oud/.test(t))));
+  ok('geen JavaScript-fouten (kern)', !K.errors.length, K.errors.join(' | '));
+  ok('geen JavaScript-fouten (regie)', !R.errors.length, R.errors.join(' | '));
+  await K.page.close(); await R.page.close();
+}
+
 if (globalThis.__chat7_more) await globalThis.__chat7_more({ open, world, fake, ok, sleep, only });
 console.log(`\n${n} goed, ${failed} fout.`);
 await browser.close(); server.close();
