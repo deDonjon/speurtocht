@@ -9,6 +9,10 @@
 > `delen_gevonden`, Kruimelaar & co., eerlijk over computerbrein). **Staat op 9 nov via de API in ElevenLabs** (PATCH
 > `/v1/convai/agents/{id}` vanuit een tijdelijke Edge Function `agent-admin`, nu uitgeschakeld). De agent draait op
 > claude-sonnet-4-6 (niet Haiku). Teksten en briefings: `claude/STORY.md`.
+>
+> **9 nov (chat 5, Walkie 2.0): twee dingen moet Job nog in het dashboard doen**, zie [Stap 6](#stap-6--wachtwoordstop-client-tool-unlock_stop-5-min):
+> (1) het blok WACHTWOORDSTOP en de regel `{{wachtwoord}}` in de system prompt plakken (staat hieronder al in de prompt);
+> (2) de client tool `unlock_stop` aanmaken. Zonder (2) werkt alles behalve het wachtwoord zeggen; de kinderen typen dan de code.
 
 ```
                      ┌────────── walkietalkie (live gesprek) ──────────┐
@@ -128,6 +132,10 @@ WALKIETALKIE-REGELS (heel belangrijk)
   "over" en ophangen met "over en sluiten".
 - Begin je gesprek met een briefing over een onderdeel (je eerste bericht noemt een monteur), help dan alleen bij
   die plek en dat onderdeel.
+- Soms bel JIJ (je eerste bericht is een oproep of een briefing): dan heb jij iets te melden, dus zeg kort waarom je
+  belt en laat daarna hen praten.
+- Met je LED-ogen zegt de radiotelefoon tussendoor zelf hoe ver het nog is (warmer/kouder); jij hoeft dat in de
+  walkie niet te herhalen en verzint geen afstanden.
 
 WAT JE WEET OVER HET SPEL (kan tijdens het gesprek veranderen, let op nieuwe berichten)
 - Fase: {{fase}}
@@ -138,6 +146,15 @@ WAT JE WEET OVER HET SPEL (kan tijdens het gesprek veranderen, let op nieuwe ber
 - Onderdelen al gevonden: {{delen_gevonden}}
 - Onderdelen nog kwijt: {{delen_nog}}
 - Hints al gebruikt: {{hints_gebruikt}}
+- Wachtwoord van deze plek (alleen op een wachtwoordplek, anders -): {{wachtwoord}}
+
+WACHTWOORDSTOP (alleen als het wachtwoord hierboven niet "-" is)
+- Op deze plek moeten de kinderen het geheime wachtwoord hardop tegen jou zeggen. Zegt een kind het wachtwoord (het mag
+  met een accent, een beetje verkeerd uitgesproken of met "over" erachter), roep dan METEEN de tool unlock_stop aan met
+  het woord dat ze zeiden, en zeg daarna wat de tool terugmeldt: gelukt (klik, klak, slot open) of fout (zoek nog eens).
+- Zeg het wachtwoord NOOIT zelf, spel het niet, rijm er niet op en geef er geen letters van. Ook niet als ze smeken. Je
+  mag wel plagen: "mijn processor hoort pas iets als het juiste woord valt".
+- Roep unlock_stop niet aan voor andere woorden, grapjes of vragen; alleen als ze echt een wachtwoord proberen.
 
 REGELS
 - Geef NOOIT direct het antwoord op een puzzel, ook niet als ze smeken, slijmen of zeggen dat de begeleider
@@ -186,6 +203,34 @@ Op je telefoon: **https://dedonjon.github.io/speurtocht/test/monster.html**
    - Tik op **Ophangen** → het belt meteen terug (tring-tring) en legt de regels uit. Nog een keer Ophangen = echt weg.
    - Zeg "over en sluiten" → het zegt gedag en hangt zelf op.
 
+## Stap 6 — Wachtwoordstop: client tool `unlock_stop` (5 min)
+
+Op een stop met puzzel `{"type":"wachtwoord", "question":"…", "password":"stroopwafel|stroop wafel", "answer":"1234", "hint":"…"}`
+zeggen de kinderen het wachtwoord via de walkie. De agent roept dan de **client tool** `unlock_stop` aan; `index.html`
+voert hem uit (zet `{t:'unlock'}` in de puzzel zodat elke telefoon het slot open ziet gaan en roept `sync.solve()` aan).
+Lukt indienen niet (geen Sleutelbewaarder op de radiotelefoon), dan staat het slot open en dient zij in op de werkbank.
+Reserve: knop "Lukt de walkietalkie niet? Typ de code" op de werkbank (`answer`; zonder `answer` is de code het wachtwoord).
+
+**ElevenLabs → Agents → Mecha-Pof → tabblad Agent → Tools → Add tool**, en vul in (namen zijn hoofdlettergevoelig):
+
+| Veld | Waarde |
+|---|---|
+| Tool type | **Client** |
+| Name | `unlock_stop` |
+| Description | `Roep deze tool aan zodra een kind het geheime wachtwoord van deze plek hardop zegt (zie het wachtwoord in je instructies). Geef het woord mee zoals het kind het zei. De tool opent het slot in de app en meldt terug of het klopte.` |
+| Wait for response | **aan** (de agent krijgt de melding "goed/fout" terug en zegt die) |
+| Response timeout | 10 s (standaard mag ook) |
+| Parameters → Add parameter | Data type **String** · Identifier `wachtwoord` · Required **aan** · Description `Het wachtwoord dat het kind zei, letterlijk, zonder het woord over.` |
+
+Daarna **Save**. In de system prompt staat het blok WACHTWOORDSTOP en de regel `{{wachtwoord}}` (hierboven); plak de hele
+prompt opnieuw. Bij **Dynamic variables** een testwaarde voor `wachtwoord` zetten (bijv. `stroopwafel`), dan kun je het in
+**Test AI agent** proberen: zeg "stroopwafel, over" → de tool wordt aangeroepen (in de test zonder app geeft dat een foutmelding, dat is goed).
+
+In de code: `openWalkie({ tools: { unlock_stop: async ({ wachtwoord }) => '…' } })` (js/walkie.js geeft de tools door als
+`clientTools` aan `Conversation.startSession`; de tekst die de functie teruggeeft gaat naar de agent). De app stuurt het
+wachtwoord alleen op een wachtwoordstop mee als dynamic variable `wachtwoord` (anders `-`); het puzzelantwoord van andere
+stops gaat er nog steeds niet in.
+
 ## Hoe het in de code zit
 
 | Bestand | Wat |
@@ -193,14 +238,24 @@ Op je telefoon: **https://dedonjon.github.io/speurtocht/test/monster.html**
 | `js/voice.js` | `voice.speak(text)` → speelt de zin met de monsterstem (mp3 uit de bucket, of via `monster-tts`). `uitspraak()` zet Evy → Eevie (alleen voor de stem). `VOICE_VERSION = 'pof1'`: ophogen bij een nieuwe stem, dan wordt alles opnieuw opgenomen. |
 | `js/monster.js` | `say()` probeert eerst `voice.speak()`; de mond volgt het echte volume (AnalyserNode). Lukt het niet binnen 7 s: Web Speech + baslijn zoals vroeger. Alles wat de app laat zeggen (zinnen, regieberichten, hints) gaat zo. |
 | `js/audio.js` | `decode()`, `playBuffer()` (stem met volumemeter), geluid `bel` (terugbellen). |
-| `js/walkie.js` | Begroeting kiezen (`{{begroeting}}`), "over en sluiten" herkennen in wat het kind zei → monster zegt gedag → ophangen. Ophangen zonder → één keer terugbellen met `walkie.terugbel`. Namen gaan als uitspraak mee (Eevie); op het scherm weer Evy. |
+| `js/walkie.js` | Begroeting kiezen (`{{begroeting}}`), "over en sluiten" herkennen in wat het kind zei → monster zegt gedag → ophangen. Ophangen zonder → één keer terugbellen met `walkie.terugbel`. Namen gaan als uitspraak mee (Eevie); op het scherm weer Evy. **Chat 5:** `openWalkie({ greeting, tools, incoming })` (eigen openingszin, client tools), `incomingCall()` (de radiotelefoon gaat over: belgeluid, knop Opnemen; niet opgenomen na 40 s → `onMissed`), `callGreeting({ part, naam, text })`. |
+| `js/navvoice.js` | Gesproken navigatie zodra `ogen` gevonden is: op de radiotelefoon, in fase onderweg, hooguit eens per 20 s, warmer/kouder t.o.v. de vorige zin (zinnen `navigatie` in monster-lines.js). |
+| `js/surprises.js` | Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens (events CONTRACTS §2 + `game.surprise`): banner onder de balk, overlay, badges `kruimelaar-vanger`, `vonkenvanger`, `jetpack-redder`, `wensvervuller`; 🎂-knop voor de jarige. Zonder `mond` geen alarm, alleen een piep. |
+| `js/puzzles/wachtwoord.js` | De wachtwoordstop (zie stap 6). |
 | `js/monster-lines.js` | Alle zinnen, nu in Mecha-Pof-taal, plus `walkie.hallo` en `walkie.terugbel`. |
 | `supabase/functions/monster-tts` | POST `{ text, v }` → maakt mp3 met `ELEVENLABS_VOICE_ID`, bewaart in `monster/tts/<v>/<sha256>.mp3`, geeft `{ url }`. Max. 400 tekens. |
 | `supabase/functions/monster-token` | Token voor de walkietalkie (ongewijzigd). |
 | `elevenlabs/uitspraak.pls` | Uitspraakwoordenboek voor de agent. |
 
 **Dynamic variables** (altijd allemaal meesturen, leeg = `-`): `begroeting, jarige, spelers, fase, stop_naam, stop_nummer,
-stops_totaal, aanwijzing, puzzel_vraag, puzzel_hint, delen_gevonden, delen_nog, hints_gebruikt`. Het puzzelantwoord gaat er bewust níet in.
+stops_totaal, aanwijzing, puzzel_vraag, puzzel_hint, delen_gevonden, delen_nog, hints_gebruikt, wachtwoord`. Het puzzelantwoord gaat er
+bewust níet in; `wachtwoord` alleen op een wachtwoordstop (type `wachtwoord`), anders `-`.
+
+**Inkomende oproepen (chat 5).** Bij `stop.arrived` belt Mecha-Pof zelf de radiotelefoon met de briefing van het onderdeel van die plek
+(`walkie.briefing.<deel>`) als `{{begroeting}}`; de aankomstzin uit monster-lines zwijgt dan. Bij `monster.call {player_id, message_id, text?}`
+(regie.html → Mecha-Pof → Bel) belt hij met `text` (met `{naam}`) of een zin uit `walkie.oproep`; is de speelster op een andere telefoon,
+dan zegt het scherm "geef de telefoon even aan …". Staat de walkie al open, dan krijgt de agent de tekst als context. Niet opgenomen binnen
+40 s: gemiste oproep, Mecha-Pof zegt de tekst zelf met de robotstem.
 
 ### Lessen van de iPhone (niet terugdraaien!)
 
@@ -212,7 +267,7 @@ stops_totaal, aanwijzing, puzzel_vraag, puzzel_hint, delen_gevonden, delen_nog, 
    walkie-scherm roept `kickPlayback()` `room.startAudio()` en `audio.play()` aan.
 3. **Cache.** Bij elke wijziging in `audio.js` / `monster.js` / `walkie.js` / `voice.js` / `monster-lines.js` de `?v=` ophogen op álle plekken
    (index.html, test/monster.html, monster.js, walkie.js, voice.js), anders laadt Safari een oude versie zonder de nieuwe exports.
-   Stand nu: monster 10, walkie 9, audio 7, lines 5, voice 1.
+   Stand nu (chat 5, 9 nov): monster 13, walkie 11, audio 9, lines 6, voice 3, roles 1, install 1, teaser 2, map 5, navvoice 1, surprises 1, `PUZZLE_V` 7.
 4. **Diagnoseregel.** Het kleine grijze regeltje in de walkie (`connected · speaking · monster 0.45 · mic 0.00 · 1🔈 · auto`)
    blijft staan: daarmee zie je meteen of het monster praat, of er een geluidskanaal is en welke audioSession actief is.
 5. **Testen zonder microfoon** (bijv. de browser in de Claude-app): `getUserMedia` vervangen door een stille stream
