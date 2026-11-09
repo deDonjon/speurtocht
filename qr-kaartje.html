@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QR-kaartjes Mecha-Pof</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Lilita+One&family=Nunito:wght@700;800;900&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<style id="pagesize">@page{size:105mm 148mm;margin:0}</style>
+<style>
+/* Printbare A6-kaartjes (105 × 148 mm) voor de qr-puzzel. Licht papier (inktzuinig), Mecha-Pof erop, de code ook in letters.
+   Scherm: instellingen bovenaan, kaartjes eronder. Print: alleen de kaartjes (A6, of 4 per A4 met snijlijnen). */
+:root{--ink:#1B2433;--muted:#5B6578;--gold:#F2BE62;--gold-d:#C9792C;--led:#15A4C8;--led-l:#7FE8FF;--straw:#E0473C;--paper:#FFFBF2;--steel:#9AA3AD;
+  --display:'Lilita One','Arial Rounded MT Bold','Arial Black',sans-serif;--body:'Nunito',system-ui,sans-serif;--hud:'Chakra Petch',ui-monospace,Menlo,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:#E9E4D8;color:var(--ink);font-family:var(--body);font-weight:700}
+.ctrl{max-width:900px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.ctrl h1{font-family:var(--display);font-weight:400;margin:0;font-size:1.7rem}
+.ctrl .box{background:#fff;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;border:2px solid #DCD3C0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input,textarea,select{font:inherit;padding:10px 12px;border:2px solid #DCD3C0;border-radius:10px;background:#fff;color:var(--ink)}
+textarea{width:100%;min-height:90px;font-family:var(--hud)}
+button{font:inherit;font-weight:900;border:0;border-radius:10px;padding:10px 14px;background:var(--gold);box-shadow:0 3px 0 var(--gold-d);cursor:pointer;min-height:44px;color:#3A1C06}
+button.alt{background:#fff;border:2px solid #DCD3C0;box-shadow:0 2px 0 #DCD3C0}
+button.go{background:var(--led-l);box-shadow:0 3px 0 var(--led)}
+.note{color:var(--muted);font-size:.9rem;margin:0}
+.msg{color:var(--led);min-height:1.2em}.msg.bad{color:var(--straw)}
+.stops{display:flex;flex-direction:column;gap:6px}
+.stops label{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#FAF6EC;border-radius:10px;padding:8px 10px}
+.stops code{font-family:var(--hud);background:#fff;border-radius:6px;padding:2px 6px}
+
+/* ---------- kaartjes */
+.sheet{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;padding:16px}
+.card{width:105mm;height:148mm;background:var(--paper);position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;
+  padding:6mm 7mm 5mm;box-shadow:0 6px 20px rgba(0,0,0,.18);break-inside:avoid;page-break-inside:avoid;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.card::before{content:'';position:absolute;inset:3mm;border:1.2mm solid var(--ink);border-radius:5mm;pointer-events:none}
+.card .rivet{position:absolute;width:3.2mm;height:3.2mm;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff 0 18%,var(--steel) 40%,#5A636B 100%);z-index:2}
+.card .r1{left:5.2mm;top:5.2mm}.card .r2{right:5.2mm;top:5.2mm}.card .r3{left:5.2mm;bottom:5.2mm}.card .r4{right:5.2mm;bottom:5.2mm}
+.card .top{width:100%;display:flex;justify-content:space-between;align-items:baseline;font-family:var(--hud);font-size:2.6mm;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:0 3mm;margin-top:1mm}
+.card h2{font-family:var(--display);font-weight:400;font-size:9.5mm;line-height:1;margin:2mm 0 0;color:var(--ink);text-align:center;letter-spacing:.01em}
+.card h2 span{color:var(--straw)}
+.card .mid{display:flex;align-items:flex-start;gap:1mm;width:100%;margin-top:1.5mm}
+.card .pof{width:30mm;flex:none;margin-left:-1mm}
+.card .pof svg{width:100%;height:auto;display:block}
+.card .bubble{flex:1;background:#fff;border:.7mm solid var(--ink);border-radius:4mm 4mm 4mm 1mm;padding:2mm 2.6mm;font-size:3.05mm;line-height:1.3;position:relative;margin-top:2mm}
+.card .bubble::before{content:'';position:absolute;left:-2.4mm;bottom:3mm;border:1.2mm solid transparent;border-right-color:var(--ink);border-width:1.2mm 2.4mm 1.2mm 0}
+.card .bubble b{color:var(--straw)}
+.card .qr{margin-top:2.5mm;width:52mm;height:52mm;padding:2.5mm;background:#fff;border:.9mm solid var(--ink);border-radius:3.5mm;position:relative;box-shadow:0 0 0 1.3mm var(--led-l)}
+.card .qr svg{display:block;width:100%;height:100%}
+.card .qr .lbl{position:absolute;left:50%;top:-2.6mm;transform:translateX(-50%);background:var(--ink);color:var(--led-l);font-family:var(--hud);font-size:2.3mm;letter-spacing:.14em;padding:.4mm 2mm;border-radius:1.5mm;white-space:nowrap}
+.card .code{margin-top:3mm;font-size:2.7mm;color:var(--muted);text-align:center}
+.card .code b{display:block;font-family:var(--hud);font-size:6mm;letter-spacing:.12em;color:var(--ink);margin-top:.5mm}
+.card .foot{margin-top:auto;width:100%;font-size:2.35mm;line-height:1.3;color:var(--muted);text-align:center;padding:0 3mm 1mm}
+.card .meter{width:100%;display:flex;align-items:center;gap:2mm;font-family:var(--hud);font-size:2.3mm;color:var(--ink);letter-spacing:.1em;margin:1.5mm 0 1mm;padding:0 3mm}
+.card .meter i{flex:1;height:2mm;border-radius:2mm;border:.4mm solid var(--ink);background:linear-gradient(90deg,var(--led-l) 0 30%,var(--gold) 30% 70%,var(--straw) 70% 97%,#fff 97%)}
+.sheet.a4{width:210mm;margin:0 auto;gap:0;padding:0;background:#fff}
+.sheet.a4 .card{box-shadow:none;outline:.2mm dashed #B9B0A0;outline-offset:-.1mm}
+.sheet:empty::after{content:'Nog geen kaartjes. Log in met de regiesleutel of typ codes hierboven.';color:var(--muted)}
+@media print{
+  body{background:#fff}.ctrl{display:none}.sheet{padding:0;gap:0}.card{box-shadow:none}
+  .sheet.a6 .card{page-break-after:always;break-after:page}
+  .sheet.a4 .card:nth-child(4n){page-break-after:always;break-after:page}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="k-iron" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6B7280"/><stop offset=".4" stop-color="#2F3542"/><stop offset="1" stop-color="#171B24"/></linearGradient>
+    <linearGradient id="k-steel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8E979F"/><stop offset=".45" stop-color="#E6EBEF"/><stop offset="1" stop-color="#7C858D"/></linearGradient>
+    <linearGradient id="k-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EDAA50"/><stop offset=".55" stop-color="#C9792C"/><stop offset="1" stop-color="#9A5419"/></linearGradient>
+    <radialGradient id="k-top" cx=".45" cy=".4" r=".7"><stop offset="0" stop-color="#FCE3A6"/><stop offset=".6" stop-color="#F2BE62"/><stop offset="1" stop-color="#D4913A"/></radialGradient>
+    <linearGradient id="k-visor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0E1B2E"/><stop offset="1" stop-color="#1E3352"/></linearGradient>
+    <radialGradient id="k-eye" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".4" stop-color="#7FE8FF"/><stop offset="1" stop-color="#15A4C8" stop-opacity="0"/></radialGradient>
+    <linearGradient id="k-bottle" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4A1C06"/><stop offset=".35" stop-color="#A24C14"/><stop offset="1" stop-color="#3E1604"/></linearGradient>
+    <linearGradient id="k-flame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF1A6"/><stop offset=".5" stop-color="#F59E2E"/><stop offset="1" stop-color="#C2410C" stop-opacity="0"/></linearGradient>
+    <linearGradient id="k-butter" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF7CC"/><stop offset="1" stop-color="#F3D460"/></linearGradient>
+    <radialGradient id="k-straw" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#FF7F66"/><stop offset=".6" stop-color="#E0352B"/><stop offset="1" stop-color="#A81E1C"/></radialGradient>
+    <g id="k-plate">
+      <path d="M-96 0 L-96 16 A96 18 0 0 0 96 16 L96 0 Z" fill="url(#k-side)"/>
+      <ellipse rx="96" ry="18" fill="url(#k-top)"/><ellipse rx="96" ry="18" fill="none" stroke="#7A4A1C" stroke-width="1.5" opacity=".6"/>
+      <g fill="#9AA3AD" stroke="#4A5058" stroke-width=".8"><circle cx="-70" cy="9" r="2.6"/><circle cx="-24" cy="12" r="2.6"/><circle cx="24" cy="12" r="2.6"/><circle cx="70" cy="9" r="2.6"/></g>
+    </g>
+    <clipPath id="k-visorclip"><rect x="138" y="178" width="124" height="40" rx="14"/></clipPath>
+    <!-- Mecha-Pof, stilstaand (naar claude/mecha-pof-reference.svg), zonder achtergrond; zwaait met zijn spatel -->
+    <symbol id="pof" viewBox="10 92 380 350">
+      <ellipse cx="200" cy="436" rx="110" ry="7" fill="#000" opacity=".18"/>
+      <g transform="rotate(-14 266 332)"><rect x="246" y="300" width="42" height="80" rx="10" fill="url(#k-bottle)"/><rect x="251" y="324" width="32" height="30" rx="4" fill="#FFF4DF"/>
+        <text x="267" y="343" text-anchor="middle" font-family="Lilita One, sans-serif" font-size="9" fill="#5A2E12">STROOP</text><rect x="256" y="288" width="22" height="14" rx="3" fill="#E0473C"/><rect x="236" y="330" width="12" height="20" rx="3" fill="url(#k-steel)"/></g>
+      <path d="M300 382 C292 400 300 424 310 436 C320 424 328 400 320 382 C316 392 304 392 300 382 Z" fill="url(#k-flame)"/>
+      <path d="M305 388 C302 400 306 414 310 420 C314 414 318 400 315 388 Z" fill="#FFF8D0" opacity=".85"/>
+      <g transform="translate(-3 0)"><rect x="187" y="140" width="26" height="18" rx="4" fill="url(#k-butter)" stroke="#D9B53E" stroke-width="1.5"/>
+        <circle cx="200" cy="150" r="4" fill="none" stroke="#B9902A" stroke-width="1.5"/><path d="M200 146 V150" stroke="#B9902A" stroke-width="1.5" stroke-linecap="round"/></g>
+      <rect x="150" y="226" width="100" height="22" fill="url(#k-iron)"/>
+      <use href="#k-plate" transform="translate(200 352) scale(1.04 1)"/><use href="#k-plate" transform="translate(200 322)"/><use href="#k-plate" transform="translate(200 292) scale(.96 1)"/><use href="#k-plate" transform="translate(200 262) scale(.9 1)"/>
+      <rect x="174" y="296" width="52" height="46" rx="8" fill="url(#k-iron)" stroke="#9AA3AD" stroke-width="1.5"/>
+      <circle cx="200" cy="318" r="16" fill="#0E1B2E" stroke="#9AA3AD" stroke-width="1.5"/>
+      <path d="M188 318 A12 12 0 0 1 212 318" fill="none" stroke="#F59E2E" stroke-width="3"/><path d="M204 309 A12 12 0 0 1 212 318" fill="none" stroke="#E0473C" stroke-width="3"/>
+      <path d="M200 318 L208 310" stroke="#7FE8FF" stroke-width="2" stroke-linecap="round"/><circle cx="200" cy="318" r="2" fill="#7FE8FF"/>
+      <circle cx="182" cy="302" r="2.2" fill="#4ADE80"/><circle cx="218" cy="302" r="2.2" fill="#E0473C"/>
+      <g transform="rotate(-24 82 262)"><rect x="70" y="262" width="34" height="14" rx="7" fill="url(#k-steel)"/><rect x="46" y="256" width="40" height="22" rx="6" fill="url(#k-iron)" stroke="#9AA3AD" stroke-width="1.2"/>
+        <rect x="40" y="276" width="14" height="60" rx="5" fill="url(#k-steel)"/><path d="M22 334 L68 334 L72 372 L18 372 Z" fill="url(#k-steel)" stroke="#4A5058" stroke-width="1"/>
+        <path d="M30 340 V366 M40 340 V366 M50 340 V366 M60 340 V366" stroke="#5A636B" stroke-width="1.2"/><circle cx="47" cy="267" r="4" fill="#9AA3AD"/></g>
+      <rect x="296" y="262" width="34" height="14" rx="7" fill="url(#k-steel)"/><rect x="314" y="256" width="40" height="22" rx="6" fill="url(#k-iron)" stroke="#9AA3AD" stroke-width="1.2"/>
+      <rect x="346" y="276" width="14" height="40" rx="5" fill="url(#k-steel)"/>
+      <g fill="none" stroke="#8E979F" stroke-width="2"><ellipse cx="353" cy="346" rx="20" ry="30"/><ellipse cx="353" cy="346" rx="12" ry="30"/><ellipse cx="353" cy="346" rx="4" ry="30"/></g>
+      <rect x="160" y="366" width="18" height="36" rx="5" fill="url(#k-steel)"/><rect x="222" y="366" width="18" height="36" rx="5" fill="url(#k-steel)"/>
+      <rect x="154" y="384" width="30" height="22" rx="6" fill="url(#k-iron)" stroke="#9AA3AD" stroke-width="1.2"/><rect x="216" y="384" width="30" height="22" rx="6" fill="url(#k-iron)" stroke="#9AA3AD" stroke-width="1.2"/>
+      <path d="M136 420 C136 408 150 402 169 402 C188 402 202 408 202 420 L202 428 L136 428 Z" fill="url(#k-iron)" stroke="#9AA3AD" stroke-width="1.5"/>
+      <path d="M198 420 C198 408 212 402 231 402 C250 402 264 408 264 420 L264 428 L198 428 Z" fill="url(#k-iron)" stroke="#9AA3AD" stroke-width="1.5"/>
+      <path d="M136 410 L116 404 M264 410 L284 404" stroke="#9AA3AD" stroke-width="5" stroke-linecap="round"/>
+      <ellipse cx="169" cy="418" rx="20" ry="6" fill="url(#k-top)"/><ellipse cx="231" cy="418" rx="20" ry="6" fill="url(#k-top)"/>
+      <circle cx="200" cy="190" r="62" fill="url(#k-iron)" stroke="#9AA3AD" stroke-width="2"/><circle cx="200" cy="190" r="52" fill="none" stroke="#4A5058" stroke-width="2"/>
+      <path d="M258 178 L318 160" stroke="#2F3542" stroke-width="14" stroke-linecap="round"/><path d="M262 176 L312 161" stroke="#9AA3AD" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+      <rect x="138" y="178" width="124" height="40" rx="14" fill="url(#k-visor)" stroke="#7FE8FF" stroke-width="2"/>
+      <g clip-path="url(#k-visorclip)">
+        <ellipse cx="172" cy="198" rx="18" ry="12" fill="url(#k-eye)"/><ellipse cx="228" cy="198" rx="18" ry="12" fill="url(#k-eye)"/>
+        <path d="M162 201 Q172 191 182 201 M218 201 Q228 191 238 201" fill="none" stroke="#7FE8FF" stroke-width="3.5" stroke-linecap="round"/>
+      </g>
+      <path d="M150 170 C160 164 180 162 196 164" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".35"/>
+      <path d="M200 128 L200 110" stroke="#9AA3AD" stroke-width="3" stroke-linecap="round"/><circle cx="200" cy="106" r="5" fill="#E0473C"/>
+      <circle cx="200" cy="226" r="7" fill="url(#k-straw)" stroke="#9AA3AD" stroke-width="1.5"/><circle cx="198" cy="224" r="2" fill="#fff" opacity=".6"/>
+      <rect x="168" y="236" width="64" height="12" rx="6" fill="#0E1B2E" stroke="#9AA3AD" stroke-width="1.5"/>
+      <path d="M176 239 V245 M184 239 V245 M192 239 V245 M200 239 V245 M208 239 V245 M216 239 V245 M224 239 V245" stroke="#7FE8FF" stroke-width="2" stroke-linecap="round"/>
+      <g fill="#C9D3E0"><circle cx="266" cy="146" r="5" opacity=".7"/><circle cx="274" cy="134" r="4" opacity=".5"/><circle cx="279" cy="121" r="3" opacity=".35"/></g>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="ctrl">
+  <h1>QR-kaartjes voor Mecha-Pof</h1>
+  <p class="note">Eén kaartje per qr-stop. De code op het kaartje moet gelijk zijn aan <code>stop_secret.geheim.qr</code> van die stop (de server controleert elke scan).
+    Druk af op stevig papier (of lamineer het: buiten is het vochtig) en hang het op ooghoogte. Printen: A6, of 4 per A4 en knippen langs de stippellijn.</p>
+
+  <div class="box">
+    <b>1 · Codes uit het spel halen (begeleider)</b>
+    <div class="row"><input id="key" type="password" placeholder="regiesleutel" autocomplete="off" style="width:180px"><button class="go" id="login">Ophalen</button><span class="msg" id="msg"></span></div>
+    <div class="stops" id="stops"></div>
+  </div>
+
+  <div class="box">
+    <b>2 · Of zelf codes typen</b>
+    <p class="note">Eén kaartje per regel: <code>code; tekst bovenaan (mag leeg)</code>. Bijvoorbeeld <code>POF-GARDE-27; Stop 4 · de garde</code>.</p>
+    <textarea id="manual" placeholder="POF-GARDE-27; Stop 4 · de garde"></textarea>
+    <div class="row"><button class="alt" id="dice">🎲 Verzin een code</button><button class="go" id="make">Kaartjes maken</button></div>
+  </div>
+
+  <div class="box">
+    <div class="row">
+      <label>Formaat <select id="fmt"><option value="a6">A6 (één per vel)</option><option value="a4">4 per A4, met snijlijnen</option></select></label>
+      <button id="print">🖨️ Afdrukken</button>
+    </div>
+  </div>
+</div>
+
+<div id="sheet" class="sheet a6"></div>
+
+<script type="module">
+import { sync } from './js/sync.js';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const PART = { lijf: 'het pannenkoekenpantser', ogen: 'de koekenpanhelm', neus: 'de aardbei-knop', mond: 'het luidsprekerrooster', armen: 'de spatel en de garde', benen: 'de zuigerbenen', hoed: 'de stroop-jetpack' };
+// Wat Mecha-Pof op elk kaartje zegt (wisselt per kaartje). Grappig, lief, mechanisch.
+const SAYS = [
+  'Psst, Reparatieteam! <b>Scan mij</b> met de app, dan klikt mijn onderdeel weer vast. Klik-klak!',
+  'Bliep! Gevonden! Mijn sensoren piepen van blijdschap. <b>Scan me</b> en ik doe een vreugdedansje (zodra ik benen heb).',
+  'Krrr… mijn processor heeft dit kaartje hier verstopt en toen vergeten. <b>Scan het</b>, dan weet ik het weer!',
+  'Stroopmeter: rood. Humeur: goud. <b>Scan deze code</b> en ik ben weer een stukje heel!',
+  'Systeem zegt: jullie zijn slimmer dan mijn garde. <b>Scan me</b> maar snel, voor ik het toegeef.',
+];
+const TOP = ['ONDERDEEL GEVONDEN', 'REPARATIEKAART', 'BLIEP! GEVONDEN'];
+const WORDS = ['GARDE', 'SPATEL', 'STROOP', 'BOTER', 'PANNETJE', 'ZUIGER', 'VIZIER', 'KLINK', 'BOUT', 'LEDJE', 'TANDWIEL', 'AARDBEI'];
+const newCode = () => `POF-${WORDS[Math.floor(Math.random() * WORDS.length)]}-${10 + Math.floor(Math.random() * 90)}`;
+let fromGame = []; // [{ stop, code }]
+
+function qrSvg(text) {
+  if (typeof qrcode !== 'function') return '<p style="font-size:3mm;text-align:center">QR-bibliotheek niet geladen; ververs de pagina met internet.</p>';
+  const q = qrcode(0, 'M'); q.addData(text); q.make();
+  return q.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+}
+function card({ code, label }, i) {
+  return `<div class="card">
+    <i class="rivet r1"></i><i class="rivet r2"></i><i class="rivet r3"></i><i class="rivet r4"></i>
+    <div class="top"><span>${esc(TOP[i % TOP.length])}</span><span>${esc(label || 'Operatie Mecha-Pof')}</span></div>
+    <h2>Bliep<span>!</span> Hier<span>!</span></h2>
+    <div class="mid"><div class="pof"><svg viewBox="0 0 380 350" role="img" aria-label="Mecha-Pof"><use href="#pof" width="380" height="350"/></svg></div>
+      <div class="bubble">${SAYS[i % SAYS.length]}</div></div>
+    <div class="qr"><span class="lbl">SCAN MIJ</span>${qrSvg(code)}</div>
+    <div class="code">Lukt scannen niet? Typ deze code in de app:<b>${esc(code)}</b></div>
+    <div class="meter">STROOP <i></i> 97%</div>
+    <div class="foot">Gevonden door een voorbijganger? Dit kaartje hoort bij een speurtocht van een kinderfeestje. Laat het alsjeblieft hangen tot na vrijdagavond 13 november. Dank je wel! 🥞</div>
+  </div>`;
+}
+function draw(list) { $('#sheet').innerHTML = list.map(card).join(''); }
+function manualList() {
+  return $('#manual').value.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const [code, ...rest] = l.split(';'); return { code: code.trim(), label: rest.join(';').trim() }; }).filter(x => x.code);
+}
+function gameList() { return fromGame.filter(x => x.use && x.code).map(x => ({ code: x.code, label: `${x.stop.name}${x.stop.part ? ' · ' + PART[x.stop.part].replace(/^de |^het /, '') : ''}` })); }
+function redraw() { draw([...gameList(), ...manualList()]); }
+
+// ---------- regie: qr-stops en hun geheime codes ophalen; ontbrekende code meteen maken en opslaan
+function showStops() {
+  const el = $('#stops');
+  if (!fromGame.length) { el.innerHTML = '<p class="note">Geen stops met een qr-puzzel gevonden. Zet bij een stop een puzzel <code>{"type":"qr"}</code> (regie of SQL) en haal opnieuw op.</p>'; return; }
+  el.innerHTML = fromGame.map((x, i) => `<label><input type="checkbox" data-i="${i}" ${x.use ? 'checked' : ''}> <b>${esc(x.stop.name)}</b>
+    ${x.code ? `<code>${esc(x.code)}</code>` : '<span class="msg bad">nog geen code</span>'}
+    <button class="alt" data-new="${i}" type="button">${x.code ? '🎲 Nieuwe code' : '🎲 Maak code'}</button></label>`).join('');
+  el.querySelectorAll('input[type=checkbox]').forEach(c => c.onchange = () => { fromGame[+c.dataset.i].use = c.checked; redraw(); });
+  el.querySelectorAll('[data-new]').forEach(b => b.onclick = async () => {
+    const x = fromGame[+b.dataset.new];
+    if (x.code && !confirm(`De code van "${x.stop.name}" vervangen? Een al geprint kaartje werkt dan niet meer.`)) return;
+    const code = newCode();
+    try {
+      const { geheim, ...stop } = x.stop;
+      await sync.regie.upsertStop({ ...stop, geheim: { ...(geheim || {}), qr: code } });
+      x.code = code; x.stop.geheim = { ...(geheim || {}), qr: code }; x.use = true; msg(`Code opgeslagen voor ${x.stop.name}.`);
+    } catch (e) { msg('Opslaan lukte niet: ' + e.message, true); }
+    showStops(); redraw();
+  });
+}
+function msg(t, bad) { const m = $('#msg'); m.textContent = t; m.classList.toggle('bad', !!bad); }
+async function fetchGame() {
+  try {
+    if ($('#key').value) await sync.regie.login($('#key').value.trim()); else if (!sync.regie.restore()) return msg('Typ de regiesleutel.', true);
+    const st = await sync.regie.state();
+    fromGame = (st.stops || []).filter(s => (s.puzzles || []).some(p => p.type === 'qr'))
+      .map(s => { const q = s.geheim?.qr; return { stop: s, code: Array.isArray(q) ? q[0] : q || '', use: !!q }; });
+    msg(`${fromGame.length} qr-stop${fromGame.length === 1 ? '' : 's'} gevonden.`); showStops(); redraw();
+  } catch (e) { msg(e.message || 'Ophalen lukte niet', true); }
+}
+$('#login').onclick = fetchGame;
+$('#key').addEventListener('keydown', e => { if (e.key === 'Enter') fetchGame(); });
+$('#dice').onclick = () => { const t = $('#manual'); t.value = (t.value.trim() ? t.value.trim() + '\n' : '') + newCode() + '; '; redraw(); };
+$('#make').onclick = redraw; $('#manual').oninput = redraw;
+$('#fmt').onchange = () => {
+  const a4 = $('#fmt').value === 'a4';
+  $('#sheet').className = 'sheet ' + (a4 ? 'a4' : 'a6');
+  $('#pagesize').textContent = a4 ? '@page{size:A4 portrait;margin:0}' : '@page{size:105mm 148mm;margin:0}';
+};
+$('#print').onclick = () => print();
+if (sync.regie.restore()) fetchGame();
+// voorbeeld zodat je meteen ziet hoe het eruitziet
+if (!$('#manual').value) { $('#manual').value = 'POF-GARDE-27; Voorbeeld'; redraw(); }
+</script>
+</body>
+</html>

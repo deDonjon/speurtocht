@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test: formatie</title>
+<link rel="stylesheet" href="puzzle-test.css">
+</head>
+<body>
+<h1>Test: formatie.js <small>driehoek / lijn / rondje op GPS</small></h1>
+<p class="note">Nep-GPS: sleep de gekleurde stippen over het veld (60 × 60 m, het punt in het midden, ring op 15 m, rondje op 20 m). 3 telefoons = driehoek, 2 = lijn, 1 = rondje lopen.
+Met "Echte GPS" gebruiken de telefoons hun eigen locatie (dan op de echte telefoon openen, en het punt op je huidige plek zetten).</p>
+<div class="bar">
+  <span>Telefoons:</span><button data-phones="1">1</button><button data-phones="2">2</button><button data-phones="3">3</button>
+  <button id="reset">↻ Opnieuw</button>
+  <button id="tri">🔺 Zet ze in een driehoek</button><button id="walk">🚶 Loop een rondje (telefoon A)</button>
+  <label><input type="checkbox" id="real"> Echte GPS</label><button id="here" class="plain">📍 Punt = mijn plek</button>
+  <label>±GPS <input id="acc" type="number" value="6" min="1" max="60" style="width:70px"> m</label>
+  <label><input type="checkbox" id="showquiet"> GPS-zetten in log</label>
+</div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+  <div class="side"><svg id="field" class="field" width="300" height="300" viewBox="-30 -30 60 60"></svg><small class="note" id="coords"></small></div>
+  <div id="phones" class="phones"></div>
+</div>
+<div id="log" class="log"></div>
+<script type="module">
+import { startHarness } from './puzzle-harness.js';
+const P = { lat: 51.6168188, lng: 5.5622347 };
+const H = startHarness({ type: 'formatie', phones: 3, frameHeight: 760, config: { type: 'formatie', lat: P.lat, lng: P.lng, ring: 15, margin: 8, loop: 20, hint: 'Zet de drie telefoons zo neer dat het punt precies in het midden van jullie driehoek ligt.' } });
+const COL = { devA: '#7FE8FF', devB: '#F2BE62', devC: '#FF7F9E' };
+const xy = { devA: { x: -4, y: 3 }, devB: { x: 2, y: 5 }, devC: { x: 5, y: -2 } };
+const watchers = { devA: new Set(), devB: new Set(), devC: new Set() };
+const ll = (p, c = H.config) => ({ lat: c.lat + p.y / 110_540, lng: c.lng + p.x / (Math.cos(c.lat * Math.PI / 180) * 111_320) });
+const emit = d => { const f = { ...ll(xy[d]), acc: +acc.value || 6 }; watchers[d].forEach(fn => fn(f)); };
+H.gpsFor = dev => real.checked ? undefined : { watch(onFix) { watchers[dev].add(onFix); setTimeout(() => emit(dev), 50); const t = setInterval(() => emit(dev), 4000); return () => { watchers[dev].delete(onFix); clearInterval(t); }; } };
+real.onchange = () => H.setPhones(H.phones);
+here.onclick = () => navigator.geolocation.getCurrentPosition(p => { H.config = { ...H.config, lat: p.coords.latitude, lng: p.coords.longitude }; coords.textContent = `punt: ${p.coords.latitude.toFixed(6)}, ${p.coords.longitude.toFixed(6)}`; H.reset(); }, e => alert(e.message), { enableHighAccuracy: true });
+
+function draw() {
+  field.innerHTML = `<circle r="23" fill="rgba(127,232,255,.08)"/><circle r="2" fill="#0E1B2E"/><circle r="15" fill="none" stroke="#7FE8FF" stroke-width=".3" stroke-dasharray="1 1"/>
+    <circle r="20" fill="none" stroke="#F2BE62" stroke-width=".3" stroke-dasharray="1 1"/><path d="M-30 0H30M0 -30V30" stroke="#3C4A66" stroke-width=".2"/><text y="1.5" font-size="4" text-anchor="middle">🥞</text>` +
+    Object.keys(xy).slice(0, H.phones).map(d => `<circle data-d="${d}" cx="${xy[d].x}" cy="${-xy[d].y}" r="2.4" fill="${COL[d]}" stroke="#fff" stroke-width=".5" style="cursor:grab"/><text x="${xy[d].x}" y="${-xy[d].y - 3.2}" font-size="2.6" fill="#fff" text-anchor="middle">${d.slice(3)}</text>`).join('');
+}
+let drag = null;
+field.addEventListener('pointerdown', e => { const d = e.target.dataset?.d; if (d) { drag = d; field.setPointerCapture(e.pointerId); } });
+field.addEventListener('pointermove', e => { if (!drag) return; const r = field.getBoundingClientRect(); xy[drag] = { x: (e.clientX - r.left) / r.width * 60 - 30, y: -((e.clientY - r.top) / r.height * 60 - 30) }; draw(); });
+field.addEventListener('pointerup', () => { if (drag) emit(drag); drag = null; });
+tri.onclick = () => { const r0 = Math.random() * 6; ['devA', 'devB', 'devC'].forEach((d, i) => { const a = r0 + i * 2.094 + (Math.random() - .5) * .4, r = 13 + Math.random() * 4; xy[d] = { x: r * Math.cos(a), y: r * Math.sin(a) }; emit(d); }); draw(); };
+let walkT = null;
+walk.onclick = () => { clearInterval(walkT); let a = Math.random() * 6, n = 0; walkT = setInterval(() => { a += 0.22; n++; const r = 20 + (Math.random() - .5) * 3; xy.devA = { x: r * Math.cos(a), y: r * Math.sin(a) }; emit('devA'); draw(); if (n > 32) clearInterval(walkT); }, 350); };
+H.onChange(draw); draw();
+</script>
+</body>
+</html>

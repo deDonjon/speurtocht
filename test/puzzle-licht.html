@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test: lichtcode</title>
+<link rel="stylesheet" href="puzzle-test.css">
+</head>
+<body>
+<h1>Test: licht.js <small>lichtcode</small></h1>
+<p class="note">Eén telefoon is de zender (staat bovenaan in zijn eigen kader), de anderen bouwen de code na. Met 1 telefoon knippert hij eerst en bouw je daarna zelf. Op een echte telefoon: open deze pagina en tik op "Zend".</p>
+<div class="bar">
+  <span>Telefoons:</span><button data-phones="1">1</button><button data-phones="2">2</button><button data-phones="3">3</button>
+  <label>Lengte <select id="len"><option>4</option><option selected>5</option><option>6</option></select></label>
+  <label>Kleuren <select id="nc"><option>3</option><option selected>4</option><option>5</option></select></label>
+  <button id="reset">↻ Nieuwe code</button>
+  <button id="cheat" class="plain">🕵️ Spiek de code</button> <b id="code"></b>
+</div>
+<div id="phones" class="phones"></div>
+<div id="log" class="log"></div>
+<script type="module">
+import { startHarness } from './puzzle-harness.js';
+import licht, { COLORS } from '../js/puzzles/licht.js';
+const H = startHarness({ type: 'licht', phones: 2, config: { type: 'licht', length: 5, colors: 4, hint: 'Zeg de kleuren hardop terwijl de zender knippert: rood, geel, blauw…' } });
+const cfg = () => { H.config = { ...H.config, length: +len.value, colors: +nc.value }; H.reset(); };
+len.onchange = cfg; nc.onchange = cfg;
+cheat.onclick = () => { code.textContent = licht.init(H.config, H.ctx()).seq.map(k => COLORS.find(c => c.k === k).name).join(' · '); };
+H.onChange(() => { code.textContent = ''; });
+</script>
+</body>
+</html>

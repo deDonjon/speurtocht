@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Puzzeltelefoon</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
+<style>[hidden]{display:none!important}</style>
+<style id="base">body{margin:0;padding:12px;background:#141A26;color:#EAF2FF;font-family:system-ui,sans-serif}</style>
+</head>
+<body>
+<!-- Eén nep-telefoon in een iframe. Haalt de stijl uit ../index.html, rekent de puzzel uit de gedeelde moves-array van de ouderpagina (puzzle-harness.js). -->
+<div class="page" style="display:flex;flex-direction:column;gap:12px">
+  <span class="tab" id="who">…</span>
+  <div id="pz" style="display:flex;flex-direction:column;gap:12px"></div>
+  <div id="hintbox"></div>
+  <div id="submit" class="submit" hidden></div>
+</div>
+<script type="module">
+const H = parent.harness, dev = new URLSearchParams(location.search).get('dev');
+// stijl van de echte app overnemen (één bron)
+try { const html = await (await fetch('../index.html')).text(); const css = html.match(/<style>([\s\S]*?)<\/style>/)?.[1]; if (css) { const s = document.createElement('style'); s.textContent = css; document.head.appendChild(s); document.getElementById('base').remove(); } } catch {}
+const mod = (await import(`../js/puzzles/${H.type}.js?t=${Date.now()}`)).default;
+const pz = document.getElementById('pz');
+let sig = '';
+function update(force) {
+  const ctx = H.ctx(), me = H.me(dev), cfg = H.config;
+  document.getElementById('who').textContent = `${me.map(p => p.name).join(' & ')} · ${dev}${me.some(p => p.talent === 'sleutelbewaarder') ? ' · 🔑' : ''}`;
+  const s = [H.moves.length, H.hints, H.solvedAt, ctx.phones, H.seed].join('|'); if (s === sig && !force) return; sig = s;
+  const data = H.moves.reduce((d, m) => mod.reduce(d, m, ctx), mod.init(cfg, ctx));
+  const solved = !!H.solvedAt || mod.isSolved(data, cfg, ctx);
+  mod.render(pz, data, { me, talents: me.map(p => p.talent).filter(Boolean), phones: ctx.phones, config: cfg, hints: H.hints,
+    move: m => H.move(dev, m), moveQuiet: m => H.move(dev, m, true), hint: () => H.hint(), solve: () => H.solve(dev), gps: H.gpsFor?.(dev) });
+  document.getElementById('hintbox').innerHTML = !cfg.hint ? '' : H.hints ? `<div class="hint">💡 ${cfg.hint}</div>` : solved ? '' : '<button class="ghost" id="askhint">💡 Hint nodig?</button>';
+  document.getElementById('askhint')?.addEventListener('click', () => H.hint());
+  const sb = document.getElementById('submit'); sb.hidden = !solved;
+  if (solved) {
+    const key = me.some(p => p.talent === 'sleutelbewaarder');
+    sb.innerHTML = H.solvedAt ? '<p class="feedback ok">✓ Ingediend!</p>' : key ? '<p><b>Opgelost!</b> Dien het in.</p><button class="ok wide big-btn" id="dosubmit">🔑 Indienen</button>' : '<p><b>Opgelost!</b> Alleen de Sleutelbewaarder kan indienen.</p>';
+    document.getElementById('dosubmit')?.addEventListener('click', () => H.solve(dev));
+  }
+}
+H.subscribe(dev, f => { if (f === 'reset') { mod.destroy?.(pz); pz.innerHTML = ''; } update(f === 'reset'); });
+addEventListener('pagehide', () => mod.destroy?.(pz));
+update(true);
+</script>
+</body>
+</html>

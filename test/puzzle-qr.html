@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test: QR-code</title>
+<link rel="stylesheet" href="puzzle-test.css">
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+</head>
+<body>
+<h1>Test: qr.js <small>scannen of typen</small></h1>
+<p class="note">De nep-server controleert elke scan tegen het "geheim" hieronder, net als puzzle_move met stop_secret.geheim.qr. Scan de QR met een telefoon die deze pagina open heeft
+(📷 Scan de code), of typ de code. Leeg geheim = de server weet het niet (ok:null) en de puzzel gebruikt config.answer.</p>
+<div class="bar">
+  <span>Telefoons:</span><button data-phones="1">1</button><button data-phones="2">2</button>
+  <label>Geheim <input id="sec" value="POF-GARDE-27" style="width:150px"></label>
+  <label>config.answer <input id="ans" value="" placeholder="(leeg)" style="width:120px"></label>
+  <button id="reset">↻ Opnieuw</button>
+  <button id="good" class="plain">✓ Simuleer goede scan (A)</button><button id="bad" class="plain">✗ Simuleer foute scan (B)</button>
+</div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+  <div class="side"><div id="qrbox"></div><small class="note">Deze QR = het geheim</small></div>
+  <div id="phones" class="phones"></div>
+</div>
+<div id="log" class="log"></div>
+<script type="module">
+import { startHarness } from './puzzle-harness.js';
+const H = startHarness({ type: 'qr', phones: 1, secret: 'POF-GARDE-27', config: { type: 'qr', hint: 'Mecha-Pof zegt: het kaartje hangt op ooghoogte… van een kabouter.' } });
+const qr = () => { const q = qrcode(0, 'M'); q.addData(sec.value || ' '); q.make(); qrbox.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); };
+sec.oninput = () => { H.secret = sec.value.trim() || null; qr(); };
+ans.oninput = () => { H.config = { ...H.config, answer: ans.value }; H.reset(); };
+good.onclick = () => H.move('devA', { t: 'scan', v: sec.value });
+bad.onclick = () => H.move(H.phones > 1 ? 'devB' : 'devA', { t: 'scan', v: 'https://example.com/folder' });
+qr();
+</script>
+</body>
+</html>
