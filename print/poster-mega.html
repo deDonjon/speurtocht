@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poster Mega-Mecha-Pof</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style id="base"></style>
+<style>
+/* Mega-Mecha-Pof levensgroot, 90 × 180 cm (rol 90 cm). Thuis achter de krukjes, onder een laken tot de finale.
+   ?donker=1 = donkere werkplaats (veel inkt); standaard licht (pannenkoekcrème). ?talenten=1 = talenten erbij uit het spel (regiesleutel). */
+@page{size:90cm 180cm;margin:0}
+.sheet{width:90cm;height:180cm;position:relative;overflow:hidden;background:#FFF4DF;color:#3A1C06;display:flex;flex-direction:column;align-items:center}
+.sheet::before{content:'';position:absolute;inset:0;background:linear-gradient(rgba(154,84,25,.09) .25cm,transparent .25cm) 0 0/7.5cm 7.5cm,linear-gradient(90deg,rgba(154,84,25,.09) .25cm,transparent .25cm) 0 0/7.5cm 7.5cm}
+.sheet>*{position:relative}
+.top{margin-top:7cm;text-align:center}
+.eyebrow{font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.6cm;letter-spacing:.35em;color:#15A4C8}
+h1{margin:.6cm 0 0;font-family:'Lilita One',sans-serif;font-weight:400;font-size:12.5cm;line-height:.92;color:#F2BE62;-webkit-text-stroke:.28cm #9A5419;paint-order:stroke fill;text-shadow:0 .7cm 0 #9A5419}
+.sub{margin-top:1.8cm;font-family:'Lilita One',sans-serif;font-size:5.2cm;color:#3A1C06}
+.sub b{color:#E0352B;font-weight:400}
+.mon{width:82cm;height:82cm;margin-top:1cm;position:relative}
+.mon svg{width:100%;height:100%;display:block}
+.glow{position:absolute;left:8cm;right:8cm;bottom:3cm;height:9cm;border-radius:50%;background:radial-gradient(closest-side,rgba(242,190,98,.55),transparent)}
+.meter{display:flex;align-items:center;gap:1.4cm;margin-top:-2cm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.6cm;letter-spacing:.25em;color:#9A5419}
+.meter .bar{width:44cm;height:3cm;border-radius:2cm;border:.35cm solid #3A1C06;background:linear-gradient(90deg,#15A4C8,#7FE8FF 30%,#F59E2E 65%,#E0352B 88%,#FF2E9A);position:relative;overflow:hidden}
+.meter .bar::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 2.2cm,rgba(58,28,6,.5) 2.2cm 2.5cm)}
+.meter b{font-family:'Lilita One',sans-serif;font-weight:400;font-size:4.6cm;letter-spacing:.06em;color:#E0352B}
+.teamwrap{margin-top:auto;margin-bottom:7cm}.team{width:80cm;margin-top:2cm;display:grid;grid-template-columns:repeat(3,1fr);gap:1.6cm}
+.plate{background:#141A26;border-radius:1.4cm;padding:1.5cm 1.2cm 1.3cm;text-align:center;border:.35cm solid #F2BE62;box-shadow:0 .6cm 0 #9A5419}
+.plate b{display:block;font-family:'Lilita One',sans-serif;font-weight:400;font-size:5cm;line-height:1;color:#FFF4DF}
+.plate span{display:block;margin-top:.9cm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:1.6cm;letter-spacing:.1em;color:#7FE8FF;min-height:2.6cm;border-bottom:.15cm dashed rgba(127,232,255,.45)}
+.teamtitle{font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.2cm;letter-spacing:.3em;color:#9A5419;text-align:center;width:100%}
+.dark .sheet{background:#141A26;color:#EAF2FF}.dark .sheet::before{background:linear-gradient(rgba(60,74,102,.45) .25cm,transparent .25cm) 0 0/7.5cm 7.5cm,linear-gradient(90deg,rgba(60,74,102,.45) .25cm,transparent .25cm) 0 0/7.5cm 7.5cm}
+.dark .sub{color:#EAF2FF}.dark .glow{background:radial-gradient(closest-side,rgba(127,232,255,.35),transparent)}.dark .plate{background:#0E1B2E}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="sheet" id="sheet">
+  <div class="top"><div class="eyebrow">SYSTEEM COMPLEET</div><h1>OPERATIE<br>MECHA-POF</h1><div class="sub">Reparatieteam <b>Hannah 10</b></div></div>
+  <div class="mon"><div class="glow"></div><div id="mon"></div></div>
+  <div class="meter">STROOPMETER <div class="bar"></div> <b>MEGA</b></div>
+  <div class="teamwrap"><div class="teamtitle">HET REPARATIETEAM</div><div class="team" id="team"></div></div>
+</div></div>
+<script type="module">
+import { BASE_CSS, preview, monsterSvg } from './print.js';
+document.getElementById('base').textContent = BASE_CSS;
+const qs = new URLSearchParams(location.search);
+if (qs.has('donker')) document.documentElement.classList.add('dark');
+const NAMES = ['Hannah', 'Elin', 'Isa', 'Evy', 'Lauren', 'Julia'];
+const LABEL = { speurneus: 'SPEURNEUS', kaartlezer: 'KAARTLEZER', codekraker: 'CODEKRAKER', rekenmeester: 'REKENMEESTER', tijdbewaker: 'TIJDBEWAKER', sleutelbewaarder: 'SLEUTELBEWAARDER' };
+const team = (talents = {}) => document.getElementById('team').innerHTML = NAMES.map(n => `<div class="plate"><b>${n}</b><span>${talents[n] || (n === 'Hannah' ? 'SLEUTELBEWAARDER' : '')}</span></div>`).join('');
+team();
+if (qs.has('talenten')) { // na de loting: talenten uit het spel
+  const { sync } = await import('../js/sync.js');
+  try { let k = null; try { k = JSON.parse(localStorage.getItem('pkm2_regie_remember') || 'null'); } catch {}
+    if (!sync.regie.restore() && k) await sync.regie.login(k);
+    const r = await sync.regie.state(); team(Object.fromEntries(r.players.filter(p => p.talent).map(p => [p.name, LABEL[p.talent]])));
+  } catch (e) { console.warn('talenten', e.message); }
+}
+document.getElementById('mon').innerHTML = await monsterSvg('mega');
+const fit = preview(document.getElementById('sheet'), { title: 'Mega-Mecha-Pof', size: '90 × 180 cm', hint: 'thuis, onder een laken tot de finale · de lege strook onder elke naam is voor het talent (stift) of ?talenten=1' });
+window.__ready = true; fit();
+</script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monteurspassen</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+/* Monteurspassen A6, vier per A4 met snijlijnen (chat 7, ONBOARDING-FINALE.md §A.4 en §D.1).
+   Standaard: per talent voorgedrukt met een open naamvak (Hannah staat vast op Sleutelbewaarder).
+   ?namen=1: na de loting, met namen en codes uit regie_state (regiesleutel). Stevig papier, 2 vel. */
+@page{size:A4 portrait;margin:0}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:#2A3142;font-family:'Nunito',system-ui,sans-serif;font-weight:800;color:#2B1606;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pbar{position:sticky;top:0;z-index:5;display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 16px;background:#141A26;color:#EAF2FF;font-size:14px}
+.pbar span{color:#93A0B8;flex:1}.pbar button,.pbar a{font:inherit;font-weight:900;border:0;border-radius:10px;padding:8px 14px;background:#F2BE62;color:#3A1C06;cursor:pointer;text-decoration:none}
+.pbar a{background:#3A4356;color:#EAF2FF}
+.sheet{width:210mm;height:297mm;margin:16px auto;background:#FFF9EE;display:grid;grid-template-columns:105mm 105mm;grid-template-rows:148.5mm 148.5mm;position:relative;box-shadow:0 10px 40px rgba(0,0,0,.5);page-break-after:always;break-after:page;overflow:hidden}
+.sheet::before,.sheet::after{content:'';position:absolute;border:0 dashed #B9A68A;pointer-events:none}
+.sheet::before{left:105mm;top:0;bottom:0;border-left-width:.3mm}
+.sheet::after{top:148.5mm;left:0;right:0;border-top-width:.3mm}
+.pas{position:relative;padding:6mm 6.5mm 5mm;display:flex;flex-direction:column;gap:3.4mm;--c:#F2BE62}
+.pas.leeg{opacity:.0}
+.band{display:flex;justify-content:space-between;align-items:center;background:#141A26;color:#7FE8FF;border-radius:2.5mm;padding:1.6mm 3mm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:3mm;letter-spacing:.18em}
+.band b{color:#F2BE62;letter-spacing:.12em}
+.head{display:flex;gap:3.5mm;align-items:center;border-left:2.2mm solid var(--c);padding-left:3mm}
+.head svg{width:26mm;height:26mm;flex:none;background:#141A26;border-radius:50%;padding:2.5mm;border:.6mm solid var(--c)}
+.head h1{margin:0;font-family:'Lilita One',sans-serif;font-weight:400;font-size:9.5mm;line-height:1;color:#2B1606}
+.head p{margin:1mm 0 0;font-size:3.3mm;line-height:1.25}
+.field{display:flex;align-items:flex-end;gap:2.5mm;font-size:3mm;color:#7A5A3A;text-transform:uppercase;letter-spacing:.12em;font-family:'Chakra Petch',monospace;font-weight:700}
+.field .line{flex:1;border-bottom:.45mm solid #2B1606;height:9mm;font-family:'Lilita One',sans-serif;font-weight:400;font-size:7.5mm;letter-spacing:.02em;text-transform:none;color:#2B1606;padding-left:1mm;line-height:9mm}
+.code{display:flex;gap:1.6mm}.code i{width:8mm;height:10mm;border:.45mm solid #2B1606;border-radius:1.5mm;font-style:normal;font-family:'Chakra Petch',monospace;font-weight:700;font-size:6.5mm;display:grid;place-items:center;color:#2B1606;background:#fff}
+.verm{font-size:3.7mm;line-height:1.3;background:#FCEFD6;border-radius:2mm;padding:2mm 2.6mm;margin:0}
+.koppel{font-size:3.35mm;margin:0;color:#5A3A1A}
+.walkie{border:.45mm solid #141A26;border-radius:2.4mm;padding:2.4mm 3mm;font-size:3.5mm;line-height:1.28}
+.walkie h2{margin:0 0 1mm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.9mm;letter-spacing:.14em;color:#15A4C8}
+.walkie ol{margin:0;padding-left:4.2mm}.walkie li{margin:.4mm 0}
+.foot{margin-top:auto;display:flex;justify-content:space-between;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.5mm;letter-spacing:.12em;color:#9A7A55}
+.rivet{position:absolute;width:2.4mm;height:2.4mm;border-radius:50%;background:radial-gradient(circle at 35% 35%,#E6EAEE,#8E979F 60%,#4A5058)}
+.rivet.a{left:2.2mm;top:2.2mm}.rivet.b{right:2.2mm;top:2.2mm}.rivet.c{left:2.2mm;bottom:2.2mm}.rivet.d{right:2.2mm;bottom:2.2mm}
+#login{max-width:420px;margin:30px auto;background:#1A1F2A;color:#EAF2FF;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px}
+#login input{font:inherit;font-size:18px;padding:8px 10px;border-radius:8px;border:2px solid #15A4C8;background:#0E1B2E;color:#7FE8FF}
+#login button{font:inherit;font-weight:900;border:0;border-radius:10px;padding:10px;background:#F2BE62}
+@media print{body{background:none}.pbar,#login{display:none}.sheet{margin:0;box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="pbar"><b>Monteurspassen</b><span id="mode"></span><a id="switch" href="?namen=1">Met namen en codes (na de loting)</a><button onclick="print()">🖨️ Afdrukken</button></div>
+<div id="login" hidden><b>Regiesleutel</b><span style="color:#93A0B8">Nodig om de namen en codes op te halen.</span><form id="lf" style="display:flex;gap:8px"><input type="password" id="lk" placeholder="sleutel" style="flex:1"><button>OK</button></form><span id="lerr" style="color:#FF5A4E"></span></div>
+<main id="sheets"></main>
+<script type="module">
+import { icon, TALENT_INFO, PART_COLOR } from './print.js';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ORDER = ['speurneus', 'kaartlezer', 'codekraker', 'rekenmeester', 'tijdbewaker', 'sleutelbewaarder']; // koppels naast elkaar: zelfde telefoon
+const qs = new URLSearchParams(location.search), withNames = qs.has('namen');
+document.getElementById('mode').textContent = withNames ? 'Met namen en codes uit het spel (na de loting). Codes zijn geheim: niet laten slingeren.' : 'Voorgedrukt per talent met een open naamvak; Hannah staat vast als Sleutelbewaarder. 2 vel A4, stevig papier, langs de stippellijnen knippen.';
+if (withNames) { const a = document.getElementById('switch'); a.href = '?'; a.textContent = 'Zonder namen (voorgedrukt)'; }
+
+function pas(talent, p) {
+  const t = TALENT_INFO[talent], code = p?.code ? String(p.code).split('') : ['', '', '', ''];
+  const name = p?.name || (talent === 'sleutelbewaarder' ? 'Hannah' : '');
+  return `<section class="pas" style="--c:${PART_COLOR[t.part]}"><i class="rivet a"></i><i class="rivet b"></i><i class="rivet c"></i><i class="rivet d"></i>
+    <div class="band"><span>MONTEURSPAS</span><b>OPERATIE MECHA-POF</b></div>
+    <div class="head">${icon(t.part)}<div><h1 style="font-size:${t.label.length > 12 ? 7.2 : 9.5}mm">${esc(t.label)}</h1><p>Jij monteert <b>${esc(t.deel)}</b> van Mecha-Pof.</p></div></div>
+    <div class="field">Naam<span class="line">${esc(name)}</span></div>
+    <div class="field">Jouw code<span class="code">${code.map(c => `<i>${esc(c)}</i>`).join('')}</span></div>
+    <p class="verm">${esc(t.vermogen)}</p>
+    <p class="koppel">Je deelt een telefoon met de <b>${esc(t.koppel)}</b>. De telefoon wisselt per plek van rol: radio · kaart · werkbank.</p>
+    <div class="walkie"><h2>WALKIETALKIE-REGELS</h2><ol>
+      <li>Eindig elk bericht met <b>"over"</b>.</li>
+      <li>Klaar met praten? Zeg <b>"over en sluiten"</b>.</li>
+      <li>Mecha-Pof is een robot met een computerbrein. Hij geeft nooit zomaar het antwoord.</li></ol></div>
+    <div class="foot"><span>REPARATIETEAM HANNAH 10</span><span>VR 13 NOV</span></div>
+  </section>`;
+}
+function render(players) {
+  const byTalent = Object.fromEntries((players || []).filter(p => p.talent).map(p => [p.talent, p]));
+  const list = ORDER.map(t => pas(t, byTalent[t]));
+  while (list.length % 4) list.push('<section class="pas leeg"></section>');
+  let html = '';
+  for (let i = 0; i < list.length; i += 4) html += `<div class="sheet">${list.slice(i, i + 4).join('')}</div>`;
+  document.getElementById('sheets').innerHTML = html;
+}
+async function withRegie() {
+  const { sync } = await import('../js/sync.js');
+  const load = async () => { const r = await sync.regie.state(); render(r.players); document.getElementById('login').hidden = true; };
+  let k = null; try { k = JSON.parse(localStorage.getItem('pkm2_regie_remember') || 'null'); } catch {}
+  try { if (sync.regie.restore()) return await load(); if (k) { await sync.regie.login(k); return await load(); } } catch {}
+  render([]); document.getElementById('login').hidden = false;
+  document.getElementById('lf').onsubmit = async e => { e.preventDefault(); try { await sync.regie.login(document.getElementById('lk').value.trim()); await load(); } catch (err) { document.getElementById('lerr').textContent = err.message || 'Verkeerde sleutel'; } };
+}
+if (withNames) withRegie(); else render([]);
+</script>
+</body>
+</html>

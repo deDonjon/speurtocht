@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gebruiksaanwijzing LED-ogen</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style id="base"></style>
+<style>
+/* Gebruiksaanwijzing LED-ogen, ±90 × 150 cm, opgerold onder het bruggetje (scoutplek 15) als fysieke hint bij stop 2 (slot, 3 schijven 0–12).
+   Geeft geen antwoorden: alleen wat je moet aflezen (dag · maand · sokjes). Elastiek eromheen, in een plastic zak. */
+@page{size:90cm 150cm;margin:0}
+.sheet{width:90cm;height:150cm;position:relative;overflow:hidden;background:#FFF9EE;color:#2B1606;display:flex;flex-direction:column}
+.head{background:#141A26;color:#EAF2FF;padding:4cm 5cm 3cm;position:relative}
+.head::after{content:'';position:absolute;left:0;right:0;bottom:-1.2cm;height:1.2cm;background:repeating-linear-gradient(-45deg,#F2BE62 0 2cm,#141A26 2cm 4cm)}
+.tag{font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.1cm;letter-spacing:.3em;color:#7FE8FF}
+h1{margin:.6cm 0 .5cm;font-family:'Lilita One',sans-serif;font-weight:400;font-size:7.4cm;line-height:.95;color:#F2BE62}h1 span{font-size:10.5cm;color:#7FE8FF}
+.head p{margin:0;font-size:2.4cm;font-weight:800;color:#C9D3E0}
+.intro{display:flex;gap:3cm;align-items:center;padding:3.6cm 5cm .5cm}
+.intro p{margin:0;font-size:2.7cm;line-height:1.25;font-weight:800;flex:1}
+.intro .mini{width:17cm;height:17cm;flex:none;position:relative}
+.intro .mini svg{width:100%;height:100%}
+.intro .say{position:absolute;left:-2cm;top:-1cm;background:#141A26;color:#7FE8FF;border-radius:1.4cm;padding:.9cm 1.3cm;font-size:1.8cm;font-weight:900;transform:rotate(-4deg);white-space:nowrap}
+.rows{display:flex;flex-direction:column;gap:1.8cm;padding:1cm 5cm}
+.row{display:grid;grid-template-columns:17cm 1fr 13cm;gap:2.4cm;align-items:center;border:.35cm solid #2B1606;border-radius:2cm;padding:1.4cm 2cm;background:#fff}
+.row svg{width:100%;height:auto;display:block}
+.row h2{margin:0;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2cm;letter-spacing:.25em;color:#15A4C8}
+.row h3{margin:.2cm 0 .5cm;font-family:'Lilita One',sans-serif;font-weight:400;font-size:5.2cm;line-height:1;color:#2B1606}
+.row p{margin:0;font-size:2.15cm;line-height:1.25;font-weight:800}
+.foot{margin-top:auto;padding:2cm 5cm 4cm;display:flex;gap:2cm;align-items:center}
+.warn{flex:1;border:.3cm dashed #9A5419;border-radius:1.4cm;padding:1.4cm 1.8cm;font-size:1.7cm;line-height:1.3;font-weight:800;color:#5A3A1A}
+.warn b{color:#E0352B}
+.serial{font-family:'Chakra Petch',monospace;font-weight:700;font-size:1.4cm;letter-spacing:.2em;color:#9A7A55;writing-mode:vertical-rl;transform:rotate(180deg)}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="sheet" id="sheet">
+  <div class="head"><div class="tag">EIGENDOM VAN MECHA-POF · TYPE MP-2</div><h1>GEBRUIKSAANWIJZING<br><span>LED-OGEN</span></h1><p>Mijn ogen zitten achter een slot met drie schijven. Zo lees je ze af.</p></div>
+  <div class="intro"><p>Alles wat je nodig hebt staat op het <b>bord met de sokjes</b>. Elke schijf gaat van <b>0 tot 12</b>. Draai ze in de app op de telefoons. Zitten alle drie goed? Dan zie ik weer iets. Bliep.</p>
+    <div class="mini"><div id="mini"></div><span class="say">Ik zie niks…</span></div></div>
+  <div class="rows" id="rows"></div>
+  <div class="foot"><div class="warn"><b>LET OP:</b> niet in de afwasmachine. Niet in de stroop. Klaar? Rol mij weer op en leg mij terug onder het bruggetje. Dank je wel, monteurs!</div><div class="serial">SN 2026-11-13 · HANNAH 10</div></div>
+</div></div>
+<script type="module">
+import { BASE_CSS, preview, monsterSvg } from './print.js';
+document.getElementById('base').textContent = BASE_CSS;
+// draaischijf 0–12 met een ? in het midden (geen antwoord)
+const dial = n => { const nums = Array.from({ length: 13 }, (_, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / 13, x = 50 + 37 * Math.cos(a), y = 50 + 37 * Math.sin(a);
+    return `<text x="${x.toFixed(1)}" y="${(y + 2.6).toFixed(1)}" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="7.4" fill="#EAF2FF">${i}</text>`; }).join('');
+  return `<svg viewBox="-2 -10 104 112"><circle cx="50" cy="50" r="48" fill="#2F3542" stroke="#9AA3AD" stroke-width="2"/><circle cx="50" cy="50" r="44" fill="#141A26" stroke="#4A5058" stroke-width="1"/>${nums}
+    <circle cx="50" cy="50" r="20" fill="#0E1B2E" stroke="#7FE8FF" stroke-width="2"/><text x="50" y="58" text-anchor="middle" font-family="Lilita One" font-size="22" fill="#F2BE62">?</text>
+    <path d="M50 4 l-5 -11 h10z" fill="#E0352B"/></svg>`; };
+const kalenderDag = `<svg viewBox="0 0 100 100"><rect x="14" y="14" width="72" height="76" rx="8" fill="#fff" stroke="#2B1606" stroke-width="3"/><rect x="14" y="14" width="72" height="22" rx="8" fill="#E0352B"/><rect x="14" y="28" width="72" height="8" fill="#E0352B"/>
+  <circle cx="32" cy="14" r="4" fill="#2B1606"/><circle cx="68" cy="14" r="4" fill="#2B1606"/><text x="50" y="76" text-anchor="middle" font-family="Lilita One" font-size="40" fill="#2B1606">?</text><text x="50" y="31" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="10" fill="#fff">DAG</text></svg>`;
+const kalenderMaand = `<svg viewBox="0 0 100 100"><rect x="10" y="14" width="80" height="76" rx="8" fill="#fff" stroke="#2B1606" stroke-width="3"/><rect x="10" y="14" width="80" height="20" rx="8" fill="#15A4C8"/><rect x="10" y="26" width="80" height="8" fill="#15A4C8"/>
+  <text x="50" y="30" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="10" fill="#fff">MAAND</text>${Array.from({ length: 12 }, (_, i) => `<rect x="${16 + (i % 4) * 18}" y="${42 + Math.floor(i / 4) * 15}" width="14" height="11" rx="2" fill="#EFE2C8"/>`).join('')}</svg>`;
+const sokjes = `<svg viewBox="0 0 100 100"><path d="M4 22q46 14 92 0" stroke="#2B1606" stroke-width="3" fill="none"/>${[0, 1, 2].map(i => { const x = 14 + i * 26; return `<rect x="${x + 7}" y="${24 + (i === 1 ? 4 : 2)}" width="3" height="7" fill="#9A7A55"/><path d="M${x} ${32 + (i === 1 ? 4 : 2)}h16v30q0 8 8 10t-2 10h-14q-10 0-8-12z" fill="${['#FF5A4E', '#7FE8FF', '#F2BE62'][i]}" stroke="#2B1606" stroke-width="2.4"/>`; }).join('')}
+  <text x="50" y="98" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="9" fill="#2B1606">TEL ZE ALLEMAAL</text></svg>`;
+const ROWS = [
+  [1, 'DAG', 'De datum op het bord: op welke <b>dag</b> van de maand is het meisje geboren? Het eerste getal.', kalenderDag],
+  [2, 'MAAND', 'Dezelfde datum: in welke <b>maand</b>? Het tweede getal. Als cijfer, dus geen woord.', kalenderMaand],
+  [3, 'SOKJES', 'Hoeveel <b>sokjes</b> hangen er onder het bord? Tel ze één voor één. Ook de kleintjes.', sokjes],
+];
+document.getElementById('rows').innerHTML = ROWS.map(([n, h, t, pic]) => `<div class="row">${dial(n)}<div><h2>SCHIJF ${n}</h2><h3>${h}</h3><p>${t}</p></div>${pic}</div>`).join('');
+document.getElementById('mini').innerHTML = await monsterSvg(['lijf']); // bij stop 2 heeft hij alleen zijn pantser
+const fit = preview(document.getElementById('sheet'), { title: 'Gebruiksaanwijzing LED-ogen', size: '90 × 150 cm', hint: 'opgerold onder het bruggetje, in een plastic zak' });
+window.__ready = true; fit();
+</script>
+</body>
+</html>

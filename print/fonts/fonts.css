@@ -1,0 +1,6 @@
+/* Lettertypes lokaal (OFL, via @fontsource), zodat de posters en de PDF's er ook zonder internet goed uitzien. */
+@font-face{font-family:'Lilita One';font-weight:400;font-style:normal;src:url(lilita-one-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Chakra Petch';font-weight:700;font-style:normal;src:url(chakra-petch-latin-700-normal.woff2) format('woff2')}
+@font-face{font-family:'Nunito';font-weight:600;font-style:normal;src:url(nunito-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:'Nunito';font-weight:800;font-style:normal;src:url(nunito-latin-800-normal.woff2) format('woff2')}
+@font-face{font-family:'Nunito';font-weight:900;font-style:normal;src:url(nunito-latin-900-normal.woff2) format('woff2')}
