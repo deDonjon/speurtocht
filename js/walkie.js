@@ -255,6 +255,9 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
   let pttMode = getWalkieMode(), micOn = false, startedAt = 0, lastSec = -1;
   // over en sluiten: ending = kind zei het, het monster zegt nog gedag; daarna ophangen. calledBack = al een keer teruggebeld.
   let sessId = 0, ending = false, endSpoke = false, endTimer = 0, everConnected = false, calledBack = false, callbackMode = false;
+  // hush: de eerste zin van elk gesprek (briefing, oproep, hallo, terugbelzin) mag Mecha-Pof zonder onderbreking uitspreken.
+  // Microfoon dicht en praatknop uit tot hij klaar is (even stil na 'speaking'); vangnet als hij niet begint of niet stopt.
+  let hush = false, hushSpoke = false, hushIdle = 0, hushStart = 0, hushMax = 0;
   const setState = t => { stateEl.textContent = t; };
   const setLed = (cls, txt) => { led.className = 'wk-led ' + cls; liveTxt.textContent = txt; };
   const open = () => pttMode === 'open';
@@ -287,6 +290,7 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
     }
     $('.wk-rules').innerHTML = zeg ? `Zeg nu: <b>“${String(zeg).replace(/[<>&]/g, '')}”</b>` // oproep met een vast antwoord (briefing bij aankomst)
       : o ? 'Gewoon praten · eindig met <b>“over”</b> · klaar? <b>“over en sluiten”</b>' : 'Eindig met <b>“over”</b> · klaar? Zeg <b>“over en sluiten”</b>';
+    if (conv && !ending && hush) { try { conv.setMicMuted(true); } catch {} ptt.disabled = true; setState('🤫 Luister eerst naar Mecha-Pof…'); return; }
     if (conv && !ending) {
       if (o) { try { conv.setMicMuted(!micOn); } catch {} duck(false); setState(micOn ? '🎧 De lijn staat open. Praat maar!' : 'Tik op de knop om je microfoon aan te zetten'); }
       else { pressing = false; clearTimeout(tailTimer); try { conv.setMicMuted(true); } catch {} duck(false); setState('Houd de knop vast om iets te zeggen'); }
@@ -295,12 +299,12 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
   function toggleMode() {
     if (pressing) up();
     pttMode = open() ? 'hold' : 'open'; setWalkieMode(pttMode);
-    micOn = open() && !!conv;          // vrij praten begint met de microfoon aan
+    micOn = open() && !!conv && !hush; // vrij praten begint met de microfoon aan (niet tijdens de eerste zin)
     audio.play('zend'); audio.buzz(20);
     applyMode();
   }
   function toggleMic() {
-    if (!conv || !open()) return;
+    if (!conv || !open() || hush) return;
     micOn = !micOn; kickPlayback(conv);
     try { conv.setMicMuted(!micOn); } catch {}
     audio.play(micOn ? 'zend' : 'over'); audio.buzz(micOn ? 25 : [15, 40, 15]);
@@ -340,7 +344,7 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
 
   // ---- knop vasthouden: indrukken = zenden (microfoon open, monster gedempt), loslaten = het monster antwoordt
   function down(e) {
-    if (!conv || pressing || open()) return;
+    if (!conv || pressing || open() || hush) return;
     e?.preventDefault?.();
     pressing = true; clearTimeout(tailTimer);
     kickPlayback(conv, false);
@@ -418,6 +422,12 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
           if (!live()) return;
           mode = m;
           if (ending) { if (m === 'speaking') endSpoke = true; else if (endSpoke) { clearTimeout(endTimer); endTimer = setTimeout(() => close({ force: true }), 700); } }
+          if (hush) { // eerste zin: pas vrijgeven als hij echt klaar is (korte pauzes tussen zinnen tellen niet)
+            clearTimeout(hushIdle);
+            if (m === 'speaking') { hushSpoke = true; clearTimeout(hushStart); setState('🤫 Luister eerst naar Mecha-Pof…'); }
+            else if (hushSpoke) hushIdle = setTimeout(unhush, 900);
+            return;
+          }
           if (closed || pressing) return;
           if (m === 'speaking') setState('🤖 Mecha-Pof praat…');
           else if (!thinkingSince) setState(open() ? (micOn ? '🎧 De lijn staat open. Praat maar!' : 'Tik op de knop om je microfoon aan te zetten') : 'Houd de knop vast om iets te zeggen');
@@ -444,6 +454,10 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
       kickPlayback(conv); setTimeout(() => kickPlayback(conv, !ducked), 800);
       el.addEventListener('pointerdown', () => kickPlayback(conv, !ducked), { capture: true });
       ptt.disabled = false; setLed('on', 'Live'); everConnected = true;
+      hush = true; hushSpoke = false; micOn = false; // eerst de openingszin uit laten spreken
+      clearTimeout(hushIdle); clearTimeout(hushStart); clearTimeout(hushMax);
+      hushStart = setTimeout(unhush, 12_000); // begint hij niet te praten: toch vrijgeven
+      hushMax = setTimeout(unhush, 60_000);   // praat hij eindeloos: toch vrijgeven
       applyMode();
       setState(callbackMode ? '📞 Mecha-Pof belt terug…' : incoming ? '📞 Opgenomen! Mecha-Pof praat zo…' : 'Mecha-Pof neemt op…');
       thinkingSince = performance.now(); // het eerste bericht (begroeting) komt vanzelf
@@ -451,7 +465,17 @@ export function openWalkie({ mon, context = () => ({}), onClose, greeting: first
       fail(err?.message || String(err));
     }
   }
+  function unhush() {
+    if (!hush) return;
+    hush = false; clearTimeout(hushIdle); clearTimeout(hushStart); clearTimeout(hushMax);
+    if (closed || !conv || ending) return;
+    micOn = open(); ptt.disabled = false;
+    audio.play('zend'); audio.buzz(25); // piepje: nu mogen jullie praten
+    applyMode();
+    setState(open() ? '🎧 Jullie beurt! Praat maar.' : 'Jullie beurt! Houd de knop vast om iets te zeggen');
+  }
   function fail(msg) {
+    hush = false; clearTimeout(hushIdle); clearTimeout(hushStart); clearTimeout(hushMax);
     conv = null; ptt.disabled = true; pressing = false; ptt.classList.remove('down'); setLed('', 'Geen lijn'); sig.className = 'wk-sig'; thinkingSince = 0; duck(false);
     setState('📵 Geen verbinding'); ptt.hidden = true;
     const m = /audiosession/i.test(msg) ? 'De iPhone gaf de microfoon niet vrij. Tik op Opnieuw proberen.' : /permission|notallowed|denied/i.test(msg) ? 'De microfoon mag niet. Sta de microfoon toe voor deze website en probeer opnieuw.' : msg;
