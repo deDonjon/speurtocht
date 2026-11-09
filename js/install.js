@@ -27,6 +27,9 @@ export function createInstall(d) {
   function start({ part, stop_id, by, last }) {
     if (!part || !PARTS[part]) return false; // bonusstop zonder deel: index.html toont zelf een korte vreugde-overlay
     clear();
+    // Tekstveld loslaten vóór het schudden: anders toont iOS "Herstel typen" (schudden = ongedaan maken). Helemaal weg
+    // krijg je het alleen met de iPhone-instelling Schud voor herstel uit (draaiboek §A, Telefoons klaarzetten).
+    try { document.activeElement?.blur?.(); getSelection?.()?.removeAllRanges?.(); } catch {}
     const info = PARTS[part] || { icon: '⭐', label: 'een geheim deel' };
     const got = (state.get().game?.parts || []).filter(p => p !== part); // zonder het nieuwe deel: dat klikt zo vast
     const monteur = monteurOf(part);
