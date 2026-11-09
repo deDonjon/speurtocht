@@ -32,7 +32,7 @@
 // De begroeting wisselt: de app kiest een zin uit monster-lines.js (walkie.hallo) en stuurt hem mee als {{begroeting}}.
 import { audio, setRecording } from './audio.js?v=9';
 import { SUPABASE_URL, SUPABASE_KEY } from './sync.js';
-import { LINES, NAAM_JARIGE } from './monster-lines.js?v=6';
+import { LINES, NAAM_JARIGE } from './monster-lines.js?v=7';
 import { uitspraak } from './voice.js?v=3';
 
 const SDK = [
@@ -70,7 +70,7 @@ async function getToken() {
 }
 // Alle waarden als korte tekst: ontbrekende variabelen laten de agent haperen.
 // Namen gaan in uitspraak-spelling mee (Evy → Eevie), zodat de stem ze goed zegt.
-const KEYS = ['begroeting', 'jarige', 'spelers', 'fase', 'stop_naam', 'stop_nummer', 'stops_totaal', 'aanwijzing', 'puzzel_vraag', 'puzzel_hint', 'delen_gevonden', 'delen_nog', 'hints_gebruikt', 'wachtwoord'];
+const KEYS = ['begroeting', 'jarige', 'spelers', 'fase', 'stop_naam', 'stop_nummer', 'stops_totaal', 'aanwijzing', 'puzzel_vraag', 'puzzel_hint', 'delen_gevonden', 'delen_nog', 'hints_gebruikt', 'wachtwoord', 'talenten']; // talenten: chat 7, voorstelronde in de lobby
 function vars(ctx = {}) {
   return Object.fromEntries(KEYS.map(k => [k, uitspraak(String(ctx[k] ?? '').trim()) || '-']));
 }

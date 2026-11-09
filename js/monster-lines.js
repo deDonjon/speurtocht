@@ -62,6 +62,39 @@ export const LINES = {
     ],
   },
 
+  // ---------------------------------------------------------------- onboarding thuis (kern.html, chat 7)
+  // De kern ligt in slaapstand op de laptop; de begeleider tikt op de wekknop (regie.html).
+  wek: [
+    'Bzzzt... wie maakt mij wakker? Zes monteurs? Daar zat ik op te wachten.',
+  ],
+  // Loting van de talenten op het kernscherm. {naam} is de naam die net vastklikt. intro vóór de loting, klaar erna.
+  loting: {
+    intro: [
+      'Talentenmachine aan. Ik ga loten. Niet valsspelen, ik zie alles. Nou ja, bijna alles. Mijn ogen liggen nog ergens.',
+    ],
+    speurneus: ['{naam}... Speurneus! Jij vindt mijn LED-ogen.'],
+    kaartlezer: ['{naam}... Kaartlezer! Jij brengt mijn aardbei-knop terug.'],
+    codekraker: ['{naam}... Codekraker! Jij haalt mijn luidsprekerrooster op.'],
+    rekenmeester: ['{naam}... Rekenmeester! Jij zet mijn spatel en mijn garde erop.'],
+    tijdbewaker: ['{naam}... Tijdbewaker! Jij monteert mijn zuigerbenen. En je let op de klok.'],
+    sleutelbewaarder: ['{naam}... Sleutelbewaarder! Jij drukt op mijn boterknop. En omdat je jarig bent, mag jij één wens doen.'],
+    klaar: [
+      'Talenten verdeeld. Zes monteurs, één robot. Dit gaat helemaal goed komen. Denk ik. Bliep.',
+    ],
+  },
+  // Het spel start; de kern blijft thuis op tafel.
+  kern: {
+    wacht: ['Ik wacht hier op mijn onderdelen. Ik ga nergens heen. Ik kan ook nergens heen. Ik heb geen benen.'],
+  },
+
+  // Een bonusopdracht (stop zonder onderdeel) is gelukt.
+  bonus: {
+    gevonden: [
+      'Bonus binnen! Geen onderdeel, maar wel extra stroopdruppels. Mijn stroopmeter maakt een sprongetje.',
+      'Extra klus geklaard. Ik schrijf het in mijn logboek, met een stroopvlek ernaast. Door naar mijn onderdelen!',
+    ],
+  },
+
   // Alle zeven delen zitten vast: de aankondiging van Mega-Mecha-Pof (fase klaar). In stukjes, zodat het spannend blijft.
   mega: [
     'Systeemcontrole. Pantser: check. Ogen: check. Neus: check. Mond: check. Spatel en garde: check. Benen: check. Jetpack: check.',
@@ -316,6 +349,31 @@ export const LINES = {
     een: ['Eén hint maar. Eén. Het staat in mijn logboek, hoor.'],
     meer: ['{Hints} hints. {Hints}. Het staat in mijn logboek.', 'O ja, en {hints} hints. Ik ben het niet vergeten. Robots vergeten nooit.'],
   },
+  // Na de finale: het afscheid via de walkietalkie, en de teamfoto.
+  afscheid: [
+    'Nog één ding, speurders. Pak de walkietalkie en roep met zijn zessen tegelijk: over en sluiten!',
+  ],
+  teamfoto: [
+    'Teamfoto! Allemaal voor mijn poster. Drie, twee, één... zeg allemaal: pannenkoek!',
+  ],
+
+  // Eindscherm: één zin per monteur (op het scherm, niet hardop). {naam} = haar naam.
+  eind: {
+    speurneus: ['{naam} vond mijn LED-ogen. Zonder jou zei ik nog steeds sorry tegen lantaarnpalen.'],
+    kaartlezer: ['{naam} bracht mijn aardbei-knop terug. Ik ruik weer alles, ook dat jij de weg wist.'],
+    codekraker: ['{naam} haalde mijn luidsprekerrooster op. Daarom ben ik nu zo brutaal. Jouw schuld.'],
+    rekenmeester: ['{naam} gaf mij mijn spatel en garde terug. Daar draai ik straks jouw pannenkoek mee om.'],
+    tijdbewaker: ['{naam} zette mijn zuigerbenen erop en hield de klok in de gaten. Pomp, pomp, bedankt.'],
+    sleutelbewaarder: ['{naam} drukte op mijn boterknop en liet mij vliegen. En ze is jarig. Dubbel feest.'],
+    geen: ['{naam} hielp overal mee. Mijn processor vergeet dat nooit.'],
+  },
+  // Eindscherm: korte toevoeging per bijzondere badge.
+  eindBadge: {
+    'kruimelaar-vanger': ['Ving de Kruimelaar.'],
+    vonkenvanger: ['Tikte vonken weg als een bliksem.'],
+    'jetpack-redder': ['Redde mijn jetpack.'],
+    wensvervuller: ['Deed een verjaardagswens.'],
+  },
 
   // Walkietalkie. 'hallo' is wat het monster zegt als het opneemt (er wordt er één gekozen).
   // 'terugbel' zegt het als het terugbelt omdat er niet met "over en sluiten" is opgehangen.
@@ -361,6 +419,10 @@ export const LINES = {
       ],
       benen: [
         'Pssst... pssst... niks. Mijn zuigerbenen liggen hier, met de pannetjes eraan. Tijdbewaker, jij bent de monteur. Als ik kan lopen, loop ik met jullie mee op de kaart. Maar dan begint ook de klok te tikken. Over!',
+      ],
+      // Bonusopdracht (stop zonder onderdeel, gekozen door de begeleider).
+      bonus: [
+        'Bzzzt! Extra klus, speurders. Hier ligt geen onderdeel, maar wel een bonus met stroopdruppels. Kijk op de werkbank wat ik van jullie wil. Over!',
       ],
       hoed: [
         'Bzzzt! Thuis! Mijn kern ligt hier, en het laatste stuk ook: mijn boterknop en mijn stroop-jetpack. Sleutelbewaarder, dit is jouw moment. Druk op de knop, dan vlieg ik. Klaar? Over!',

@@ -153,11 +153,11 @@ textarea{min-height:70px}
   </section>
 </main>
 <script type="module">
-import { createMonster, monsterImage, ready, PART_KEYS, MOODS, speechStatus, dutchVoices, middlePitch, setVoicePref, getVoicePref, VOICE_DEFAULT, lineText } from '../js/monster.js?v=13';
+import { createMonster, monsterImage, ready, PART_KEYS, MOODS, speechStatus, dutchVoices, middlePitch, setVoicePref, getVoicePref, VOICE_DEFAULT, lineText } from '../js/monster.js?v=14';
 import { audio } from '../js/audio.js?v=9';
-import { openWalkie, incomingCall, callGreeting } from '../js/walkie.js?v=13';
-import { createSurprises } from '../js/surprises.js?v=1';
-import { LINES } from '../js/monster-lines.js?v=6';
+import { openWalkie, incomingCall, callGreeting } from '../js/walkie.js?v=14';
+import { createSurprises } from '../js/surprises.js?v=2';
+import { LINES } from '../js/monster-lines.js?v=7';
 import { voice } from '../js/voice.js?v=3';
 
 const $ = s => document.querySelector(s);
@@ -215,7 +215,7 @@ function allLines() {
     out.push(l.replace(/\{jarige\}|\{naam\}/g, j));
   };
   const walk = v => Array.isArray(v) ? v.forEach(add) : v && typeof v === 'object' && Object.values(v).forEach(walk);
-  for (const [k, v] of Object.entries(LINES)) if (k !== 'walkie' && k !== 'navigatie') walk(v); // navigatie-zinnen krijgen een afstand en worden ter plekke gemaakt
+  for (const [k, v] of Object.entries(LINES)) if (!['walkie', 'navigatie', 'eind', 'eindBadge'].includes(k)) walk(k === 'loting' ? { intro: v.intro, klaar: v.klaar } : v); // navigatie krijgt ter plekke een afstand; eind/eindBadge zijn alleen tekst; loting met namen neemt kern.html zelf op
   // vaste zinnen uit index.html
   ['Ik heb de rollen geschud. Kijk maar eens wat je nu kunt.', 'Eén telefoon is in slaap gevallen. Ik verdeel de talenten opnieuw.'].forEach(add);
   return out;

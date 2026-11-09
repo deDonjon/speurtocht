@@ -323,7 +323,8 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
       ${kind === 'overslaan' ? '<p class="sp-note">De begeleider keurt deze stop goed; het deel komt vanzelf.</p>' : ''}
       ${kind === 'dansje' ? '<p class="sp-note">Spatel omhoog, garde rondjes. Doe maar mee!</p>' : ''}
       <button class="sp-ok" data-a="close">Hoera!</button>`);
-    if (jarige && (ev?.actor === 'player' || !ev)) award('wens', [jarige.id]);
+    // Zelf ingezet: haar telefoon geeft de badge. Namens haar via de regie (chat 7): de telefoon waar zij is ingelogd geeft hem.
+    if (jarige && (ev?.actor === 'player' || !ev || (ev.actor === 'regie' && me().some(x => x.id === jarige.id)))) award('wens', [jarige.id]);
     await speak('wens', 'gebruikt', { interrupt: true });
     if (kind === 'dansje') { confetti(); for (let k = 0; k < 4; k++) later(() => mon?.react?.('goed'), 400 + k * 900); }
     await speak('wens', kind, { interrupt: true });

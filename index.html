@@ -219,6 +219,15 @@ button.press{min-height:96px;font-size:1.6rem;letter-spacing:.06em}
 .stoprow small{display:block;color:var(--muted);font-size:.78rem}
 .stoprow button{min-height:46px;padding:8px 10px;white-space:nowrap}
 canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:35}
+/* foto met Mecha-Pofs LED-uitlezing erover (stop 4: kijk-en-vergelijk) */
+.pimgwrap{position:relative;border-radius:12px;overflow:hidden}
+.pimgwrap .pimg{display:block}
+.ledover{position:absolute;left:4%;right:4%;top:42%;transform:translateY(-50%);text-align:center;pointer-events:none;font-family:var(--hud);font-weight:700;font-size:clamp(1.3rem,8vw,2.3rem);letter-spacing:.12em;
+  color:var(--led);background:rgba(14,27,46,.72);border:2px solid var(--led-dark);border-radius:10px;padding:6px 8px;text-shadow:0 0 10px var(--led),0 0 22px rgba(127,232,255,.7),2px 0 0 rgba(255,90,78,.55),-2px 0 0 rgba(74,222,128,.4);
+  box-shadow:0 0 18px rgba(127,232,255,.35);animation:glitch 2.6s steps(1) infinite}
+.ledover::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0 2px,transparent 2px 4px);border-radius:8px}
+@keyframes glitch{0%,86%,100%{transform:translateY(-50%)}88%{transform:translate(3px,-52%);opacity:.8}90%{transform:translate(-3px,-48%)}92%{transform:translateY(-50%);opacity:.6}94%{opacity:1}}
+
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -231,14 +240,15 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:35}
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync } from './js/sync.js';
 import { createMap } from './js/map.js?v=5'; // ?v ophogen bij elke wijziging: GitHub Pages en Safari bewaren oude bestanden
-import { createMonster, monsterImage, lineText } from './js/monster.js?v=13'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
+import { createMonster, monsterImage, lineText } from './js/monster.js?v=14'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
 import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole } from './js/roles.js?v=1'; // radio / kaart / werkbank, roterend per stop
-import { createInstall } from './js/install.js?v=1'; // installatieritueel: monteur schudt, deel klikt vast
-import { openWalkie, incomingCall, callGreeting } from './js/walkie.js?v=13'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
+import { createInstall } from './js/install.js?v=2'; // installatieritueel: monteur schudt, deel klikt vast
+import { openWalkie, incomingCall, callGreeting } from './js/walkie.js?v=14'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
 import { createNavVoice } from './js/navvoice.js?v=1'; // gesproken navigatie zodra de LED-ogen terug zijn (radiotelefoon)
-import { createSurprises } from './js/surprises.js?v=1'; // Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens
+import { createSurprises } from './js/surprises.js?v=2'; // Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens
 import { audio } from './js/audio.js?v=9'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
 import { teaserActive, mountTeaser } from './js/teaser.js?v=2'; // voorpret vóór het feest (game.settings.teaser)
+import { createFinale, endCards, END_CSS } from './js/finale.js?v=1'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -255,7 +265,9 @@ function guard(p) { // naam, deel, talent en kleur van een bewaker
   const t = TALENTS[p?.talent], part = p?.part || t?.part;
   return { talent: t?.label || null, part, icon: PARTS[part]?.icon || (p?.is_birthday ? '🎂' : '🕵️'), color: p?.color || PARTS[part]?.color || '#5B6680' };
 }
-const stopNo = st => { const r = state.route(); return { n: r.findIndex(x => x.id === st.id) + 1, total: r.length }; };
+const stopNo = st => { const r = state.route().filter(x => x.part || x.key); return { n: r.findIndex(x => x.id === st.id) + 1, total: r.length }; }; // bonusstops (zonder deel) tellen niet mee
+const isBonus = st => !!st && !st.part && !st.key;
+const stopTab = st => st.key === 'home' ? 'Laatste plek' : isBonus(st) ? '⭐ Bonusopdracht' : (({ n, total }) => `Plek ${n} van ${total}`)(stopNo(st));
 const radiusOf = st => st.radius || S().game?.settings?.radius || 20;
 const keyHolder = () => S().players.find(p => p.talent === 'sleutelbewaarder');
 const canSubmit = () => state.hasTalent('sleutelbewaarder') || !!S().game?.settings?.any_can_submit;
@@ -309,6 +321,10 @@ const mon = createMonster();
 let walkie = null; // open walkietalkie (js/walkie.js) of null
 let ring = null;   // inkomende oproep die overgaat (js/walkie.js incomingCall) of null
 const install = createInstall({ mon, sync, state, PARTS, TALENTS, audio, buzz, confetti, overlay: (...a) => overlay(...a), closeOverlay: () => closeOverlay(), mslot: (...a) => mslot(...a), esc });
+const kernOnline = () => { const t = S().game?.settings?.kern_at; return !!t && Date.now() - Date.parse(t) < 3 * 60_000; }; // kern.html staat thuis aan
+const finale = createFinale({ mon, state, audio, confetti, voice: () => kernOnline() ? false : undefined,
+  onStage: st => { if (st === 'mega') { install.dismiss(); if ($('#ov .install')) closeOverlay(); } cur.update?.(); refresh(); } });
+document.head.insertAdjacentHTML('beforeend', `<style>${END_CSS}</style>`); // kaarten van het eindscherm
 function moodFor() {
   const g = S().game, n = g?.parts?.length || 0;
   if (!g || g.phase === 'lobby') return 'slaap';
@@ -324,6 +340,9 @@ function placeMonster() {
   if (!slot.dataset.parts) { mon.setParts(S().game?.parts || []); mon.setMood(moodFor()); }
 }
 const mslot = (size = 'md', extra = '') => `<div class="mslot" data-size="${size}" ${extra}></div>`;
+// Foto bij een puzzel, met optioneel Mecha-Pofs (foute) uitlezing in LED-letters eroverheen (config.overlay; stop 4, chat 7).
+const pimgHtml = cfg => !cfg?.image ? '' : !cfg.overlay ? `<img class="pimg" src="${esc(cfg.image)}" alt="">`
+  : `<div class="pimgwrap"><img class="pimg" src="${esc(cfg.image)}" alt=""><span class="ledover" style="${cfg.overlay_y != null ? `top:${+cfg.overlay_y}%` : ''}">${esc(cfg.overlay)}</span></div>`;
 
 /* ================================================================ event-router
    Elk event uit de tabel `event` dat binnenkomt ná het laden gaat één keer langs de handlers.
@@ -341,8 +360,16 @@ router.on('stop.arrived', () => { audio.play('aankomst'); buzz([80, 40, 80]); })
 router.on('stop.solved', p => {
   const st = state.stop(p.stop_id);
   audio.play('ok'); buzz([60, 40, 60]);
+  if (!p.part) { bonusDone(st, p); return; } // bonusopdracht: geen onderdeel, geen ritueel
   install.start({ part: p.part, stop_id: p.stop_id, by: p.by, last: st?.key === 'home' }); // monteur schudt, deel klikt vast
 });
+function bonusDone(st, p) {
+  overlay(`<div class="page"><span class="tab">Bonus gelukt</span><div style="font-size:3.4rem;line-height:1">⭐</div>
+    <h2>${esc(st?.name || 'Bonusopdracht')}</h2><p>+${p.drops ?? 0} stroopdruppels voor het Reparatieteam!</p>${mslot('md')}
+    <button class="ok wide big-btn" data-x="close">Op naar de volgende plek ▶</button></div>`, 9000);
+  $('#ov [data-x=close]')?.addEventListener('click', closeOverlay);
+  mon.react('goed'); const l = lineText('bonus', { sub: 'gevonden' }); if (l) say(l, { auto: true });
+}
 router.on('hint.given', p => { audio.play('hint'); if (p.text) say(p.text, 9000); else toast('💡 Er is een hint vrijgegeven.'); });
 router.on('monster.say', p => say(p.text || '…'));
 router.on('roles.shuffle', () => { say('Ik heb de rollen geschud. Kijk maar eens wat je nu kunt.'); buzz([40, 40, 40]); });
@@ -359,7 +386,7 @@ function walkieContext() {
   return {
     jarige: birthday()?.name || 'de jarige',
     spelers: (S().players || []).map(p => p.name).join(', '),
-    fase: { lobby: 'nog niet begonnen', onderweg: 'onderweg naar de volgende plek', puzzel: 'bij een puzzel', finale: 'bijna thuis, de finale', klaar: 'klaar, alles gevonden' }[g.phase] || g.phase || '',
+    fase: { lobby: 'nog niet begonnen (voorstelronde)', onderweg: 'onderweg naar de volgende plek', puzzel: 'bij een puzzel', finale: 'bijna thuis, de finale', klaar: 'klaar, alles gevonden' }[g.phase] || g.phase || '',
     stop_naam: st?.name || '', stop_nummer: st ? route.indexOf(st) + 1 : '', stops_totaal: route.length || '',
     aanwijzing: st?.clue || '',
     puzzel_vraag: g.phase === 'puzzel' ? (cfg.question || '') : '',
@@ -368,6 +395,7 @@ function walkieContext() {
     delen_nog: Object.keys(PARTS).filter(k => !got.includes(k)).map(k => PARTS[k].label).join(', ') || 'niks meer',
     hints_gebruikt: g.hints ?? 0,
     wachtwoord: g.phase === 'puzzel' && cfg.type === 'wachtwoord' ? String(cfg.password || '').split('|')[0] : '', // alleen op een wachtwoordstop
+    talenten: (S().players || []).filter(p => p.talent).map(p => `${p.name}: ${TALENTS[p.talent]?.label} (${PARTS[TALENTS[p.talent]?.part]?.label || '-'})`).join('; ') || 'nog niet geloot', // voorstelronde (chat 7)
   };
 }
 const normWord = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
@@ -413,7 +441,7 @@ function ringCall({ greeting, title = 'Mecha-Pof belt!', sub = '' }) {
 }
 router.on('stop.arrived', p => {
   const st = state.stop(p.stop_id); if (!st) return;
-  setTimeout(() => { if (state.activeStop()?.id === st.id) ringCall({ greeting: callGreeting({ part: st.part }), sub: `Signaal van ${st.name}` }); }, 300); // vóór de aankomstzin van monster.js (600 ms), die dan zwijgt
+  setTimeout(() => { if (state.activeStop()?.id === st.id) ringCall({ greeting: callGreeting({ part: st.part || 'bonus' }), sub: `Signaal van ${st.name}` }); }, 300); // vóór de aankomstzin van monster.js (600 ms), die dan zwijgt
 });
 router.on('monster.call', p => {
   if (!p.message_id || seenCalls.has(p.message_id)) return; seenCalls.add(p.message_id);
@@ -709,10 +737,10 @@ screens.lobby = el => {
    Alleen de kaarttelefoon (rol `kaart`) toont de kaart, de afstand en warmer/kouder; de andere telefoons zien de aanwijzing
    en wie de kaart heeft. Elke telefoon blijft wel zelf de aankomst controleren (GPS), zodat de puzzel opengaat zodra één toestel er is. */
 screens.nav = (el, id) => {
-  const st = state.stop(id), { n, total } = stopNo(st), kaart = hasRole('kaart');
+  const st = state.stop(id), kaart = hasRole('kaart');
   lastDist = null;
   el.innerHTML = `${mslot('sm')}
-    <div class="page"><span class="tab">${st.key === 'home' ? 'Laatste plek' : `Plek ${n} van ${total}`}</span>
+    <div class="page"><span class="tab">${stopTab(st)}</span>
       <div class="row" style="justify-content:space-between"><span class="eyebrow">${PARTS[st.part]?.icon || ''} ${esc(PARTS[st.part]?.label || '')}</span><span class="eyebrow">${kaart ? '🗺️ Kaart' : ''}</span></div>
       <h2>${esc(st.name)}</h2><p class="clue">${esc(st.clue)}</p>
       ${kaart && hasL ? '<div class="mapwrap"><div id="mapslot"></div><button class="mapbtn plain" id="fit" aria-label="Kaart centreren">🎯</button></div>' : ''}
@@ -746,13 +774,13 @@ screens.nav = (el, id) => {
    Puzzels met `multi: true` (splits, slot, sync) worden op elke telefoon getekend: ieder toestel heeft daar zijn eigen stuk;
    via api.roles weet de puzzel of dit de werkbank is. */
 const modCache = {};
-const PUZZLE_V = 7; // ophogen bij wijzigingen in js/puzzles/
+const PUZZLE_V = 8; // ophogen bij wijzigingen in js/puzzles/
 const loadPuzzle = type => modCache[type] ||= import(`./js/puzzles/${type}.js?v=${PUZZLE_V}`).then(m => m.default);
 screens.puz = (el, id) => {
   const st = state.stop(id), { n, total } = stopNo(st);
   let mod = null, modErr = '', pending = [], sig = '', askedArrive = false, submitting = false;
   el.innerHTML = `${mslot('sm')}
-    <div class="page"><span class="tab">📍 Jullie zijn er · ${st.key === 'home' ? 'Finale' : `plek ${n} van ${total}`}</span>
+    <div class="page"><span class="tab">📍 Jullie zijn er · ${st.key === 'home' ? 'Finale' : isBonus(st) ? 'Bonus' : `plek ${n} van ${total}`}</span>
       <h2>${esc(st.name)}</h2>
       <div id="pz" class="col" style="display:flex;flex-direction:column;gap:12px"><p class="note">Puzzel wordt opengevouwen…</p></div>
       <div id="hintbox"></div><div id="submit" class="submit" hidden></div></div>`;
@@ -797,7 +825,7 @@ screens.puz = (el, id) => {
         roles, deviceIndex: ctx.devices.indexOf(S().device.id), devices: ctx.devices, players: ctx.players, werkbankDevice: deviceWithRole('werkbank'), radioDevice: deviceWithRole('radio') });
     } else { // niet de werkbank: alleen de vraag, en wie hem maakt
       mod.destroy?.(pz);
-      pz.innerHTML = `${cfg.image ? `<img class="pimg" src="${esc(cfg.image)}" alt="">` : ''}<p class="question">${esc(cfg.question || '')}</p>
+      pz.innerHTML = `${pimgHtml(cfg)}<p class="question">${esc(cfg.question || '')}</p>
         <p class="clue" style="font-size:1rem">🔧 De werkbank staat op de telefoon van <b>${esc(whoHas('werkbank') || 'een ander')}</b>. ${solved ? 'De puzzel is opgelost!' : 'Help mee denken en roep het antwoord!'}</p>`;
     }
     // hint: op elke telefoon zichtbaar zodra één bewaker hem vraagt
@@ -817,19 +845,46 @@ screens.puz = (el, id) => {
   return { update: () => update(false), destroy: () => mod?.destroy?.(pz) };
 };
 
-/* ---------- klaar: monster compleet, eindcijfer als pannenkoekenstapel */
+/* ---------- klaar: finale (Mega-Mecha-Pof, vers, confetti) en daarna het eindscherm met badges per speurder (js/finale.js)
+   De finale start vanzelf zodra de hoed na het installatieritueel geland is (monster.js → pkm.finale.start()).
+   Staat het kernscherm thuis aan (kern.html meldt zich via settings.kern_at), dan praat alleen de laptop en tonen de telefoons de tekst. */
+const FIN_TEXT = { mega: ['Systeemcontrole…', 'Alle zeven onderdelen zitten vast. Mecha-Pof wordt groter…'], vers: ['Een verjaardagsvers!', 'Mecha-Pof heeft een eigen vers voor de jarige.'],
+  confetti: ['🎉 Hiep hiep hoera!', 'Confetti! (en poppers, als de begeleider ze heeft)'], finale: ['Alle systemen compleet', 'Mega-Mecha-Pof is helemaal klaar.'] };
 screens.klaar = el => {
-  const g = S().game, stops = state.route().length || 7, b = birthday();
-  const stack = Math.max(1, Math.min(10, Math.round((g.drops || 0) / (stops * 10) * 10)));
-  el.innerHTML = `<div class="center"><span class="eyebrow">Dossier gesloten</span><h1>Mecha-Pof is compleet!</h1></div>
-    ${mslot('lg')}
-    <div class="page center"><span class="tab">Eindcijfer</span>
-      <div class="stack">${Array.from({ length: stack }, (_, i) => `<i style="width:${150 - i * 6}px;animation-delay:${i * .12}s"></i>`).join('')}</div>
-      <h2>${stack} van de 10 pannenkoeken hoog</h2>
-      <p>${g.drops || 0} stroopdruppels · ${g.hints || 0} hint${g.hints === 1 ? '' : 's'}</p>
-      ${b ? `<p class="clue">${esc(b.name)}, jij hebt de boterknop aangezet. Gefeliciteerd, jarige! Systeem: honger 100%… naar binnen, de pannenkoeken wachten!</p>` : '<p class="clue">Naar binnen: de pannenkoeken wachten!</p>'}
-    </div>`;
+  const update = () => {
+    const g = S().game, stops = state.route().filter(x => x.part).length || 7, b = birthday(), stg = finale.stage;
+    const showEnd = stg === 'eind' || finale.done || (stg === 'idle' && !install.busy);
+    const sig = showEnd ? 'end:' + S().players.map(p => p.id + (p.badges || []).join()).join('|') + (g.drops || 0) : 'fin:' + stg;
+    if (el.dataset.sig === sig) return; el.dataset.sig = sig;
+    if (!showEnd) {
+      const [h, p] = FIN_TEXT[stg] || ['Mecha-Pof start op…', 'De boterknop is ingedrukt. Even geduld…'];
+      el.innerHTML = `<div class="center"><span class="eyebrow">Finale</span><h1>${esc(h)}</h1></div>${mslot('lg')}<div class="page center"><span class="tab">Mega-Mecha-Pof</span><p class="clue">${esc(p)}</p>${kernOnline() ? '<p class="note">Kijk en luister naar het grote scherm binnen!</p>' : ''}</div>`;
+      return;
+    }
+    const stack = Math.max(1, Math.min(10, Math.round((g.drops || 0) / (stops * 10) * 10)));
+    el.innerHTML = `<div class="center"><span class="eyebrow">Dossier gesloten</span><h1>MEGA-MECHA-POF!</h1></div>
+      ${mslot('lg')}
+      <div class="page center"><span class="tab">Het Reparatieteam</span>
+        <div class="fin-cards">${endCards(state)}</div>
+        <div class="row" style="justify-content:center">${hasRole('radio') ? '<button class="berry" data-k="walkie">📻 Afscheid: over en sluiten</button>' : ''}<button class="plain" data-k="foto">📸 Teamfoto</button></div>
+        <p class="note">Allemaal tegelijk in de walkietalkie: <b>over en sluiten</b>!</p></div>
+      <div class="page center"><span class="tab">Eindcijfer</span>
+        <div class="stack">${Array.from({ length: stack }, (_, i) => `<i style="width:${150 - i * 6}px;animation-delay:${i * .12}s"></i>`).join('')}</div>
+        <h2>${stack} van de 10 pannenkoeken hoog</h2>
+        <p>${g.drops || 0} stroopdruppels · ${g.hints || 0} hint${g.hints === 1 ? '' : 's'}</p>
+        ${b ? `<p class="clue">${esc(b.name)}, jij hebt de boterknop aangezet. Gefeliciteerd, jarige! Naar binnen, de pannenkoeken wachten!</p>` : '<p class="clue">Naar binnen: de pannenkoeken wachten!</p>'}
+      </div>`;
+    placeMonster();
+  };
+  el.addEventListener('click', e => { const k = e.target.closest('[data-k]')?.dataset.k; if (k === 'walkie') startWalkie(); if (k === 'foto') teamFoto(); });
+  update(); return { update };
 };
+function teamFoto() {
+  let n = 5;
+  const o = overlay(`<div class="page"><span class="tab">Teamfoto</span>${mslot('md')}<h2>Allemaal voor de poster!</h2><div class="dist" id="tf">${n}</div><p class="clue">Zeg allemaal: <b>PANNENKOEK!</b></p></div>`);
+  const l = lineText('teamfoto'); if (l) say(l, { voice: kernOnline() ? false : undefined });
+  const t = setInterval(() => { n--; const c = $('#tf', o); if (c) c.textContent = n > 0 ? n : '📸'; if (n <= 0) { clearInterval(t); audio.play('klik'); confetti(); setTimeout(() => { if (o.isConnected) closeOverlay(); }, 2500); } }, 1000);
+}
 
 /* ================================================================ start */
 state.on('change', () => refresh());
@@ -841,7 +896,7 @@ async function boot() {
   } catch (e) { bootError = e.message || 'Geen verbinding'; }
   refresh('remount');
 }
-window.pkm = { state, sync, router, PARTS, TALENTS, mon, monsterUrl, monsterImage, audio, toast, say, bubble, chime: audio.chime, buzz, refresh, roles: { myRoles, hasRole, whoHas, deviceWithRole }, install, surprises, nav, callRinging, ringCall, walkieTools, get walkie() { return walkie; } };
+window.pkm = { state, sync, router, finale, PARTS, TALENTS, mon, monsterUrl, monsterImage, audio, toast, say, bubble, chime: audio.chime, buzz, refresh, roles: { myRoles, hasRole, whoHas, deviceWithRole }, install, surprises, nav, callRinging, ringCall, walkieTools, get walkie() { return walkie; } };
 renderBar(); refresh('remount'); boot();
 </script>
 </body>

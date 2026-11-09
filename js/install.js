@@ -8,6 +8,8 @@
 //   install.start({ part, stop_id, by, last })   // bij stop.solved, op elke telefoon
 //   install.onBadge(badge)                      // bij badge.awarded; geeft true als het een monteur-badge was
 //   install.busy                                 // overlay staat open
+//   install.dismiss()                            // overlay dicht zonder knop (de finale neemt het scherm over)
+// Een stop zonder deel (bonusopdracht, chat 7) heeft geen ritueel: start() doet dan niets en geeft false.
 
 export const BADGE_PREFIX = 'monteur-';
 const SHAKE_DELTA = 11, SHAKES_NEEDED = 4, SHAKE_WINDOW = 1600, WAIT_MS = 45_000, BUTTON_AFTER_MS = 12_000;
@@ -23,6 +25,7 @@ export function createInstall(d) {
   const clear = () => { if (!cur) return; cur.timers.forEach(clearTimeout); cur.stopMotion?.(); };
 
   function start({ part, stop_id, by, last }) {
+    if (!part || !PARTS[part]) return false; // bonusstop zonder deel: index.html toont zelf een korte vreugde-overlay
     clear();
     const info = PARTS[part] || { icon: '⭐', label: 'een geheim deel' };
     const got = (state.get().game?.parts || []).filter(p => p !== part); // zonder het nieuwe deel: dat klikt zo vast
@@ -40,6 +43,7 @@ export function createInstall(d) {
     const box = o.querySelector('#inst');
     if (mine) renderMonteur(box, monteur, part); else renderWait(box, monteur);
     cur.timers.push(setTimeout(() => clicked(part, 'timeout'), WAIT_MS));
+    return true;
   }
 
   // ---- de monteur: schudden (of knop)
@@ -122,6 +126,8 @@ export function createInstall(d) {
     return true;
   }
 
-  return { start, onBadge, get busy() { return !!cur; }, monteurOf };
+  function dismiss() { if (!cur) return; clear(); cur = null; if (document.querySelector('#ov .install')) closeOverlay(); }
+
+  return { start, onBadge, dismiss, get busy() { return !!cur; }, monteurOf };
 }
 export default createInstall;

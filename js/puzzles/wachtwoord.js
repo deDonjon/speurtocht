@@ -4,7 +4,7 @@
 // Valt terug op een codepuzzel: wie de walkie niet aan de praat krijgt, typt de code op de werkbank.
 //
 // config: { type:'wachtwoord', question, password:'stroop|stroopwafel', answer?:'1234' (getypte reserve; standaard = password),
-//           hint?, image?, radio_text? }
+//           hint?, image?, overlay? (tekst in LED-letters over de foto: Mecha-Pofs foute uitlezing, kijk-en-vergelijk), overlay_y? (% van boven), radio_text? }
 // Zetten: { t:'unlock', v }  (walkie, via de tool)  ·  { t:'answer', v }  (getypt op de werkbank)
 // Zonder `password` in de config vertrouwt de app op het oordeel van de agent (die kent het wachtwoord via {{wachtwoord}}).
 import { norm, esc } from './_shared.js';
@@ -34,7 +34,9 @@ export default {
   render(el, data, api) {
     const c = api.config;
     if (!el.querySelector('.pz-ww')) {
-      el.innerHTML = `<div class="pz-ww">${c.image ? `<img class="pimg" src="${esc(c.image)}" alt="">` : ''}
+      const img = !c.image ? '' : !c.overlay ? `<img class="pimg" src="${esc(c.image)}" alt="">`
+        : `<div class="pimgwrap"><img class="pimg" src="${esc(c.image)}" alt=""><span class="ledover" style="${c.overlay_y != null ? `top:${+c.overlay_y}%` : ''}">${esc(c.overlay)}</span></div>`;
+      el.innerHTML = `<div class="pz-ww">${img}${c.overlay ? '<p class="note">Zo leest Mecha-Pof het bord. Klopt dat wel? Vergelijk met de muur!</p>' : ''}
           <p class="question">${esc(c.question || 'Zoek het wachtwoord en zeg het tegen Mecha-Pof.')}</p>
           <div class="hint pz-radio">📻 <span class="pz-radio-txt"></span></div>
           <p class="feedback" aria-live="polite"></p>

@@ -19,7 +19,7 @@
 // ?v=… tegen oude bestanden in de cache (GitHub Pages/Safari). Ophogen bij een wijziging, ook in index.html en test/monster.html.
 import { hasRole } from './roles.js?v=1';
 import { audio } from './audio.js?v=9';
-import { LINES, NAAM_JARIGE } from './monster-lines.js?v=6';
+import { LINES, NAAM_JARIGE } from './monster-lines.js?v=7';
 import { voice as monsterVoice, uitspraak } from './voice.js?v=3';
 
 const ZDOG_SRC = [
@@ -1041,9 +1041,13 @@ export function createMonster() {
   }
   async function afterLanding(key) {
     const naam = isJarige(inner.lastBy) ? jarigeNaam() : null;
-    const line = pickLine('deel', { sub: key, naam });
+    // Na het installatieritueel: de installatiezin (welk vermogen hij terugkrijgt, STORY.md §2); `deel` blijft de reserve.
+    const line = pickLine('installatie', { sub: key, naam }) || pickLine('deel', { sub: key, naam });
     const complete = PART_KEYS.every(k => parts.has(k));
-    if (line) { const ok = await say(fill(line, { naam }), { auto: true, force: true }); if (!ok) return; }
+    const fin = globalThis.pkm?.finale; // chat 7: de app speelt de finale (Mega 1-2-3, vers, confetti, finale) via js/finale.js
+    let ok = true;
+    if (line) { ok = await say(fill(line, { naam }), { auto: true, force: true, ...(fin?.voice ? { voice: fin.voice() } : {}) }); if (!ok && !(complete && fin)) return; }
+    if (complete && fin) { fin.start({ intro: !ok && line ? fill(line, { naam }) : null }); return; } // niet gezegd (iets anders praatte): de finale begint ermee
     if (complete) {
       const f = pickLine('finale', { naam: jarigeNaam() });
       if (f && !(await say(fill(f), { auto: true, force: true }))) return;
