@@ -35,8 +35,14 @@ textarea{min-height:70px}
 </head>
 <body>
 <main>
-  <h1>Pannenkoekenmonster · test</h1>
-  <div class="stage"><div id="slot"></div><p class="status" id="status">laden…</p></div>
+  <h1>Mecha-Pof · test</h1>
+  <div class="stage"><div id="slot"></div><p class="status" id="status">laden…</p><p class="status" id="perf"></p></div>
+
+  <section>
+    <h2>Standen (chat 8)</h2>
+    <p class="note">Hologram = alleen het pantser gevonden. Mega = alle zeven delen vast + stemming compleet. Installatie = de delen vliegen één voor één in beeld en klikken vast. Let op de regel bovenin: op een iPhone 11 hoort <b>fps</b> rond de 60 te blijven en <b>ms</b> (rekentijd per beeldje) onder de 8.</p>
+    <div class="row" style="margin-top:8px"><button id="holo">🔵 Hologram</button><button id="mega">⚡ Mega-Mecha-Pof</button><button id="install" class="alt">🔧 Installatie-demo</button><button id="reset" class="alt">↺ Reset (slaap, geen delen)</button></div>
+  </section>
 
   <section>
     <h2>Eerst</h2>
@@ -120,15 +126,15 @@ textarea{min-height:70px}
   <section>
     <h2>monsterImage (schuifpuzzel)</h2>
     <div class="imgs"><img id="img" alt="plaatje van het monster"><div class="tiles" id="tiles"></div></div>
-    <div class="row" style="margin-top:8px"><button id="imgnow" class="alt">Ververs met huidige delen</button></div>
+    <div class="row" style="margin-top:8px"><button id="imgnow" class="alt">Ververs met huidige delen</button><button id="imgmega" class="alt">⚡ Mega-plaatje (kaartje/taart)</button><a id="imgdl" class="note" download="mega-mecha-pof.svg" hidden>⬇︎ download svg</a></div>
   </section>
 </main>
 <script type="module">
-import { createMonster, monsterImage, ready, PART_KEYS, MOODS, speechStatus, dutchVoices, middlePitch, setVoicePref, getVoicePref, VOICE_DEFAULT } from '../js/monster.js?v=11';
-import { audio } from '../js/audio.js?v=7';
-import { openWalkie } from '../js/walkie.js?v=9';
+import { createMonster, monsterImage, ready, PART_KEYS, MOODS, speechStatus, dutchVoices, middlePitch, setVoicePref, getVoicePref, VOICE_DEFAULT } from '../js/monster.js?v=12';
+import { audio } from '../js/audio.js?v=8';
+import { openWalkie } from '../js/walkie.js?v=10';
 import { LINES } from '../js/monster-lines.js?v=5';
-import { voice } from '../js/voice.js?v=1';
+import { voice } from '../js/voice.js?v=2';
 
 const $ = s => document.querySelector(s);
 const ICON = { lijf: '🥞', ogen: '🫐', neus: '🍓', mond: '🍯', armen: '🥓', benen: '🍌', hoed: '🧈' };
@@ -168,7 +174,9 @@ $('#sayv').onclick = () => mon.say($('#text').value, { voice: true }).then(ok =>
 $('#sayb').onclick = () => mon.say($('#text').value, { voice: false }).then(ok => status('say klaar: ' + ok));
 for (const k of Object.keys(LINES)) {
   if (k === 'walkie') continue; // walkiezinnen zegt de agent zelf
-  if (k === 'deel' || k === 'finaleHints') for (const sub of Object.keys(LINES[k])) $('#sit').add(new Option(`${k} · ${sub}`, `${k}|${sub}`));
+  const v = LINES[k];
+  const subKeyed = v && !Array.isArray(v) && !('alle' in v) && Object.values(v).every(Array.isArray); // deel, finaleHints, installatie, kruimelaar, …
+  if (subKeyed) for (const sub of Object.keys(v)) $('#sit').add(new Option(`${k} · ${sub}`, `${k}|${sub}`));
   else $('#sit').add(new Option(k, k));
 }
 $('#sayl').onclick = () => { const [sit, sub] = $('#sit').value.split('|'); mon.line(sit, sub); };
@@ -218,6 +226,19 @@ function showImg() {
   $('#tiles').innerHTML = [5, 1, 3, 0, 7, 2, 6, 4, 8].map(t => t === 8 ? '<div style="background:#EFE1C5"></div>' : `<div style="background-image:url('${url}');background-position:${(t % 3) * 50}% ${(t / 3 | 0) * 50}%"></div>`).join('');
 }
 $('#imgnow').onclick = showImg;
+$('#imgmega').onclick = () => { const url = monsterImage('mega'); $('#img').src = url; $('#imgdl').href = url; $('#imgdl').hidden = false; $('#tiles').innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;border-radius:8px">`; };
+// standen (chat 8)
+const ALL = [...PART_KEYS];
+$('#holo').onclick = () => { parts = ['lijf']; mon.setParts(parts); mon.setMood('wakker'); syncChecks(); moodBtns.forEach(x => x.classList.toggle('on', x.textContent === 'wakker')); };
+$('#mega').onclick = () => { parts = [...ALL]; mon.setParts(parts); mon.setMood('compleet'); syncChecks(); moodBtns.forEach(x => x.classList.toggle('on', x.textContent === 'compleet')); };
+$('#reset').onclick = () => { parts = []; mon.setParts(parts); mon.setMood('slaap'); syncChecks(); moodBtns.forEach(x => x.classList.toggle('on', x.textContent === 'slaap')); };
+$('#install').onclick = async () => {
+  $('#install').disabled = true;
+  parts = []; mon.setParts(parts); mon.setMood('wakker'); syncChecks();
+  for (const p of ALL) { await new Promise(r => setTimeout(r, p === 'lijf' ? 600 : 3200)); parts = [...parts, p]; mon.setParts(parts, { land: p }); syncChecks(); }
+  $('#install').disabled = false;
+};
+setInterval(() => { const st = mon.status || {}; $('#perf').textContent = `fps ${$('#status').dataset.fps || '–'} · ${st.frameMs ?? '–'} ms/beeldje · ${st.shapes ?? '–'} vormen · hologram ${st.holo ?? 0} · mega ${st.mega ?? 0} · stroom ${st.power ?? 1}`; }, 500);
 // status: Zdog, stem, fps
 function status(t) { $('#status').textContent = t; }
 ready.then(z => { status(z ? 'Zdog geladen · sleep me rond' : 'Zdog niet geladen: plat reservemonster'); showImg(); });

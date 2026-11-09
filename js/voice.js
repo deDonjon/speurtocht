@@ -1,7 +1,8 @@
 // voice.js — de echte stem van Mecha-Pof (ElevenLabs) voor alles wat het monster zegt buiten de walkietalkie.
 //
-//   import { voice, uitspraak } from './voice.js?v=1';
-//   const p = await voice.speak(text)   → { done: Promise, level() 0..1, stop(), duration }   (gooit een fout als het niet lukt)
+//   import { voice, uitspraak } from './voice.js?v=2';
+//   const p = await voice.speak(text, { galm })  → { done: Promise, level() 0..1, stop(), duration }   (gooit een fout als het niet lukt)
+//                                         galm = lichte nagalm (Mega-Mecha-Pof, zie monster.js); de mp3 blijft dezelfde
 //   voice.prewarm(texts, onProgress)    → zinnen vooraf laten opnemen (testpagina)
 //   uitspraak(text)                     → tekst zoals de stem hem moet uitspreken (Evy → Eevie)
 //
@@ -10,7 +11,7 @@
 //   2. Bestaat hij niet: Edge Function `monster-tts` maakt hem met de monsterstem en bewaart hem.
 //   3. Lukt dat niet binnen TIMEOUT_MS: de app valt terug op de stem van de telefoon (monster.js).
 // Andere stem of andere instellingen? Hoog VOICE_VERSION op, dan worden alle zinnen opnieuw gemaakt.
-import { audio } from './audio.js?v=7';
+import { audio } from './audio.js?v=8';
 import { SUPABASE_URL, SUPABASE_KEY } from './sync.js';
 
 export const VOICE_VERSION = 'pof1';
@@ -66,14 +67,15 @@ export const voice = {
     return true;
   },
   setEnabled(on) { try { on ? localStorage.removeItem(OFF_KEY) : localStorage.setItem(OFF_KEY, '1'); } catch {} },
-  /** Zeg de tekst met de monsterstem. Gooit een fout als het (op tijd) niet lukt; de beller valt dan terug. */
-  async speak(text) {
+  /** Zeg de tekst met de monsterstem. Gooit een fout als het (op tijd) niet lukt; de beller valt dan terug.
+      { galm: true } geeft de stem een lichte galm (Mega-Mecha-Pof); het opgenomen bestand verandert niet. */
+  async speak(text, { galm = false } = {}) {
     const t = uitspraak(text).trim();
     if (!t) throw new Error('lege tekst');
     try {
       const buf = await withTimeout(load(t), TIMEOUT_MS);
       failures = 0;
-      return audio.playBuffer(buf);
+      return audio.playBuffer(buf, { galm });
     } catch (e) { failures++; failedAt = Date.now(); throw e; }
   },
   /** Zinnen vooraf laten maken (en in de cache van deze telefoon zetten). onProgress(i, n, text, ok). */

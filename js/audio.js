@@ -1,7 +1,8 @@
 // audio.js — het geluidspalet van Mecha-Pof, de keukenrobot, helemaal uit Web Audio (geen bestanden).
 // Toon: lief en speels, met een randje keukenmechaniek (piepjes, servo-zoem, tandwieltjes, ovenbel, stoompufje). Nooit hard of stoer.
 //   import { audio } from './js/audio.js';
-//   audio.play('plop')            // naam uit SOUNDS hieronder
+//   audio.play('plop')            // naam uit SOUNDS hieronder (installatie: 'vlieg' en 'vast'; 'holo'; 'mega')
+//   audio.playBuffer(buf, { galm })  // stem afspelen; galm = lichte nagalm voor Mega-Mecha-Pof
 //   audio.hum()  → { pulse(strength), stop() }   // funky wah-baslijn onder de stem van het monster
 //   audio.buzz(patroon)           // trillen via pkm.buzz (iPhone: alleen een tikje direct na een tik)
 //   audio.muted()                 // dempknop (localStorage pkm2_muted, gezet door index.html)
@@ -95,6 +96,14 @@ const bell = (f, at = 0, vol = 0.2, dur = 0.9) => {                             
 const whirr = (f0, f1, at = 0, dur = 0.3, vol = 0.07) => tone({ f: [f0, f1], type: 'sawtooth', at, dur, vol, attack: 0.04, filter: 1100, vib: 28 }); // servo-zoem
 const ratchet = (n, at = 0, step = 0.035, vol = 0.12) => { for (let i = 0; i < n; i++) hiss({ at: at + i * step, dur: 0.022, vol, from: 3400, to: 2800, q: 5 }); }; // tandwieltjes
 const puff = (at = 0, vol = 0.07) => hiss({ at, dur: 0.35, vol, from: 5000, to: 1800, q: 0.5, type: 'highpass' });                     // stoompufje
+// Nagalm-impuls voor de galm (Mega-Mecha-Pof): 0,9 s ruis die exponentieel uitsterft, één keer gemaakt per context.
+let impulseBuf = null;
+function impulse(c) {
+  if (impulseBuf && impulseBuf.sampleRate === c.sampleRate) return impulseBuf;
+  const n = Math.floor(c.sampleRate * 0.9); impulseBuf = c.createBuffer(2, n, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = impulseBuf.getChannelData(ch); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.6) * (i < 400 ? i / 400 : 1); }
+  return impulseBuf;
+}
 
 // ---------------------------------------------------------------- het palet
 export const SOUNDS = {
@@ -120,6 +129,17 @@ export const SOUNDS = {
   zend()     { hiss({ dur: 0.09, vol: 0.12, from: 3200, to: 2200, q: 0.7 }); tone({ f: 1400, type: 'square', at: 0.05, dur: 0.05, vol: 0.08, filter: 2500 }); }, // walkietalkie: knop in
   bel()      { [0, 0.42].forEach(at => { tone({ f: 1320, type: 'square', at, dur: 0.16, vol: 0.12, filter: 3000 }); tone({ f: 1660, type: 'square', at: at + 0.18, dur: 0.16, vol: 0.12, filter: 3000 }); }); }, // terugbellen: tring-tring
   over()     { tone({ f: [1300, 900], type: 'square', dur: 0.08, vol: 0.08, filter: 2500 }); hiss({ at: 0.05, dur: 0.22, vol: 0.14, from: 2600, to: 900, q: 0.6 }); }, // knop los: "over!"
+  // installatie (monster.js): het deel vliegt in beeld (zwiep + servo) en klikt vast (klak-klik met een vonkje)
+  vlieg()    { hiss({ dur: 0.7, vol: 0.07, from: 500, to: 2600, q: 1.4 }); whirr(260, 820, 0.05, 0.6, 0.05); tone({ f: [600, 1500], type: 'sine', at: 0.1, dur: 0.55, vol: 0.04, vib: 7 }); },
+  vast()     { tone({ f: [820, 380], type: 'sine', dur: 0.09, vol: 0.5, attack: 0.003 }); tone({ f: 2300, type: 'square', dur: 0.025, vol: 0.09, filter: 4200 }); // klak!
+               tone({ f: 1560, type: 'square', at: 0.07, dur: 0.03, vol: 0.08, filter: 4000 }); bell(1976, 0.08, 0.1, 0.45);                                  // klik + tingel
+               ratchet(3, 0.1, 0.03, 0.07); blip(1046, 1568, 0.2, 0.14, 0.09); },                                                                         // vonkjes, bliep: zit vast
+  // hologram verschijnt (alleen het pantser gevonden): zacht gezoem met een flakkertje
+  holo()     { tone({ f: [320, 640], type: 'sine', dur: 0.5, vol: 0.09, attack: 0.08, vib: 14 }); tone({ f: [1800, 2300], type: 'sine', at: 0.05, dur: 0.6, vol: 0.035, vib: 40 });
+               hiss({ at: 0.3, dur: 0.25, vol: 0.04, from: 4000, to: 6000, q: 2, type: 'bandpass' }); },
+  // Mega-Mecha-Pof: opstartzoem die omhoog gaat, tandwielen, akkoord van ovenbellen, stoompuf en een warme bas
+  mega()     { whirr(90, 720, 0, 1.3, 0.09); ratchet(8, 0.15, 0.07, 0.07); puff(1.1, 0.08);
+               [523, 659, 784, 1047].forEach((f, i) => bell(f, 1.25 + i * 0.09, 0.18, 1.4)); tone({ f: [65, 98], type: 'triangle', at: 1.25, dur: 1.2, vol: 0.22, attack: 0.05, filter: 400 }); },
 };
 
 export const audio = {
@@ -185,12 +205,22 @@ export const audio = {
     return await new Promise((ok, fail) => { const p = c.decodeAudioData(arr, ok, fail); p?.catch?.(fail); });
   },
   /** Speel een AudioBuffer af via de luidspreker, met een meter voor de mond.
-      → { done: Promise, level() 0..1, stop() }. Gaat niet via de compressor van het palet: een stem moet schoon klinken. */
-  playBuffer(buf) {
+      → { done: Promise, level() 0..1, stop() }. Gaat niet via de compressor van het palet: een stem moet schoon klinken.
+      { galm: true } = lichte galm (Mega-Mecha-Pof): een korte nagalm plus een zachte echo, de stem zelf blijft voorop. */
+  playBuffer(buf, { galm = false } = {}) {
     const c = context(); if (!c) throw new Error('geen geluid');
     const src = c.createBufferSource(), an = c.createAnalyser(), g = c.createGain();
     src.buffer = buf; an.fftSize = 512; g.gain.value = 1;
     src.connect(an); an.connect(g).connect(c.destination);
+    if (galm) {
+      try {
+        const conv = c.createConvolver(), wet = c.createGain(), dl = c.createDelay(0.5), fb = c.createGain(), wetD = c.createGain(), lp = c.createBiquadFilter();
+        conv.buffer = impulse(c); wet.gain.value = 0.32; dl.delayTime.value = 0.14; fb.gain.value = 0.28; wetD.gain.value = 0.2;
+        lp.type = 'lowpass'; lp.frequency.value = 2600;
+        g.connect(conv).connect(wet).connect(c.destination);
+        g.connect(dl); dl.connect(fb).connect(lp).connect(dl); dl.connect(wetD).connect(c.destination);
+      } catch (e) { console.warn('[audio] galm', e); }
+    }
     const data = new Uint8Array(an.fftSize);
     let stopped = false, end;
     const done = new Promise(r => { end = r; src.onended = () => { stopped = true; r(true); }; });
