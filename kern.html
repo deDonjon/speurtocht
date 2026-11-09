@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
+<link rel="stylesheet" href="print/fonts/fonts.css"><!-- dezelfde letters lokaal: ook zonder internet -->
 <style>
 /* kern.html — het kernscherm op de laptop thuis (chat 7, claude/ONBOARDING-FINALE.md §A en §C).
    Standen: slaap (lobby) → wakker (wekknop) → loting (roles.shuffle met loting:true) → onderweg (onderdelen vliegen in) → finale + eindscherm. */
@@ -22,8 +23,9 @@ button.plain{background:linear-gradient(180deg,#3A4356,#2A3142);color:var(--ink)
 button:active{transform:translateY(3px);box-shadow:none}
 input{font:inherit;font-family:var(--hud);font-size:1.4rem;color:var(--led);background:var(--visor);border:2px solid var(--led-dark);border-radius:12px;padding:10px 14px;min-height:52px}
 #app{position:fixed;inset:0;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,1fr);gap:2vw;padding:3vh 3vw}
+body.klaar #app{grid-template-columns:minmax(0,.8fr) minmax(320px,1.35fr)}
 #stage{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;min-width:0}
-#side{display:flex;flex-direction:column;justify-content:center;gap:2vh;min-width:0;overflow:auto}
+#side{display:flex;flex-direction:column;justify-content:safe center;gap:2vh;min-width:0;overflow:auto;max-height:94vh}
 .title{font-family:var(--display);font-weight:400;font-size:clamp(2rem,4.4vw,4.2rem);color:var(--gold);text-shadow:0 4px 0 var(--gold-deep),0 0 30px rgba(242,190,98,.3);margin:0;line-height:1.05;text-align:center}
 .eyebrow{font-family:var(--hud);letter-spacing:.2em;text-transform:uppercase;color:var(--led);font-size:clamp(.8rem,1.2vw,1.1rem);text-align:center}
 .sub{color:var(--muted);font-size:clamp(1rem,1.6vw,1.4rem);text-align:center;max-width:42ch;margin:0 auto}
@@ -42,7 +44,7 @@ body.slaap #mon::after{background:radial-gradient(closest-side,rgba(127,232,255,
 .reel{display:grid;gap:10px}
 .slot{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);align-items:center;gap:12px;background:var(--visor);border:2px solid var(--line);border-radius:14px;padding:10px 14px;min-height:clamp(54px,8vh,82px)}
 .slot b{font-size:clamp(1.2rem,2.2vw,2rem);font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.slot .t{position:relative;overflow:hidden;height:clamp(34px,5vh,52px);border-radius:10px;background:#081220;border:2px solid var(--line2);font-family:var(--hud);font-size:clamp(1rem,1.8vw,1.6rem);color:var(--muted)}
+.slot .t{position:relative;overflow:hidden;height:clamp(34px,5vh,52px);border-radius:10px;background:#081220;border:2px solid var(--line2);font-family:var(--hud);font-size:clamp(.9rem,1.45vw,1.4rem);color:var(--muted)}
 .slot .t span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap}
 .slot.spin .t{border-color:var(--gold)}
 .slot.spin .t span{animation:roll .12s linear infinite;color:var(--gold)}
@@ -93,7 +95,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const pick = l => Array.isArray(l) && l.length ? l[Math.floor(Math.random() * l.length)] : null;
 const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 const KEY_REMEMBER = 'pkm2_regie_remember'; // zelfde als regie.html
-document.head.insertAdjacentHTML('beforeend', `<style>${END_CSS} .fin-cards{grid-template-columns:repeat(2,minmax(0,1fr))} .fin-zin{font-size:clamp(.9rem,1.2vw,1.1rem)}</style>`);
+document.head.insertAdjacentHTML('beforeend', `<style>${END_CSS} .fin-cards{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px} .fin-card{padding:10px} .fin-zin{font-size:clamp(.8rem,1vw,1rem)} .fin-head b{font-size:clamp(1rem,1.3vw,1.25rem)} .fin-ic{font-size:1.6rem} .fin-badge{font-size:.72rem}</style>`);
 
 /* ---------- monster: groot, praat altijd hardop (de kern is de luidspreker in huis) */
 const mon = createMonster();
@@ -138,7 +140,7 @@ const talentRow = p => { const t = TALENTS[p.talent], part = PARTS[t?.part];
   return `<div class="slot lock" style="--acc:${part?.color || '#7FE8FF'}"><b>${esc(p.name)}${p.is_birthday ? ' 🎂' : ''}</b><div class="t"><span>${part?.icon || '❔'} ${esc(t?.label || 'nog geen talent')}</span></div></div>`; };
 function render() {
   const g = S().game, m = modeFor();
-  if (m !== mode) { mode = m; document.body.classList.toggle('slaap', m === 'slaap'); }
+  if (m !== mode) { mode = m; document.body.classList.toggle('slaap', m === 'slaap'); document.body.classList.toggle('klaar', m === 'klaar'); }
   const parts = g?.parts || [];
   if (m === 'slaap') { mon.setMood('slaap'); mon.setParts([]); }
   else if (m === 'wakker' || m === 'loting') { if (mon.mood === 'slaap') mon.setMood('wakker'); }

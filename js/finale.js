@@ -42,7 +42,7 @@ export function badgeInfo(b) {
 /** Eindscherm: één kaart per speurder, jarige eerst, daarna op talentvolgorde. */
 export function endCards(st) {
   const s = st.get(), order = Object.keys(TALENTS);
-  const ps = s.players.slice().sort((a, b) => (b.is_birthday - a.is_birthday) || (order.indexOf(a.talent) - order.indexOf(b.talent)) || a.name.localeCompare(b.name));
+  const ps = s.players.slice().sort((a, b) => (!!b.is_birthday - !!a.is_birthday) || (order.indexOf(a.talent) - order.indexOf(b.talent)) || a.name.localeCompare(b.name));
   return ps.map(p => {
     const t = TALENTS[p.talent], part = t?.part, info = PARTS[part];
     const zin = fillLine(pick(LINES.eind?.[p.talent] || LINES.eind?.geen) || '', { naam: p.name });
