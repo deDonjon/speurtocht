@@ -27,6 +27,11 @@ export function countdown(until, now = Date.now()) {
   const ms = Math.max(0, Date.parse(until) - now), d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
   return { d, h, m, ms };
 }
+/** Aantal keer slapen = aantal kalenderdagen tot de dag van het feest (niet 24-uurs blokken). */
+export function slapen(until, now = Date.now()) {
+  const a = new Date(now), b = new Date(until);
+  return Math.round((new Date(b.getFullYear(), b.getMonth(), b.getDate()) - new Date(a.getFullYear(), a.getMonth(), a.getDate())) / 864e5);
+}
 export function fmtDag(iso) { const d = new Date(iso + 'T12:00:00'); return `${DAGEN[d.getDay()]} ${d.getDate()} ${MAANDEN[d.getMonth()]}`; }
 function fmtMoment(iso) { const d = new Date(iso); return `${DAGEN[d.getDay()]} ${d.getDate()} ${MAANDEN[d.getMonth()]} om ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; }
 
@@ -122,9 +127,9 @@ export function mountTeaser(el, ctx) {
   let timer = null;
   const tick = () => {
     const cd = el.querySelector('#cd'), title = el.querySelector('#cdtitle'); if (!cd || !until) return;
-    const c = countdown(until);
+    const c = countdown(until), n = slapen(until);
     cd.innerHTML = `<div><b>${c.d}</b><small>${c.d === 1 ? 'dag' : 'dagen'}</small></div><div><b>${c.h}</b><small>uur</small></div><div><b>${c.m}</b><small>${c.m === 1 ? 'minuut' : 'minuten'}</small></div>`;
-    title.textContent = c.ms === 0 ? 'Het is zover!' : c.d === 0 ? 'Vandaag!' : c.d === 1 ? 'Nog één keer slapen' : `Nog ${c.d} keer slapen`;
+    title.textContent = c.ms === 0 ? 'Het is zover!' : n <= 0 ? 'Vandaag!' : n === 1 ? 'Nog één keer slapen' : `Nog ${n} keer slapen`;
   };
   draw(); tick(); timer = setInterval(tick, 30_000);
   if (me) hello(me.name, ctx.deviceId).then(r => { if (r.player) { me = r.player; saveMe(me); } }).catch(() => {}); // bezoek tellen
