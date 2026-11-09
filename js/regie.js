@@ -83,7 +83,7 @@ function eventsAfter(type, since) { const t = since ? Date.parse(since) : 0; ret
 let regieTimer = null;
 async function loadRegie() {
   if (!loggedIn) return;
-  try { const r = await sync.regie.state(); R = { game: r.game, players: r.players || [], stops: r.stops || [], puzzle_states: r.puzzle_states || [], events: r.events || [] }; render(); }
+  try { const r = await sync.regie.state(); R = { game: r.game, players: r.players || [], stops: r.stops || [], puzzle_states: r.puzzle_states || [], events: r.events || [], teaser_visits: r.teaser_visits || [] }; render(); }
   catch (e) { if (/sleutel|regie/i.test(e.message)) { logout(); toast('Regiesleutel afgewezen. Log opnieuw in.', 5000, true); } else console.warn('[regie] state', e.message); }
 }
 let schedTimer = null;
@@ -277,10 +277,37 @@ app.addEventListener('input', e => {
   if (k === 'call') { const b = $('[data-a=call]'); if (b) b.disabled = !ui.call; }
 });
 
+/* ---------- voorpret (teaser vóór het feest): wie heeft zich gemeld, teksten en tijd aanpassen. Zie js/teaser.js. */
+const PARTS_KEYS = Object.keys(PARTS);
+function teaserLinesText(t) { return (t?.lines || []).map(l => `${l.from || ''} | ${l.part || ''} | ${(l.text || '').replace(/\s*\n\s*/g, ' ')}`).join('\n'); }
+function parseTeaserLines(txt) {
+  return txt.split('\n').map(s => s.trim()).filter(Boolean).map(s => { const [from, part, ...rest] = s.split('|').map(x => x.trim()); const text = rest.join('|').trim(); if (!text) return null;
+    return { ...(/^\d{4}-\d{2}-\d{2}$/.test(from) ? { from } : {}), ...(PARTS_KEYS.includes(part) ? { part } : {}), text }; }).filter(Boolean);
+}
+function toLocalInput(iso) { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return ''; const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; }
+function fromLocalInput(v) { if (!v) return null; const d = new Date(v); if (isNaN(d)) return null; const off = -d.getTimezoneOffset(), sg = off >= 0 ? '+' : '-', p = n => String(Math.abs(n)).padStart(2, '0'); return `${v}:00${sg}${p(off / 60 | 0)}:${p(off % 60)}`; }
+function teaserPanel() {
+  const g = game(), t = g?.settings?.teaser; if (!t && (g?.phase && g.phase !== 'lobby')) return '';
+  const visits = R.teaser_visits || [], known = new Set(visits.map(v => v.player_id).filter(Boolean));
+  const active = t?.until && Date.parse(t.until) > Date.now() && t.enabled !== false;
+  const today = new Date().toISOString().slice(0, 10), todayLine = (t?.lines || []).filter(l => l.from && l.from <= today).sort((a, b) => a.from < b.from ? 1 : -1)[0];
+  return `<div class="page ${active ? '' : 'warn'}"><span class="tab">Voorpret (teaser)</span>
+      <p class="note">${active ? `Aan tot ${esc(new Date(t.until).toLocaleString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }))}: de app toont de aftelklok en laat niemand inloggen (behalve met de regiesleutel).` : 'Uit: de app toont het gewone inlogscherm.'}</p>
+      <p><b>${known.size} van ${players().length}</b> speurders hebben zich gemeld${visits.length ? ` · ${visits.length} telefoon${visits.length === 1 ? '' : 's'} · ${visits.reduce((n, v) => n + (v.plays || 0), 0)}× 🔊` : ''}</p>
+      ${visits.length ? `<div class="stack" style="gap:4px">${visits.map(v => `<div class="row" style="justify-content:space-between"><span>${v.player_id ? '✅ ' + esc(playerName(v.player_id)) : '❓ '}${!v.player_id || playerName(v.player_id).toLowerCase() !== (v.name_typed || '').toLowerCase() ? `<span class="note"> typte "${esc(v.name_typed)}"</span>` : ''}</span><span class="note">${v.visits}× · laatst ${fmtTime(v.last_at)}</span></div>`).join('')}</div>` : '<p class="note">Nog niemand geweest.</p>'}
+      ${todayLine ? `<p class="note">Melding van vandaag: “${esc(todayLine.text)}”</p>` : ''}
+      <details class="adv"><summary>Teksten en tijd aanpassen</summary><div class="stack" style="margin-top:8px">
+        <label class="inline"><input type="checkbox" id="teaser-enabled" ${t?.enabled !== false ? 'checked' : ''}> Teaser aan</label>
+        <label>Dossier opent op (dan verschijnt het inlogscherm)<input type="datetime-local" id="teaser-until" value="${toLocalInput(t?.until)}"></label>
+        <label>Meldingen, één per regel: <span class="code">datum | deel | tekst</span> (deel = ${PARTS_KEYS.join(', ')} of leeg; datum = vanaf wanneer zichtbaar)<textarea class="mono" id="teaser-lines" rows="8">${esc(teaserLinesText(t))}</textarea></label>
+        <button class="led" data-a="teaser-save">💾 Voorpret opslaan</button>
+      </div></details></div>`;
+}
+
 function tabSpel() {
   const g = game(), act = activeStop(), pz = activePuzzle(), r = route();
   const started = g?.phase && g.phase !== 'lobby';
-  return `<div class="page"><span class="tab">Spel</span>
+  return `${teaserPanel()}<div class="page"><span class="tab">Spel</span>
       <div class="grid2"><button class="ok" data-a="start">${started ? '▶ Opnieuw starten' : '▶ Start (schudt route)'}</button><button class="danger" data-a="reset">↺ Reset naar lobby</button></div>
       <p class="note">${started ? `Gestart ${fmtTime(g.started_at)} · route: ${r.map(s => esc(s.name)).join(' → ')}` : `Nog niet gestart. ${players().filter(p => p.online).length} van ${players().length} speurders online.`}</p>
     </div>
@@ -428,6 +455,9 @@ app.addEventListener('click', async e => {
   const b = e.target.closest('[data-a]'); if (!b) return; const a = b.dataset.a, g = game(), act = activeStop();
   const confirmAnd = async (q, fn, ok) => { if (confirm(q)) await busy(fn, ok); };
   switch (a) {
+    case 'teaser-save': { const t = game()?.settings?.teaser || {}; const until = fromLocalInput($('#teaser-until').value) || t.until || null; const lines = parseTeaserLines($('#teaser-lines').value);
+      if (!until) return toast('Vul in wanneer het dossier opent.', 3200, true);
+      return busy(() => sync.regie.patchGame({ settings: { teaser: { ...t, until, enabled: $('#teaser-enabled').checked, lines } } }), `Voorpret opgeslagen (${lines.length} meldingen)`); }
     case 'start': return confirmAnd(g?.phase !== 'lobby' ? 'Het spel loopt al. Opnieuw starten schudt de route en wist de voortgang. Doorgaan?' : 'Spel starten? De route wordt geschud en alle telefoons gaan naar de eerste stop.', () => sync.regie.start(), '▶ Gestart');
     case 'reset': return confirmAnd('Spel terugzetten naar de lobby? Voortgang, posities en badges gaan weg (het logboek blijft).', () => sync.regie.reset(true), '↺ Teruggezet');
     case 'skip': return busy(() => sync.regie.event('gps.skip', { stop_id: act?.id }), '📡 GPS overgeslagen: de telefoons komen nu aan');

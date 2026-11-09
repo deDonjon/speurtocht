@@ -236,7 +236,7 @@ import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole } from './js
 import { createInstall } from './js/install.js?v=1'; // installatieritueel: monteur schudt, deel klikt vast
 import { openWalkie } from './js/walkie.js?v=10'; // walkietalkie met het live monster (ElevenLabs, zie MONSTER-AGENT.md)
 import { audio } from './js/audio.js?v=8'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
-import { teaserActive, mountTeaser } from './js/teaser.js?v=1'; // voorpret vóór het feest (game.settings.teaser)
+import { teaserActive, mountTeaser } from './js/teaser.js?v=2'; // voorpret vóór het feest (game.settings.teaser)
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -581,7 +581,7 @@ screens.boot = el => {
 };
 
 /* ---------- teaser: voorpret, nog niet inloggen (js/teaser.js) */
-screens.teaser = el => mountTeaser(el, { game: S().game, mon, esc, mslot, birthday: birthday()?.name, say: text => say(text, { voice: true, ms: 14000 }) });
+screens.teaser = el => mountTeaser(el, { game: S().game, mon, esc, mslot, birthday: birthday()?.name, deviceId: S().device.id, say: text => say(text, { voice: true, ms: 16000 }) });
 
 /* ---------- login met de code van de uitnodiging */
 screens.login = el => {
