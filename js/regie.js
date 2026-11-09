@@ -259,7 +259,7 @@ function surpriseStatus() {
 setInterval(() => { if (loggedIn && game()?.surprise && $('#surprise')) $('#surprise').innerHTML = surpriseStatus(); }, 1000);
 
 /* ---------- tabbladen */
-const TABS = [['spel', '🎮 Spel'], ['monster', '🤖 Mecha-Pof'], ['verras', '✨ Verrassingen'], ['spelers', '👧 Spelers'], ['stops', '📍 Stops'], ['log', '📜 Logboek']];
+const TABS = [['spel', '🎮 Spel'], ['monster', '🤖 Mecha-Pof'], ['verras', '✨ Verrassingen'], ['bonus', '⭐ Bonus'], ['spelers', '👧 Spelers'], ['stops', '📍 Stops'], ['log', '📜 Logboek']];
 function renderPanel() {
   const panel = $('#panel');
   if (panel.contains(document.activeElement) && document.activeElement.matches('input,textarea,select')) { pendingPanel = true; return; }
@@ -267,7 +267,7 @@ function renderPanel() {
   const g = game(), pz = activePuzzle();
   const badge = { spel: pz && !pz.solved_at && g?.phase === 'puzzel' ? '!' : '' };
   panel.innerHTML = `<nav class="tabs">${TABS.map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" data-tab="${k}">${l}${badge[k] ? `<span class="n">${badge[k]}</span>` : ''}</button>`).join('')}</nav>
-    <div id="tabbody" class="stack">${({ spel: tabSpel, monster: tabMonster, verras: tabVerras, spelers: tabSpelers, stops: tabStops, log: tabLog }[tab] || tabSpel)()}</div>`;
+    <div id="tabbody" class="stack">${({ spel: tabSpel, monster: tabMonster, verras: tabVerras, bonus: tabBonus, spelers: tabSpelers, stops: tabStops, log: tabLog }[tab] || tabSpel)()}</div>`;
 }
 document.addEventListener('focusout', () => { if (pendingPanel) setTimeout(() => { if (!$('#panel')?.contains(document.activeElement)) renderPanel(); }, 50); });
 app.addEventListener('click', e => { const t = e.target.closest('[data-tab]')?.dataset.tab; if (t) { tab = t; store.set(KEY_TAB, t); renderPanel(); } });
@@ -354,6 +354,75 @@ function lotingTalents() {
   bday.forEach(p => out[p.id] = 'sleutelbewaarder');
   rest.forEach((p, i) => out[p.id] = pool[i % pool.length]);
   return out;
+}
+/* ---------- bonusopdrachten (chat 7, claude/ROUTE.md): stops zonder deel die de begeleider live inzet als het team voorloopt.
+   "Inzetten als volgende stop" = regie_upsert_stop (part leeg, key leeg) + stop_order bijwerken met regie_patch_game.
+   Onderweg komt de bonus vóór de stop waar ze naartoe lopen; bij een puzzel komt hij direct na deze stop. */
+const BONUS = [
+  { id: 'B1', name: 'De steen van H van Kleef', where: 'bij stop 6 (huis met de steen), vóór of na de licht-puzzel', lat: 51.616365, lng: 5.563619, radius: 25,
+    clue: 'Extra signaal! Bij het huis met de steen zit meer dan alleen mijn benen. Zoek de oude steen van H. van Kleef in de muur, en tel alle witte rozetten. Voorkant én zijkant!',
+    puzzle: { type: 'splits', bonus: 'B1', pieces: ['ROZETTEN VOORKANT', 'ROZETTEN ZIJGEVEL', 'JAARTAL OP DE STEEN'], answer: '1935',
+      question: 'Mijn processor zendt de code in drie stukjes. Elke telefoon heeft één opdracht. De code = het jaartal op de steen plus alle witte rozetten bij elkaar opgeteld.',
+      question_solo: 'De code = het jaartal op de steen plus alle witte rozetten (voorkant én zijgevel) bij elkaar opgeteld. Tik de stukjes om ze te zien.',
+      hint: 'Op de steen staat 19 ANNO 25. Dat jaartal is 1925. Tel er dan alle rozetten bij op.' } },
+  { id: 'B2', name: 'Het bankje met de pijlen', where: 'tussen stop 4 en 5 (60 m van de lijn)', lat: 51.613806, lng: 5.564414, radius: 25,
+    clue: 'Mijn sensoren zien een bankje, met twee pijlen op de lantaarnpaal ernaast. Net een stukje van de route af. Tijd voor een rustpunt. En een dansje.',
+    puzzle: { type: 'opdracht', bonus: 'B2', question: 'Rustpunt! Robotdans op mijn ritme: spatel (zwaaien), garde (rondjes draaien), stroop (gieten). Drie keer achter elkaar, met zijn allen. Kijk daarna naar de twee pijlen op de lantaarnpaal: ze wijzen de kant op waar mijn armen liggen. Gelukt? Tik af.' } },
+  { id: 'B3', name: 'Het stalen huis', where: 'tussen stop 5 en 6, bij de hoge bomen', lat: 51.615985, lng: 5.564854, radius: 25,
+    clue: 'Help! Een huis hier vlakbij trekt aan mijn pantser alsof het een magneet is. Zoek het glimmende huis, vlak bij de hoge bomen.',
+    puzzle: { type: 'keuze', bonus: 'B3', question: 'Help, ik word hiernaartoe gezogen! Waarvan is dit huis gebouwd? (Daarna: zoek bij de hoge bomen het punt waar je de minste bomen ziet.)',
+      options: ['Hout', 'Baksteen', 'Staal', 'Stroopwafels'], answer: 'Staal', hint: 'Klop er maar eens zachtjes op. Waar zou een magneet aan blijven plakken?' } },
+];
+const bonusStop = b => stops().find(s => s.puzzles?.some(p => p.bonus === b.id)) || null;
+function bonusSlot() { // waar komt een nieuwe bonus in de route: index in stop_order, of null als het niet kan
+  const g = game(); if (!g || !['onderweg', 'puzzel', 'finale'].includes(g.phase)) return null;
+  const idx = g.phase === 'onderweg' ? g.active_index : g.active_index + 1;
+  const ord = g.stop_order || [];
+  if (idx >= ord.length) return null; // na thuis kan niet
+  return idx;
+}
+function bonusStatus(b) {
+  const st = bonusStop(b), g = game(), ord = g?.stop_order || [], i = st ? ord.indexOf(st.id) : -1;
+  if (i < 0) return { key: 'vrij', st };
+  if (i < (g.active_index || 0)) return { key: 'gedaan', st, i };
+  if (i === g.active_index) return { key: 'actief', st, i };
+  return { key: 'gepland', st, i };
+}
+function tabBonus() {
+  const g = game(), idx = bonusSlot(), ord = g?.stop_order || [], next = idx != null ? stops().find(s => s.id === ord[idx]) : null, act = activeStop();
+  const where = idx == null ? (g?.phase === 'lobby' ? 'Eerst het spel starten.' : 'Nu niet: er is geen volgende stop meer vóór thuis.')
+    : g.phase === 'onderweg' ? `komt vóór <b>${esc(next?.name || '?')}</b> (waar ze nu naartoe lopen)` : `komt direct na <b>${esc(act?.name || '?')}</b>, vóór ${esc(next?.name || '?')}`;
+  const elapsed = g?.started_at ? Math.round((Date.now() - Date.parse(g.started_at)) / 60000) : 0;
+  return `<div class="page"><span class="tab">Bonusopdrachten</span>
+      <p class="note">Voor als het team voorloopt op de richttijden (stop 1 15:35 · 2 15:50 · 3 16:05 · 4 16:20 · 5 16:35 · 6 16:50 · thuis 17:05). Een bonus heeft geen onderdeel: geen installatie, wel druppels en een vreugdezin. ${g?.started_at ? `Nu ${elapsed} min onderweg.` : ''}</p>
+      <p class="note">Inzetten: ${where}</p></div>
+    ${BONUS.map(b => { const s = bonusStatus(b), d = act ? Math.round(haversine(act, b)) : null;
+      const pz = b.puzzle, ans = pz.answer ? ` · antwoord <span class="code">${esc(pz.answer)}</span>` : ' · begeleider/team tikt af';
+      return `<div class="page ${s.key === 'actief' ? 'warn' : ''}"><span class="tab">${b.id} · ${esc(b.name)}</span>
+        <p class="note">${esc(b.where)}${d != null ? ` · ${d} m van ${esc(act.name)}` : ''} · puzzel <b>${esc(pz.type)}</b>${ans}</p>
+        <p>${esc(b.clue)}</p>
+        <p class="note">Status: <b>${{ vrij: 'nog niet ingezet', gepland: `gepland als stop ${s.i + 1} in de route`, actief: 'NU de actieve stop', gedaan: 'gedaan ✓' }[s.key]}</b></p>
+        <div class="grid2">${s.key === 'vrij'
+          ? `<button class="ok" data-a="bonus-in" data-b="${b.id}" ${idx == null ? 'disabled' : ''}>⭐ Inzetten als volgende stop</button>`
+          : s.key === 'gepland' ? `<button class="danger" data-a="bonus-out" data-b="${b.id}">✕ Uit de route halen</button>` : '<span></span>'}
+          <button class="plain" data-a="bonus-call" data-b="${b.id}">📞 Terugval: Mecha-Pof belt met de tekst</button></div>
+      </div>`; }).join('')}`;
+}
+async function bonusIn(b) {
+  const g = game(), idx = bonusSlot(); if (idx == null) return toast('Nu kan er geen bonus tussen.', 3200, true);
+  const ord = [...(g.stop_order || [])], prev = stops().find(s => s.id === ord[idx - 1]);
+  const old = bonusStop(b), id = old?.id || uid();
+  if (ord.includes(id)) return toast('Deze bonus staat al in de route (of is al gedaan).', 3200, true); // één keer per spel: de puzzelstand hoort bij de stop
+  const st = { id, seq: prev?.seq ?? 0, key: '', name: b.name, clue: b.clue, lat: b.lat, lng: b.lng, radius: b.radius, part: '', puzzles: [b.puzzle], geheim: old?.geheim || {} };
+  const without = [...ord]; without.splice(idx, 0, id);
+  if (!confirm(`${b.id} "${b.name}" inzetten als volgende stop?`)) return;
+  await busy(async () => { await sync.regie.upsertStop(st); await sync.regie.patchGame({ stop_order: without }); }, `⭐ ${b.id} ingezet`);
+}
+async function bonusOut(b) {
+  const g = game(), s = bonusStatus(b); if (s.key !== 'gepland') return;
+  const ord = (g.stop_order || []).filter((x, i) => !(x === s.st.id && i > g.active_index));
+  if (!confirm(`${b.id} weer uit de route halen?`)) return;
+  await busy(() => sync.regie.patchGame({ stop_order: ord }), `${b.id} uit de route`);
 }
 function tabMonster() {
   const ps = players();
@@ -489,6 +558,10 @@ app.addEventListener('click', async e => {
       return confirmAnd('Talenten opnieuw loten voor alle speurders?', () => sync.regie.event('roles.shuffle', { talents }), '🎲 Talenten verdeeld'); }
     case 'planb': { const d = ui.planb || devices()[0]?.id; return confirmAnd('Plan B: de app verdeelt de talenten van de uitgevallen telefoon opnieuw. Doorgaan?', () => sync.regie.event('plan_b', { dropped_device: d }), '🪫 Plan B gestuurd'); }
     case 'force': { const phase = $('#phasesel').value, idx = +$('#actsel').value; return confirmAnd(`Fase op "${PHASES[phase]}" en actieve stop op ${isNaN(idx) ? '(ongewijzigd)' : idx + 1} zetten?`, () => sync.regie.patchGame({ phase, ...(isNaN(idx) ? {} : { active_index: idx }) }), 'Gezet'); }
+    case 'bonus-in': return bonusIn(BONUS.find(x => x.id === b.dataset.b));
+    case 'bonus-out': return bonusOut(BONUS.find(x => x.id === b.dataset.b));
+    case 'bonus-call': { const x = BONUS.find(y => y.id === b.dataset.b), kh = players().find(p => p.talent === 'sleutelbewaarder') || players()[0]; if (!kh) return;
+      return busy(() => sync.regie.event('monster.call', { player_id: kh.id, message_id: uid(), text: `Bzzzt! Bonusklus, speurders. ${x.clue} ${x.puzzle.question} Over!` }), `📞 Mecha-Pof belt met ${x.id}; vink af met "Stop goedkeuren" of gewoon doorlopen`); }
     case 'wake': return busy(() => sync.regie.event('monster.say', { text: WEKZIN, mood: 'wakker', wake: true, kern: true }), '⏻ Mecha-Pof wordt wakker');
     case 'loting': return confirmAnd('Loting starten? De talenten worden live geloot op het kernscherm (de jarige vast op Sleutelbewaarder).', () => sync.regie.event('roles.shuffle', { talents: lotingTalents(), loting: true }), '🎰 Loting gestart');
     case 'quick': ui.say = b.dataset.s; renderPanel(); return;
