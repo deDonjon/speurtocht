@@ -352,8 +352,8 @@ export function incomingCall({ mon, context = () => ({}), greeting: text, title 
     <div class="mslot" data-size="lg"></div>
     <div class="rg-btns"><button class="rg-answer" data-a="answer">📻 Opnemen</button><button class="rg-later" data-a="later">Later</button></div>`;
   document.body.appendChild(el);
-  let home = null;
-  if (mon) { home = mon.el.parentNode; el.querySelector('.mslot').appendChild(mon.el); mon.setSize('lg'); try { mon.react?.('hint'); } catch {} }
+
+  if (mon) { el.querySelector('.mslot').appendChild(mon.el); mon.setSize('lg'); }
   let closed = false, answered = false;
   const ring = () => { if (closed) return; audio.play('bel'); audio.buzz([220, 120, 220]); };
   ring(); const ringTimer = setInterval(ring, RING_MS);

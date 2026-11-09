@@ -55,7 +55,7 @@ const CSS = `
 #sp-banner button .led{width:10px;height:10px;border-radius:50%;background:#F2BE62;box-shadow:0 0 8px #F2BE62;animation:sp-led 1s steps(1) infinite;flex:none}
 #sp-banner button .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #sp-banner button .v{font-family:'Chakra Petch',ui-monospace,monospace;font-weight:700;color:#7FE8FF;font-variant-numeric:tabular-nums}
-#sp-ov{position:fixed;inset:0;z-index:32;background:rgba(8,11,18,.9);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;padding:max(16px,env(safe-area-inset-top,0px)) 14px max(16px,env(safe-area-inset-bottom,0px));overflow:auto}
+#sp-ov{position:fixed;inset:0;z-index:32;background:rgba(8,11,18,.9);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;padding:calc(env(safe-area-inset-top,0px) + 118px) 14px max(16px,env(safe-area-inset-bottom,0px));overflow:auto} /* bovenin ruimte voor de tekstballon van Mecha-Pof */
 #sp-ov .sp-page{margin:auto;width:100%;max-width:440px;display:flex;flex-direction:column;gap:12px;text-align:center;align-items:center}
 #sp-ov h2{margin:0;font:400 1.9rem 'Lilita One',system-ui,sans-serif;color:#F2BE62;text-shadow:0 3px 0 #9A5419;text-wrap:balance}
 #sp-ov .sp-eye{font:700 .78rem 'Chakra Petch',ui-monospace,monospace;letter-spacing:.16em;text-transform:uppercase;color:#7FE8FF}
@@ -348,7 +348,8 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
   }
   async function wishPick(kind) {
     if (!confirm(`Verjaardagswens inzetten voor "${WISHES[kind]}"? Dit kan maar één keer.`)) return;
-    try { await sync.wish(WISHES[kind]); modal = null; closeOverlay(); refresh(); }
+    modal = null; closeOverlay(); refresh(); // eerst het keuzeblad weg: het wish.used-event opent zo de wens-overlay
+    try { await sync.wish(WISHES[kind]); }
     catch (e) { toast('⚠️ ' + (e?.message || e)); }
   }
 

@@ -231,10 +231,12 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:35}
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync } from './js/sync.js';
 import { createMap } from './js/map.js?v=5'; // ?v ophogen bij elke wijziging: GitHub Pages en Safari bewaren oude bestanden
-import { createMonster, monsterImage } from './js/monster.js?v=13'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
+import { createMonster, monsterImage, lineText } from './js/monster.js?v=13'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
 import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole } from './js/roles.js?v=1'; // radio / kaart / werkbank, roterend per stop
 import { createInstall } from './js/install.js?v=1'; // installatieritueel: monteur schudt, deel klikt vast
-import { openWalkie } from './js/walkie.js?v=11'; // walkietalkie met het live monster (ElevenLabs, zie MONSTER-AGENT.md)
+import { openWalkie, incomingCall, callGreeting } from './js/walkie.js?v=11'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
+import { createNavVoice } from './js/navvoice.js?v=1'; // gesproken navigatie zodra de LED-ogen terug zijn (radiotelefoon)
+import { createSurprises } from './js/surprises.js?v=1'; // Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens
 import { audio } from './js/audio.js?v=9'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
 import { teaserActive, mountTeaser } from './js/teaser.js?v=2'; // voorpret vóór het feest (game.settings.teaser)
 
@@ -305,6 +307,7 @@ const monsterUrl = () => monsterImage(); // stilstaand plaatje van het complete 
    Schermen zetten alleen <div class="mslot" data-size="sm|md|lg"></div> neer; placeMonster() hangt het monster in de bovenste. */
 const mon = createMonster();
 let walkie = null; // open walkietalkie (js/walkie.js) of null
+let ring = null;   // inkomende oproep die overgaat (js/walkie.js incomingCall) of null
 const install = createInstall({ mon, sync, state, PARTS, TALENTS, audio, buzz, confetti, overlay: (...a) => overlay(...a), closeOverlay: () => closeOverlay(), mslot: (...a) => mslot(...a), esc });
 function moodFor() {
   const g = S().game, n = g?.parts?.length || 0;
@@ -313,7 +316,7 @@ function moodFor() {
   return n <= 2 ? 'wakker' : n <= 4 ? 'nieuwsgierig' : 'brutaal';
 }
 function placeMonster() {
-  if (walkie?.open) return; // de walkietalkie heeft het monster even te leen
+  if (walkie?.open || ring?.open) return; // de walkietalkie (of de rinkelende telefoon) heeft het monster even te leen
   const slot = $('#ov .mslot') || $('#screen .mslot');
   if (!slot) { mon.el.remove(); return; }
   if (mon.el.parentNode !== slot) slot.appendChild(mon.el);
@@ -345,7 +348,7 @@ router.on('monster.say', p => say(p.text || '…'));
 router.on('roles.shuffle', () => { say('Ik heb de rollen geschud. Kijk maar eens wat je nu kunt.'); buzz([40, 40, 40]); });
 router.on('plan_b', () => say('Eén telefoon is in slaap gevallen. Ik verdeel de talenten opnieuw.'));
 router.on('gps.skip', p => { if (p.stop_id === state.activeStop()?.id && sync.isLoggedIn()) arrive(p.stop_id); });
-router.on('badge.awarded', p => { if (install.onBadge(p.badge)) return; const me = state.me().find(x => x.id === p.player_id); if (me) toast(`🏅 ${me.name} krijgt de badge ${p.badge}!`); });
+router.on('badge.awarded', p => { if (install.onBadge(p.badge)) return; const me = state.me().find(x => x.id === p.player_id); if (me) toast(`🏅 ${me.name} krijgt de badge ${surprises.badgeLabel(p.badge)}!`); });
 
 /* ================================================================ walkietalkie (js/walkie.js)
    Per groep één walkietalkie: alleen de radiotelefoon (rol `radio`, js/roles.js; die praat ook hardop) krijgt de knop. */
@@ -364,12 +367,60 @@ function walkieContext() {
     delen_gevonden: got.map(k => PARTS[k]?.label || k).join(', ') || 'nog niks',
     delen_nog: Object.keys(PARTS).filter(k => !got.includes(k)).map(k => PARTS[k].label).join(', ') || 'niks meer',
     hints_gebruikt: g.hints ?? 0,
+    wachtwoord: g.phase === 'puzzel' && cfg.type === 'wachtwoord' ? String(cfg.password || '').split('|')[0] : '', // alleen op een wachtwoordstop
+  };
+}
+const normWord = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+const dropsFor = p => Math.max(2, 10 - 3 * (p?.hints || 0)) + (p?.arrived_at && Date.now() - Date.parse(p.arrived_at) < 4 * 60_000 ? 3 : 0);
+/* Client tools van de agent (ElevenLabs → Tools → Client; zie MONSTER-AGENT.md "Client tool unlock_stop").
+   unlock_stop { wachtwoord }: de kinderen zeiden het wachtwoord van deze stop via de walkie → zet {t:'unlock'} (elke telefoon ziet het slot
+   opengaan) en dien in met sync.solve(). Lukt indienen niet (geen Sleutelbewaarder op deze telefoon), dan dient zij in op de werkbank. */
+function walkieTools() {
+  return {
+    unlock_stop: async ({ wachtwoord = '', password = '' } = {}) => {
+      const g = S().game, st = state.activeStop(), p = S().puzzle;
+      if (!st || !['puzzel', 'finale'].includes(g?.phase)) return 'Er is nu geen puzzel open. Dit is geen wachtwoordplek.';
+      const cfg = st.puzzles?.[p?.variant ?? 0] || st.puzzles?.[0] || {};
+      if (cfg.type !== 'wachtwoord') return 'Deze plek heeft geen wachtwoord; de puzzel wordt op de werkbank gemaakt.';
+      const word = String(wachtwoord || password || '').trim();
+      const ok = !cfg.password || String(cfg.password).split('|').map(normWord).includes(normWord(word));
+      sync.move({ t: 'unlock', v: word }, st.id).catch(() => {});
+      if (!ok) return `Fout wachtwoord: "${word}" is het niet. Zeg dat het niet klopt en laat ze verder zoeken.`;
+      try { await sync.solve(dropsFor(p), st.id); return 'Wachtwoord goed! Het slot is open en het onderdeel is binnen. Zeg dat het gelukt is.'; }
+      catch (e) { return 'Wachtwoord goed! Het slot staat open, maar alleen de Sleutelbewaarder kan het op de werkbank indienen. Zeg dat ze dat even moet doen.'; }
+    },
   };
 }
 function startWalkie() {
   if (walkie?.open) return;
-  walkie = openWalkie({ mon, context: walkieContext, onClose: () => { walkie = null; placeMonster(); } });
+  ring?.close();
+  walkie = openWalkie({ mon, context: walkieContext, tools: walkieTools(), onClose: () => { walkie = null; placeMonster(); } });
 }
+/* ---------- inkomende oproepen: alleen de radiotelefoon gaat over (belgeluid, knop Opnemen); opnemen = walkie met `greeting` als {{begroeting}}.
+   stop.arrived → briefing van het onderdeel van die plek (walkie.briefing.<deel>). monster.call {player_id, message_id, text?} → eigen tekst of
+   walkie.oproep met {naam}. Is de walkie al open, dan krijgt de agent de tekst als context. Niet opgenomen (40 s) → Mecha-Pof zegt de tekst zelf. */
+const seenCalls = new Set();
+const callRinging = () => !!ring?.open;
+function ringCall({ greeting, title = 'Mecha-Pof belt!', sub = '' }) {
+  if (!greeting || !sync.isLoggedIn() || !hasRole('radio')) return false;
+  if (walkie?.open) { walkie.update(greeting); return true; }
+  if (ring?.open) ring.close();
+  ring = incomingCall({ mon, context: walkieContext, greeting, title, sub, tools: walkieTools(),
+    onAnswer: w => { walkie = w; ring = null; },
+    onMissed: text => { ring = null; placeMonster(); toast('📵 Gemiste oproep van Mecha-Pof'); say(text, { ms: 14000 }); },
+    onClose: () => { ring = null; placeMonster(); } });
+  return true;
+}
+router.on('stop.arrived', p => {
+  const st = state.stop(p.stop_id); if (!st) return;
+  setTimeout(() => { if (state.activeStop()?.id === st.id) ringCall({ greeting: callGreeting({ part: st.part }), sub: `Signaal van ${st.name}` }); }, 300); // vóór de aankomstzin van monster.js (600 ms), die dan zwijgt
+});
+router.on('monster.call', p => {
+  if (!p.message_id || seenCalls.has(p.message_id)) return; seenCalls.add(p.message_id);
+  const pl = state.player(p.player_id), naam = pl?.name || '';
+  const elders = pl?.device_id && pl.device_id !== S().device.id && pl.online;
+  ringCall({ greeting: callGreeting({ naam, text: p.text }), sub: naam ? `Voor ${naam}${elders ? ` · geef de telefoon even aan ${naam}` : ''}` : '' });
+});
 // Wat er in het spel gebeurt, hoort het monster ook (zonder dat het hoeft te antwoorden).
 router.on('*', (p, ev) => {
   if (!walkie?.open) return;
@@ -378,8 +429,28 @@ router.on('*', (p, ev) => {
     'stop.solved': () => `De kinderen hebben de puzzel opgelost en ${PARTS[p.part]?.label || 'een deel'} gevonden!`,
     'hint.given': () => `Er is een hint gegeven${p.text ? ': ' + p.text : ''}.`,
     'game.start': () => 'Het spel is net begonnen.',
+    'thief.start': () => `De Kruimelaar heeft net ${PARTS[p.part]?.label || 'een onderdeel'} gestolen; de kinderen zien hem op de kaart.`,
+    'thief.caught': () => 'De Kruimelaar is gevangen.', 'thief.end': () => 'De Kruimelaar is ontsnapt (het onderdeel ligt in het reservelaatje).',
+    'storm.start': () => `Kortsluiting: de kinderen tikken ${p.seconds || 30} seconden vonken weg.`, 'storm.end': () => `De kortsluiting is voorbij: ${p.total ?? 0} vonken weggetikt.`,
+    'fork.open': () => `Dubbel signaal: de kinderen stemmen tussen "${p.a}" en "${p.b}".`, 'fork.result': () => `Het dubbele signaal is beslist: ${String(p.choice || '').toUpperCase()}.`,
+    'finale.timer': () => `De jetpack raakt oververhit: ze moeten binnen ${Math.round((p.seconds || 0) / 60)} minuten thuis zijn.`,
+    'wish.used': () => `${birthday()?.name || 'De jarige'} heeft haar Verjaardagswens gebruikt: ${p.for || ''}.`,
   }[ev.type];
   if (t) walkie.update(t());
+});
+
+/* ================================================================ gesproken navigatie (js/navvoice.js) en verrassingen (js/surprises.js) */
+const busy = () => !!(walkie?.open || ring?.open || install.busy || surprises?.overlayOpen);
+const nav = createNavVoice({ mon, state, hasRole, lineText, isBusy: busy });
+const surprises = createSurprises({ mon, state, sync, router, audio, buzz, toast, lineText, PARTS, TALENTS, hasRole, confetti, isBusy: busy });
+// Wachtwoordstop: een zet {t:'unlock'} (via de walkie-tool op de radiotelefoon) laat de andere telefoons Mecha-Pof reageren.
+let lastUnlock = null;
+state.on('puzzle', ps => {
+  const mv = ps?.moves?.slice().reverse().find(m => m.t === 'unlock'); if (!mv || mv.id === lastUnlock || mv.by === state.me()[0]?.id) return; lastUnlock = mv.id;
+  const st = state.stop(ps.stop_id), cfg = st?.puzzles?.[ps.variant ?? 0] || st?.puzzles?.[0]; if (cfg?.type !== 'wachtwoord') return;
+  const ok = !cfg.password || String(cfg.password).split('|').map(normWord).includes(normWord(mv.v));
+  const l = lineText('wachtwoord', { sub: ok ? 'goed' : 'fout' }); if (l) say(l, { auto: true });
+  audio.play(ok ? 'ok' : 'fout');
 });
 
 /* ================================================================ overlays */
@@ -675,7 +746,7 @@ screens.nav = (el, id) => {
    Puzzels met `multi: true` (splits, slot, sync) worden op elke telefoon getekend: ieder toestel heeft daar zijn eigen stuk;
    via api.roles weet de puzzel of dit de werkbank is. */
 const modCache = {};
-const PUZZLE_V = 6; // ophogen bij wijzigingen in js/puzzles/
+const PUZZLE_V = 7; // ophogen bij wijzigingen in js/puzzles/
 const loadPuzzle = type => modCache[type] ||= import(`./js/puzzles/${type}.js?v=${PUZZLE_V}`).then(m => m.default);
 screens.puz = (el, id) => {
   const st = state.stop(id), { n, total } = stopNo(st);
@@ -723,7 +794,7 @@ screens.puz = (el, id) => {
     const solved = !!p.solved_at || mod.isSolved(data, cfg, ctx);
     if (werkbank) {
       mod.render(pz, data, { me: state.me(), talents: state.myTalents(), phones: ctx.phones, config: cfg, hints: p.hints, move, hint: () => sync.hint(st.id).catch(e => toast(e.message)), solve: submit,
-        roles, deviceIndex: ctx.devices.indexOf(S().device.id), devices: ctx.devices, players: ctx.players, werkbankDevice: deviceWithRole('werkbank') });
+        roles, deviceIndex: ctx.devices.indexOf(S().device.id), devices: ctx.devices, players: ctx.players, werkbankDevice: deviceWithRole('werkbank'), radioDevice: deviceWithRole('radio') });
     } else { // niet de werkbank: alleen de vraag, en wie hem maakt
       mod.destroy?.(pz);
       pz.innerHTML = `${cfg.image ? `<img class="pimg" src="${esc(cfg.image)}" alt="">` : ''}<p class="question">${esc(cfg.question || '')}</p>
@@ -770,7 +841,7 @@ async function boot() {
   } catch (e) { bootError = e.message || 'Geen verbinding'; }
   refresh('remount');
 }
-window.pkm = { state, sync, router, PARTS, TALENTS, mon, monsterUrl, monsterImage, audio, toast, say, bubble, chime: audio.chime, buzz, refresh, roles: { myRoles, hasRole, whoHas, deviceWithRole }, install };
+window.pkm = { state, sync, router, PARTS, TALENTS, mon, monsterUrl, monsterImage, audio, toast, say, bubble, chime: audio.chime, buzz, refresh, roles: { myRoles, hasRole, whoHas, deviceWithRole }, install, surprises, nav, callRinging, ringCall, walkieTools, get walkie() { return walkie; } };
 renderBar(); refresh('remount'); boot();
 </script>
 </body>
