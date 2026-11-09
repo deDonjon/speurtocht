@@ -27,7 +27,7 @@ const ok = (name, cond, extra = '') => { if (cond) { n++; console.log('✓', nam
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const browser = await chromium.launch({ channel: 'chrome', args: ['--autoplay-policy=no-user-gesture-required'] });
-const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true });
+const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, reducedMotion: 'reduce' }); // zonder animaties: de rinkelende knop wiebelt anders te veel om te klikken
 const errors = [];
 page.on('pageerror', e => errors.push(String(e.message || e)));
 page.on('console', m => { if (m.type() === 'error' && !/leaflet|fonts|cdn|ERR_FAILED|net::|elevenlabs|supabase\.co|Failed to load resource/i.test(m.text())) errors.push(m.text()); });
