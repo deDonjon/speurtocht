@@ -84,6 +84,8 @@ function tik() { // seconden bij tekeningen die bezig zijn, zonder het paneel op
   for (const el of document.querySelectorAll('[data-tk-sec]')) el.textContent = Math.max(0, Math.round((Date.now() - Date.parse(el.dataset.tkSec)) / 1000)) + ' s';
 }
 const titel = r => r.soort === 'portret' ? `${r.naam || 'portret'} (${STIJLEN[r.stijl]})` : `${NAAM[r.soort]} (${STIJLEN[r.stijl]})`;
+/** Goedgekeurde tekeningen die klaar zijn, voor de keuzelijst van de Poffertjespan (regie → Verrassingen). */
+export function gekozen() { return R.rijen.filter(r => r.goedgekeurd && r.status === 'klaar' && r.url).map(r => ({ id: r.id, soort: r.soort, titel: titel(r) })); }
 export function badge() { return R.rijen.filter(r => r.status === 'klaar' && !R.gezien.has(r.id)).length || ''; }
 
 async function kiesGekozen(e) {

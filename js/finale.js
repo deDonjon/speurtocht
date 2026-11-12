@@ -14,7 +14,7 @@
 // Start: monster.js roept globalThis.pkm.finale.start() aan zodra het zevende deel (de hoed) na het installatieritueel geland is
 // en de installatiezin klaar is. Kern.html heeft ook een knop. Speelt per toestel één keer per spel.
 import { PARTS, TALENTS } from './state.js';
-import { LINES, NAAM_JARIGE } from './monster-lines.js?v=15';
+import { LINES, NAAM_JARIGE } from './monster-lines.js?v=16';
 
 const PART_KEYS = Object.keys(PARTS);
 const WOORDEN = ['nul', 'één', 'twee', 'drie', 'vier', 'vijf', 'zes', 'zeven', 'acht', 'negen', 'tien', 'elf', 'twaalf'];
@@ -35,6 +35,7 @@ export const BADGES = {
   vonkenvanger:        { icon: '⚡', label: 'Vonkenvanger' },
   'jetpack-redder':    { icon: '🔥', label: 'Jetpack-redder' },
   wensvervuller:       { icon: '🎂', label: 'Wensvervuller' },
+  poffertjesbakker:    { icon: '🥞', label: 'Poffertjesbakker' },
 };
 export function badgeInfo(b) {
   if (BADGES[b]) return BADGES[b];

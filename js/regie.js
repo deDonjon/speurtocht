@@ -3,8 +3,8 @@
 // Geheimen (codes, missies, stop-geheimen) komen uit regie_state en staan alleen in `R`.
 import { state, PARTS, TALENTS } from './state.js';
 import { sync, IS_TEST } from './sync.js';
-import { LINES } from './monster-lines.js?v=15'; // wekzin (chat 7)
-import * as tk from './tekening.js?v=1'; // tab 📸 Tekeningen (12 nov)
+import { LINES } from './monster-lines.js?v=16'; // wekzin (chat 7)
+import * as tk from './tekening.js?v=2'; // tab 📸 Tekeningen (12 nov)
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -36,7 +36,7 @@ let loggedIn = false, booted = false, bootError = '';
 let tab = store.get(KEY_TAB, 'spel');
 let sound = store.get(KEY_SOUND, true);
 let follow = store.get(KEY_FOLLOW, true);
-const ui = { say: '', mood: '', hint: '', drops: 10, forkA: '', forkB: '', storm: 30, timerMin: 5, call: '', callText: '', wish: 'puzzel overslaan', planb: '', thiefPart: '', logFilter: '' }; // ingetypte waarden overleven een re-render
+const ui = { say: '', mood: '', hint: '', drops: 10, forkA: '', forkB: '', storm: 30, timerMin: 5, call: '', callText: '', wish: 'puzzel overslaan', planb: '', thiefPart: '', logFilter: '', panImg: '', panNums: true }; // ingetypte waarden overleven een re-render
 let pendingPanel = false;
 
 const SURPRISE_TYPES = ['thief.start', 'thief.jump', 'thief.caught', 'thief.end', 'storm.start', 'storm.score', 'storm.end', 'fork.open', 'fork.vote', 'fork.result', 'finale.timer', 'wish.used'];
@@ -256,6 +256,7 @@ function surpriseStatus() {
     const a = Object.values(last).filter(c => c === 'a').length, b = Object.values(last).filter(c => c === 'b').length;
     return `<div class="surprise"><span class="k">📡 Dubbel signaal</span><p>A: <b>${esc(s.data?.a || 'A')}</b> (${a}) · B: <b>${esc(s.data?.b || 'B')}</b> (${b})</p></div>`;
   }
+  if (s.kind === 'pan') return `<div class="surprise"><span class="k">🥞 Poffertjespan</span><p>Staat op de telefoons sinds ${fmtTime(started)} (${ago(started)}) · ${s.data?.image ? 'met een tekening' : 'met Mecha-Pof'}</p></div>`;
   if (s.kind === 'finale') { const left = secondsLeft(s.data?.seconds || 0); return `<div class="surprise"><span class="k">🔥 Jetpack oververhit</span><p><span class="countdown">${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</span> tot de jetpack het begeeft</p></div>`; }
   return `<div class="surprise"><span class="k">${esc(s.kind)}</span></div>`;
 }
@@ -276,7 +277,7 @@ document.addEventListener('focusout', () => { if (pendingPanel) setTimeout(() =>
 app.addEventListener('click', e => { const t = e.target.closest('[data-tab]')?.dataset.tab; if (t) { tab = t; store.set(KEY_TAB, t); renderPanel(); } });
 app.addEventListener('input', e => {
   const k = e.target.dataset.ui; if (!k) return;
-  ui[k] = e.target.type === 'number' || e.target.type === 'range' ? +e.target.value : e.target.value;
+  ui[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.type === 'number' || e.target.type === 'range' ? +e.target.value : e.target.value;
   if (k === 'logFilter') { const l = $('#panel .log'); if (l) l.innerHTML = logList(); }
   if (k === 'call') { const b = $('[data-a=call]'); if (b) b.disabled = !ui.call; }
 });
@@ -449,7 +450,8 @@ function tabMonster() {
 }
 function tabVerras() {
   const g = game(), s = g?.surprise, got = g?.parts || [], act = activeStop(), devs = devices();
-  const thiefOn = s?.kind === 'thief', stormOn = s?.kind === 'storm', forkOn = s?.kind === 'fork', timerOn = s?.kind === 'finale';
+  const thiefOn = s?.kind === 'thief', stormOn = s?.kind === 'storm', forkOn = s?.kind === 'fork', timerOn = s?.kind === 'finale', panOn = s?.kind === 'pan';
+  const tekeningen = tk.gekozen?.() || [];
   const jump = thiefOn ? +(eventsAfter('thief.jump', s.started_at)[0]?.payload?.i ?? 0) : 0, n = s?.data?.points?.length || 0;
   const birthday = players().find(p => p.is_birthday);
   const pick = got.length ? got : IS_TEST ? Object.keys(PARTS) : []; // testspel: de Kruimelaar kan ook zonder gevonden deel of gestart spel
@@ -473,6 +475,13 @@ function tabVerras() {
     <div class="page ${timerOn ? 'warn' : ''}"><span class="tab">🔥 Jetpack oververhit (finaletimer)</span>
       ${timerOn ? `<p>Timer loopt sinds ${fmtTime(s.started_at)} (${Math.round((s.data?.seconds || 0) / 60)} min).</p><button class="danger" data-a="timer.stop">🛑 Timer stoppen</button>`
         : `<div class="row"><label class="grow">Minuten<input type="number" data-ui="timerMin" value="${ui.timerMin}" min="1" max="60"></label><button class="led" data-a="finale.timer" style="align-self:end">🔥 Start</button></div>`}
+    </div>
+    <div class="page ${panOn ? 'warn' : ''}"><span class="tab">🥞 Poffertjespan (schuifpuzzel)</span>
+      <p class="note">Elke telefoon krijgt dezelfde door elkaar geschudde pan: negen kuiltjes, acht poffertjes met een stuk van het plaatje. Wie het eerst klaar is, krijgt poedersuiker. Duurt meestal 2 tot 5 minuten; goed voor een wachtmoment of thuis.</p>
+      ${panOn ? `<p>Staat op de telefoons sinds ${fmtTime(s.started_at)} · ${s.data?.image ? 'met een tekening' : 'met Mecha-Pof'}.</p><button class="ok" data-a="pan.stop">🛑 Pan weghalen</button>`
+        : `<label>Plaatje<select data-ui="panImg"><option value="">🤖 Mecha-Pof</option>${tekeningen.map(t => `<option value="${t.id}" ${ui.panImg === t.id ? 'selected' : ''}>🎨 Tekening: ${esc(t.titel)}</option>`).join('')}</select></label>
+           ${tekeningen.length ? '' : '<p class="note">Nog geen goedgekeurde tekening (tab 📸 Tekeningen → ✅ Goedkeuren). Dan komt hij hier in de lijst.</p>'}
+           <div class="row"><label class="grow"><input type="checkbox" data-ui="panNums" ${ui.panNums ? 'checked' : ''} style="width:auto;min-height:0;margin-right:8px">Cijfers op de poffertjes (makkelijker; bij Mecha-Pof altijd aan)</label><button class="led" data-a="pan.start" style="align-self:end">🥞 Start</button></div>`}
     </div>
     <div class="page"><span class="tab">🎂 Verjaardagswens</span>
       <p class="note">Alleen ${esc(birthday?.name || 'de jarige')} mag hem één keer inzetten vanaf haar telefoon. ${g?.wish_used ? '<b>Al gebruikt.</b>' : 'Nog niet gebruikt.'} Vanuit de regie kun je hem namens haar inzetten (telt dan niet als "gebruikt" in het spel, alleen in het logboek).</p>
@@ -587,6 +596,12 @@ app.addEventListener('click', async e => {
     case 'fork.open': { if (!ui.forkA.trim() || !ui.forkB.trim()) return toast('Vul allebei de keuzes in.'); return busy(() => sync.regie.event('fork.open', { a: ui.forkA.trim(), b: ui.forkB.trim() }), '📡 Dubbel signaal open'); }
     case 'fork.result': return busy(() => sync.regie.event('fork.result', { choice: b.dataset.c }), 'Keuze ' + b.dataset.c.toUpperCase());
     case 'finale.timer': { const mins = Math.max(1, +ui.timerMin || 5); return busy(() => sync.regie.event('finale.timer', { seconds: mins * 60 }), `🔥 Timer ${mins} min gestart`); }
+    case 'pan.start': return busy(async () => {
+      let image = null;
+      if (ui.panImg) { const rij = (await tk.lijst()).find(r => r.id === ui.panImg && r.status === 'klaar' && r.url); if (!rij) throw new Error('Die tekening is er niet meer; kies een andere of Mecha-Pof.'); image = rij.url; } // verse link (3 uur geldig)
+      await sync.regie.patchGame({ surprise: { kind: 'pan', started_at: new Date().toISOString(), data: { seed: 1 + Math.floor(Math.random() * 1e9), nums: !!ui.panNums, ...(image ? { image } : {}) } } });
+    }, '🥞 De poffertjespan staat op de telefoons');
+    case 'pan.stop': return busy(() => sync.regie.patchGame({ surprise: null }), 'Pan weggehaald');
     case 'timer.stop': return busy(() => sync.regie.patchGame({ surprise: null }), 'Timer gestopt');
     case 'wish': return confirmAnd(`Verjaardagswens inzetten voor "${ui.wish}"?`, () => sync.regie.event('wish.used', { for: ui.wish }), '🎂 Wens ingezet');
     case 'editplayer': return editPlayer(b.dataset.id);

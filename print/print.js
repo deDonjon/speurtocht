@@ -27,7 +27,7 @@ export const PART_COLOR = { lijf: '#F2BE62', ogen: '#15A4C8', neus: '#E0352B', m
 
 /* ---------- Mecha-Pof als vector (js/monster.js monsterImage), zonder achtergrondvlak */
 export async function monsterSvg(parts, { keepBg = false } = {}) {
-  const m = await import('../js/monster.js?v=24');
+  const m = await import('../js/monster.js?v=25');
   await m.ready;
   const url = m.monsterImage(parts);
   let svg = decodeURIComponent(url.replace(/^data:image\/svg\+xml;charset=utf-8,/, ''));

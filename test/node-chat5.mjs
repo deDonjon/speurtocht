@@ -68,4 +68,19 @@ ok('surprises: stemmen tellen, laatste stem per speler telt', () => {
   assert.ok(BADGES.kruimelaar && BADGES.vonkenvanger && BADGES.jetpack && BADGES.wens);
 });
 
+const { panInit, panMove, panSolved } = await import('../js/surprises.js');
+ok('poffertjespan: zelfde seed = zelfde husseling, nooit opgelost aan het begin, zetten kloppen', () => {
+  for (const seed of [1, 7, 42, 123456789, 999999999]) {
+    const a = panInit(seed), b = panInit(seed);
+    assert.deepEqual(a, b); assert.equal(panSolved(a), false);
+    assert.deepEqual(a.tiles.slice().sort(), [0, 1, 2, 3, 4, 5, 6, 7, 8]); assert.equal(a.tiles[a.empty], 8);
+    // oplosbaar: breedte-eerst zoeken vindt de opgeloste stand
+    const seen = new Set([a.tiles.join('')]); let q = [a], found = false;
+    while (q.length && !found) { const nx = []; for (const d of q) for (let i = 0; i < 9; i++) { const m = panMove(d, i); if (m === d) continue; const k = m.tiles.join(''); if (seen.has(k)) continue; seen.add(k); if (panSolved(m)) { found = true; break; } nx.push(m); } q = nx; }
+    assert.ok(found, 'seed ' + seed);
+  }
+  const d = panInit(5); assert.equal(panMove(d, d.empty), d); // tik op het lege kuiltje doet niets
+  assert.equal(BADGES.pan.id, 'poffertjesbakker');
+});
+
 console.log(`\n${n} tests goed.`);

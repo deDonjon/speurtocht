@@ -202,6 +202,20 @@ export const LINES = {
       'Besluit genomen! Signaal opgeslagen. Die kant op, Reparatieteam.',
     ],
   },
+  // Poffertjespan: schuifpuzzel in de pan, op elke telefoon (game.surprise kind 'pan').
+  pan: {
+    start: [
+      'Bliep! Wie heeft er aan mijn poffertjespan geschud? Schuif ze terug, elke telefoon zijn eigen pan!',
+      'O nee, mijn poffertjes zijn gaan wandelen. Schuif ze terug. Wie klaar is, roept: poedersuiker!',
+    ],
+    klaar: [
+      'Poedersuiker erover! De pan klopt weer. Jullie mogen bij mij in de keuken komen werken.',
+      'Ja! Elk poffertje in zijn eigen kuiltje. Mijn bakplaat is trots op jullie.',
+    ],
+    eind: [
+      'Pan van het vuur. Ik eet ze ook op als ze door elkaar liggen, hoor. Verder met de klus!',
+    ],
+  },
   // Jetpack oververhit: de finaletimer tikt (finale.timer).
   oververhit: {
     start: [

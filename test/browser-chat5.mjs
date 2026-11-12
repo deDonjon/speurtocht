@@ -142,6 +142,28 @@ await sleep(400);
 ok('uitslag B', (await txt('#sp-ov')).includes('steegje') && !!(await page.$('#sp-ov .won[data-c=b]')));
 await sleep(6200);
 
+// ---- Poffertjespan (schuifpuzzel als verrassing; de regie zet game.surprise via patchGame)
+await sleep(6500); // de uitslag van het dubbele signaal sluit vanzelf
+await fake((f, pkm, image) => f.patchGame({ surprise: { kind: 'pan', started_at: new Date().toISOString(), data: { seed: 42, nums: !image, ...(image ? { image } : {}) } } }), process.env.PAN_IMG || ''); // PAN_IMG=test/mecha-pof-stijl.png: met een eigen plaatje
+await W('#sp-pan', 3000).catch(() => {});
+ok('Poffertjespan: overlay met 8 poffertjes en banner', (await page.$$('#sp-pan .pof')).length === 8 && (await txt('#sp-banner')).includes('Poffertjes'));
+if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT + '-pan1.png' });
+const route = await fake((f, pkm) => { // kortste oplossing zoeken (breedte-eerst), als rij tegelnummers om te tikken
+  const c = pkm.surprises.current, adj = (a, b) => Math.abs((a / 3 | 0) - (b / 3 | 0)) + Math.abs(a % 3 - b % 3) === 1;
+  const seen = new Set([c.tiles.join('')]); let q = [{ t: c.tiles, e: c.empty, path: [] }];
+  while (q.length) { const nx = []; for (const d of q) { if (d.t.every((x, k) => x === k)) return d.path; for (let i = 0; i < 9; i++) if (adj(i, d.e)) { const t = d.t.slice(); const tile = t[i]; [t[i], t[d.e]] = [t[d.e], t[i]]; const k = t.join(''); if (!seen.has(k)) { seen.add(k); nx.push({ t, e: i, path: [...d.path, tile] }); } } } q = nx; }
+  return null; });
+ok('Poffertjespan: oplosbaar', Array.isArray(route) && route.length > 0, String(route));
+await page.click('#sp-pan .pof:not(.can)').catch(() => {});
+ok('tik op een poffertje dat niet kan = geen zet', (await fake((f, pkm) => pkm.surprises.current.moves)) === 0);
+for (const t of route || []) { await page.click(`#sp-pan [data-pof="${t}"]`); await sleep(30); }
+await sleep(300);
+ok('Poffertjespan opgelost: negende poffertje, zetten geteld, badge', (await page.$$('#sp-pan.done .pof')).length === 9 && (await txt('#sp-ov')).includes(`${route.length}`) && (await fake(f => f.rpcLog.some(x => x.name === 'award_badge' && x.args.p_badge === 'poffertjesbakker'))));
+if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT + '-pan2.png' });
+await fake(f => f.patchGame({ surprise: null }));
+await sleep(600);
+ok('regie haalt de pan weg: overlay en banner dicht', !(await page.$('#sp-ov')) && !(await page.$('#sp-banner')));
+
 // ---- Jetpack oververhit
 await fake(f => f.regie('finale.timer', { seconds: 3 }));
 await sleep(500);
@@ -156,6 +178,7 @@ await page.click('#wk-ring [data-a=later]');
 await sleep(6500);
 
 // ---- Verjaardagswens (knop voor de jarige + event)
+await page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('pkm2_wenstip')).forEach(k => localStorage.removeItem(k))); // de start-herinnering kwam al langs tijdens de poffertjespan
 await fake(f => f.patchGame({ phase: 'puzzel', active_index: 0, wish_used: false }));
 await sleep(300);
 ok('🎂-knop zichtbaar voor de jarige', !!(await page.$('#sp-wish')));

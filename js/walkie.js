@@ -37,7 +37,7 @@
 // De begroeting wisselt: de app kiest een zin uit monster-lines.js (walkie.hallo) en stuurt hem mee als {{begroeting}}.
 import { audio, setRecording } from './audio.js?v=11';
 import { SUPABASE_URL, SUPABASE_KEY } from './sync.js';
-import { LINES, NAAM_JARIGE } from './monster-lines.js?v=15';
+import { LINES, NAAM_JARIGE } from './monster-lines.js?v=16';
 import { uitspraak } from './voice.js?v=7';
 
 const SDK = [

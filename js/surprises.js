@@ -3,6 +3,9 @@
 //   storm.*        Kortsluiting: 30 s vonken wegtikken op elke telefoon, scores tellen op (storm.score {n})
 //   fork.*         Dubbel signaal: twee kanten op, elke speurder stemt (fork.vote {player_id, choice})
 //   finale.timer   Jetpack oververhit: aftelklok naar huis; thuis aankomen = gered
+//   pan            Poffertjespan (12 nov avond): schuifpuzzel in een poffertjespan, op elke telefoon dezelfde husseling. Geen eigen events:
+//                  de regie zet game.surprise = { kind:'pan', started_at, data:{ seed, image?, nums } } (patchGame) en haalt hem weer weg.
+//                  image = Mecha-Pof (leeg) of een goedgekeurde tekening (ondertekende link uit de regie).
 //   wish.used      Verjaardagswens: alleen de jarige, één keer (puzzel overslaan, gratis hint of een dansje)
 // De regie (regie.html) stuurt de events; de telefoons tonen ze. De lopende verrassing staat ook in game.surprise,
 // zodat een telefoon die net inlogt hem meteen ziet. Zinnen: monster-lines.js (kruimelaar, kortsluiting, dubbelSignaal,
@@ -20,6 +23,7 @@ export const BADGES = {
   vonkenvanger: { id: 'vonkenvanger',      label: 'Vonkenvanger',      icon: '⚡' },
   jetpack:      { id: 'jetpack-redder',    label: 'Jetpack-redder',    icon: '🔥' },
   wens:         { id: 'wensvervuller',     label: 'Wensvervuller',     icon: '🎂' },
+  pan:          { id: 'poffertjesbakker',  label: 'Poffertjesbakker',  icon: '🥞' },
 };
 export function badgeLabel(badge) { const b = Object.values(BADGES).find(x => x.id === badge); return b ? `${b.icon} ${b.label}` : String(badge || ''); }
 
@@ -41,6 +45,26 @@ export function roundSecondsLeft(startedAt, seconds, now = Date.now()) {
   const end = (startedAt ? Date.parse(startedAt) : now) + (seconds || 0) * 1000;
   return Math.max(0, Math.round((end - now) / 1000));
 }
+/** Poffertjespan: 3×3 schuifpuzzel. panInit(seed) → { tiles, empty, moves } (60 geldige zetten vanaf opgelost: altijd oplosbaar,
+    zelfde seed = zelfde husseling op elke telefoon). panMove(data, i) → nieuwe stand (of dezelfde bij een ongeldige tik). */
+const panAdj = (a, b) => Math.abs((a / 3 | 0) - (b / 3 | 0)) + Math.abs(a % 3 - b % 3) === 1;
+function panRng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+export function panInit(seed = 1) {
+  const r = panRng(+seed || 1), tiles = [0, 1, 2, 3, 4, 5, 6, 7, 8]; let empty = 8, prev = -1;
+  for (let k = 0; k < 60; k++) {
+    const cand = [empty - 3, empty + 3, empty - 1, empty + 1].filter(x => x >= 0 && x < 9 && x !== prev && panAdj(x, empty));
+    const pick = cand[Math.floor(r() * cand.length)];
+    [tiles[empty], tiles[pick]] = [tiles[pick], tiles[empty]]; prev = empty; empty = pick;
+  }
+  if (tiles.every((t, k) => t === k)) { [tiles[7], tiles[8]] = [tiles[8], tiles[7]]; empty = 7; }
+  return { tiles, empty, moves: 0 };
+}
+export function panMove(data, i) {
+  i |= 0; if (i < 0 || i > 8 || !panAdj(i, data.empty)) return data;
+  const tiles = data.tiles.slice(); [tiles[i], tiles[data.empty]] = [tiles[data.empty], tiles[i]];
+  return { tiles, empty: i, moves: data.moves + 1 };
+}
+export const panSolved = data => data.tiles.every((t, k) => t === k);
 const mmss = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function haversine(a, b) { const R = 6371000, r = x => x * Math.PI / 180, dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
@@ -74,7 +98,7 @@ const CSS = `
 .sp-thief.old{opacity:.4;border-style:dashed;box-shadow:none}
 .sp-thief.now{animation:sp-hop .9s ease-in-out infinite}
 .sp-me{width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#FCE3A6,#F2BE62 55%,#C9792C);border:3px solid #0E1B2E;display:grid;place-items:center;font-size:12px;box-shadow:0 0 0 2px #F2BE62}
-/* kortsluiting: tijdens het tikken geen tekstballon over de arena (de stem klinkt wel) */
+/* kortsluiting en poffertjespan: geen tekstballon over het spel (de stem klinkt wel) */
 body.sp-storm .pkmon-bubble,body.sp-storm .bubble{display:none!important}
 #sp-ov .sp-arena{position:relative;width:100%;height:min(52vh,420px);border-radius:18px;background:radial-gradient(circle at 50% 40%,#1E3352,#0A1322 75%);border:2px solid #15A4C8;overflow:hidden;touch-action:manipulation}
 #sp-ov .sp-arena .wire{position:absolute;left:-10%;right:-10%;height:3px;background:repeating-linear-gradient(90deg,#4E5D7E 0 18px,#2A3142 18px 26px);opacity:.7}
@@ -96,6 +120,26 @@ body.sp-storm .pkmon-bubble,body.sp-storm .bubble{display:none!important}
 #sp-ov .sp-close{background:transparent;border:0;color:#93A0B8;text-decoration:underline;font:800 .95rem Nunito,system-ui,sans-serif;min-height:44px;padding:8px 14px;box-shadow:none}
 #sp-ov .sp-ok{min-height:56px;width:100%;border:0;border-radius:14px;color:#062814;font:900 1.05rem Nunito,system-ui,sans-serif;background:linear-gradient(180deg,#86F0AE 0%,#4ADE80 50%,#2FBF66 100%);box-shadow:0 4px 0 #1F8A4C}
 #sp-ov .sp-hint{background:#0E1B2E;border:1px solid #3C4A66;border-left:4px solid #F2BE62;border-radius:12px;padding:12px 14px;font-weight:800;color:#EAF2FF;text-align:left;width:100%}
+/* poffertjespan */
+#sp-ov .sp-pan{position:relative;width:min(100%,340px);margin:0 auto 46px;padding:14px;border-radius:30px;background:radial-gradient(circle at 30% 20%,#4A4F5C,#23262E 55%,#111318);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.14),inset 0 -6px 12px rgba(0,0,0,.6),0 8px 0 #0A0B0E,0 14px 28px rgba(0,0,0,.6)}
+#sp-ov .sp-pan::after{content:'';position:absolute;left:50%;bottom:-44px;width:54px;height:50px;margin-left:-27px;border-radius:0 0 22px 22px;background:linear-gradient(90deg,#16181D,#3A3E49 45%,#16181D);box-shadow:0 6px 0 #0A0B0E;z-index:-1}
+#sp-ov .sp-pan::before{content:'';position:absolute;left:50%;bottom:-34px;width:16px;height:16px;margin-left:-8px;border-radius:50%;background:#080B12;box-shadow:inset 0 2px 3px rgba(0,0,0,.8);z-index:1}
+#sp-ov .sp-pan .grid{position:relative;width:100%;aspect-ratio:1}
+#sp-ov .sp-pan .dimple{position:absolute;width:33.333%;height:33.333%;padding:5px;box-sizing:border-box}
+#sp-ov .sp-pan .dimple i{display:block;width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 50% 62%,#2B2E37,#0B0C10 72%);box-shadow:inset 0 5px 9px rgba(0,0,0,.85),inset 0 -2px 2px rgba(255,255,255,.1),0 1px 0 rgba(255,255,255,.08)}
+#sp-ov .sp-pan .pof{position:absolute;width:33.333%;height:33.333%;padding:7px;box-sizing:border-box;border:0;background:transparent;box-shadow:none;min-height:0;border-radius:50%;transition:left .16s ease-out,top .16s ease-out;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#sp-ov .sp-pan .pof b{position:relative;display:block;width:100%;height:100%;border-radius:50%;overflow:hidden;background:#FFF1D2;border:4px solid #D9963A;box-sizing:border-box;
+  box-shadow:0 0 0 2px #9A5A1C,0 4px 0 #6B3B10,0 6px 8px rgba(0,0,0,.55),inset 0 0 10px rgba(154,90,28,.55)}
+#sp-ov .sp-pan .pof img{position:absolute;width:300%;height:300%;max-width:none;object-fit:cover;pointer-events:none;-webkit-user-drag:none;user-select:none}
+#sp-ov .sp-pan .pof b::after{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 32% 24%,rgba(255,255,255,.38),rgba(255,255,255,0) 42%);pointer-events:none}
+#sp-ov .sp-pan .pof em{position:absolute;left:3px;top:3px;min-width:22px;height:22px;border-radius:11px;background:#1A1F2A;color:#FFE3A3;font:700 .8rem/22px 'Chakra Petch',ui-monospace,monospace;font-style:normal;text-align:center;box-shadow:0 0 0 2px #D9963A;z-index:1}
+#sp-ov .sp-pan .pof.can b{border-color:#FFD27A;box-shadow:0 0 0 2px #9A5A1C,0 4px 0 #6B3B10,0 0 14px rgba(255,210,122,.6),inset 0 0 10px rgba(154,90,28,.55)}
+#sp-ov .sp-pan .pof.last{animation:sp-pop .4s ease-out}
+#sp-ov .sp-pan.done{box-shadow:inset 0 2px 0 rgba(255,255,255,.14),inset 0 -6px 12px rgba(0,0,0,.6),0 8px 0 #0A0B0E,0 0 34px rgba(242,190,98,.55)}
+#sp-ov .sp-pan .sugar{position:absolute;inset:0;border-radius:30px;pointer-events:none;overflow:hidden}
+#sp-ov .sp-pan .sugar i{position:absolute;top:-6%;width:5px;height:5px;border-radius:50%;background:#fff;opacity:.9;animation:sp-sugar 1.6s ease-in forwards}
+@keyframes sp-sugar{to{transform:translateY(var(--y,200px));opacity:.8}}
 /* verjaardagswens-knop (alleen de jarige) */
 #sp-wish{position:fixed;left:max(14px,env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:26;width:58px;height:58px;border-radius:50%;border:2px solid #F2BE62;padding:0;font-size:28px;
   background:radial-gradient(circle at 40% 35%,#5A4A2C,#2C2240);box-shadow:0 4px 0 #10141C,0 0 18px rgba(242,190,98,.4);animation:sp-hop 2.4s ease-in-out infinite}
@@ -110,7 +154,7 @@ body.sp-storm .pkmon-bubble,body.sp-storm .bubble{display:none!important}
 @keyframes sp-pop{0%{transform:scale(.2)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
 @keyframes sp-flicker{0%{filter:brightness(1)}100%{filter:brightness(1.4)}}
 @keyframes sp-hit{to{transform:scale(1.9);opacity:0}}
-@media (prefers-reduced-motion:reduce){#sp-banner button .led,.sp-thief.now,#sp-wish,#sp-ov .sp-spark{animation:none}}`;
+@media (prefers-reduced-motion:reduce){#sp-banner button .led,.sp-thief.now,#sp-wish,#sp-ov .sp-spark{animation:none}#sp-ov .sp-pan .pof{transition:none}#sp-ov .sp-pan .sugar i{animation:none;transform:translateY(var(--y,200px))}}`;
 
 export function createSurprises({ mon, state, sync, router, audio, buzz = () => {}, toast = () => {}, lineText, PARTS = {}, TALENTS = {}, hasRole = () => true, confetti = () => {}, isBusy = () => false, now = () => Date.now() } = {}) {
   if (!document.getElementById('sp-css')) { const s = document.createElement('style'); s.id = 'sp-css'; s.textContent = CSS; document.head.appendChild(s); }
@@ -156,7 +200,7 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
     afterRender();
   }
   function closeOverlay() { if (ov) { ov.remove(); ov = null; } cur?.map?.remove?.(); if (cur) cur.map = null; }
-  const stormBody = () => document.body.classList.toggle('sp-storm', cur?.kind === 'storm');
+  const stormBody = () => document.body.classList.toggle('sp-storm', cur?.kind === 'storm' || cur?.kind === 'pan'); // ook bij de poffertjespan: geen ballon over de pan
   function refresh() { stormBody(); if (!cur) { if (!modal) closeOverlay(); hideBanner(); return; } showBanner(bannerFor()); if (ov && !modal) { ov.querySelector('.sp-page').innerHTML = renderCur(); afterRender(); } }
   function end(ms = 0) { const c = cur; const fin = () => { if (cur === c) { cur = null; stormBody(); if (!modal) closeOverlay(); hideBanner(); } }; ms ? later(fin, ms) : fin(); }
 
@@ -318,6 +362,70 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
     end(6000);
   }
 
+  // ---------------------------------------------------------------- Poffertjespan (pan): schuifpuzzel in de pan
+  // Elke telefoon schuift zijn eigen pan (zelfde husseling); de stand blijft op het toestel bewaard tot de regie de pan weghaalt.
+  const panKey = () => `pkm2_pan:${cur?.startedAt || '-'}`;
+  // Mecha-Pof als plaatje: het stilstaande beeld uit monster.js, met de donkere achtergrond vervangen door poffertjesgoud.
+  const panFallback = () => {
+    try {
+      const url = globalThis.pkm?.monsterUrl?.() || ''; const k = url.indexOf(',');
+      if (!url.startsWith('data:image/svg+xml') || k < 0) return url;
+      const svg = decodeURIComponent(url.slice(k + 1)).replace(/(<rect\b[^>]*\bfill=")[^"]+(")/, '$1#F8DC9C$2'); // de eerste rect is de achtergrond
+      return url.slice(0, k + 1) + encodeURIComponent(svg);
+    } catch { return ''; }
+  };
+  function panSave() { try { localStorage.setItem(panKey(), JSON.stringify({ tiles: cur.tiles, empty: cur.empty, moves: cur.moves, doneMs: cur.doneMs })); } catch {} }
+  function panStart(p, startedAt) {
+    const d = panInit(+p.seed || 1);
+    cur = { kind: 'pan', startedAt: startedAt || new Date(now()).toISOString(), image: p.image || panFallback(), eigen: !!p.image, nums: p.nums !== false || !p.image, ...d, doneMs: null, timer: 0 };
+    try { const o = JSON.parse(localStorage.getItem(panKey()) || 'null'); if (o && Array.isArray(o.tiles) && o.tiles.length === 9) Object.assign(cur, { tiles: o.tiles, empty: o.empty, moves: o.moves | 0, doneMs: o.doneMs ?? null }); } catch {}
+    if (cur.eigen) { const c = cur, im = new Image(); im.onerror = () => { if (cur === c) { c.image = panFallback(); c.eigen = false; refresh(); } }; im.src = cur.image; } // link verlopen of geen bereik: dan Mecha-Pof zelf
+    alarm(); refresh(); openOverlay();
+    speak('pan', 'start', { interrupt: true });
+    cur.timer = setInterval(() => { if (cur?.kind !== 'pan') return; const el = ov?.querySelector('#sp-pan-t'); if (el) el.textContent = mmss(panSecs()); }, 1000); timers.add(cur.timer);
+  }
+  const panSecs = () => Math.max(0, Math.round(((cur.doneMs ?? now()) - Date.parse(cur.startedAt)) / 1000));
+  function panBoard() {
+    const done = cur.doneMs != null, src = esc(cur.image);
+    const pof = (t, i, extra = '') => `<button type="button" class="pof ${!done && panAdj(i, cur.empty) ? 'can' : ''} ${extra}" data-pof="${t}" style="left:${(i % 3) * 33.333}%;top:${(i / 3 | 0) * 33.333}%" aria-label="poffertje ${t + 1}">
+      <b>${src ? `<img src="${src}" alt="" style="left:${-(t % 3) * 100}%;top:${-(t / 3 | 0) * 100}%">` : ''}</b>${cur.nums && !done ? `<em>${t + 1}</em>` : ''}</button>`;
+    return `<div class="sp-pan ${done ? 'done' : ''}" id="sp-pan"><div class="grid">
+      ${[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => `<span class="dimple" style="left:${(i % 3) * 33.333}%;top:${(i / 3 | 0) * 33.333}%"><i></i></span>`).join('')}
+      ${cur.tiles.map((t, i) => t === 8 ? (done ? pof(8, i, 'last') : '') : pof(t, i)).join('')}</div>
+      ${done ? `<div class="sugar">${Array.from({ length: 34 }, (_, k) => `<i style="left:${(k * 37) % 97 + 1}%;--y:${30 + (k * 53) % 300}px;animation-delay:${(k % 9) * 0.09}s;animation-duration:${1.1 + (k % 5) * 0.22}s"></i>`).join('')}</div>` : ''}</div>`;
+  }
+  function panHtml() {
+    const done = cur.doneMs != null;
+    return `<span class="sp-eye">🥞 Poffertjespan</span><h2>${done ? 'De pan is weer goed!' : 'Wie heeft er geschud?!'}</h2>
+      <p>${done ? `Klaar in <b>${cur.moves}</b> zetten en <b>${mmss(panSecs())}</b>. Poedersuiker erover!` : `Mijn poffertjes liggen door elkaar. Schuif ze terug tot ${cur.eigen ? 'de tekening' : 'ik'} weer klopt. Tik een poffertje naast het lege kuiltje.`}</p>
+      ${panBoard()}
+      <div class="sp-score"><span>Zetten: <b id="sp-pan-m">${cur.moves}</b></span><span>⏱ <b id="sp-pan-t">${mmss(panSecs())}</b></span></div>
+      ${done ? '<button class="sp-ok" data-a="close">Smullen!</button>' : `<p class="sp-note">${cur.nums ? 'De cijfers lopen van linksboven naar rechtsonder. ' : ''}Het lege kuiltje hoort rechtsonder.</p><button class="sp-close" data-a="close">Even dicht (de pan blijft staan)</button>`}`;
+  }
+  function panTap(t) {
+    if (cur?.kind !== 'pan' || cur.doneMs != null) return;
+    const i = cur.tiles.indexOf(+t), next = panMove(cur, i); if (next === cur) { buzz(10); return; }
+    Object.assign(cur, next); audio?.play('plop'); buzz(15);
+    if (panSolved(cur)) {
+      cur.doneMs = now(); panSave(); clearInterval(cur.timer);
+      confetti(); audio?.play('badge'); buzz([60, 40, 60, 40, 200]);
+      award('pan', me().map(x => x.id));
+      refresh(); openOverlay(); speak('pan', 'klaar', { interrupt: true });
+      return;
+    }
+    panSave();
+    // alleen verplaatsen (geen nieuwe opbouw): zo glijdt het poffertje naar het lege kuiltje
+    ov?.querySelectorAll('.pof').forEach(b => { const k = cur.tiles.indexOf(+b.dataset.pof); b.style.left = (k % 3) * 33.333 + '%'; b.style.top = (k / 3 | 0) * 33.333 + '%'; b.classList.toggle('can', panAdj(k, cur.empty)); });
+    const m = ov?.querySelector('#sp-pan-m'); if (m) m.textContent = cur.moves;
+    showBanner(bannerFor());
+  }
+  function panEnd() { // de regie haalt de pan weg
+    if (cur?.kind !== 'pan') return;
+    clearInterval(cur.timer); try { localStorage.removeItem(panKey()); } catch {}
+    if (cur.doneMs == null) { openOverlay(`<span class="sp-eye">🥞 Poffertjespan</span><h2>Pan van het vuur</h2><p>Laat maar liggen, ik eet ze ook door elkaar op. Verder met de klus!</p>`); speak('pan', 'eind'); end(4000); }
+    else end();
+  }
+
   // ---------------------------------------------------------------- Verjaardagswens (wish.used)
   async function wishUsed(p, ev) {
     const kind = wishKind(p.for || ''), jarige = S().players.find(x => x.is_birthday);
@@ -407,18 +515,20 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
       case 'thief': { const d = thiefDist(); return { t: `🍪 De Kruimelaar heeft <b>${esc(PARTS[cur.part]?.label || 'een deel')}</b> · punt ${cur.i + 1}/${cur.points.length || '?'}`, v: d != null ? d + ' m' : '' }; }
       case 'storm': return { t: cur.over ? '⚡ Kortsluiting: telling…' : '⚡ Kortsluiting! Tik de vonken', v: cur.over ? '' : stormLeft() + 's' };
       case 'fork': { const t = forkTally(); return { t: `📡 Dubbel signaal · A ${t.a} · B ${t.b}`, v: cur.result ? (cur.result === 'a' ? 'A' : 'B') : 'stem!' }; }
+      case 'pan': return { t: cur.doneMs != null ? '🥞 Poffertjespan: gelukt!' : '🥞 Poffertjes door elkaar · tik om te schuiven', v: cur.doneMs != null ? '✓' : cur.moves + ' zetten' };
       case 'finale': return { t: cur.out ? '🔥 Jetpack sist… rustig naar huis' : '🔥 Jetpack oververhit · snel naar huis', v: cur.out ? '' : mmss(timerLeft()) };
       default: return { t: '' };
     }
   }
   function renderCur() {
-    switch (cur?.kind) { case 'thief': return thiefHtml(); case 'storm': return stormHtml(); case 'fork': return forkHtml(); case 'finale': return timerHtml(); default: return ''; }
+    switch (cur?.kind) { case 'thief': return thiefHtml(); case 'storm': return stormHtml(); case 'fork': return forkHtml(); case 'finale': return timerHtml(); case 'pan': return panHtml(); default: return ''; }
   }
   function afterRender() { if (cur?.kind === 'thief') thiefMap(); if (cur?.kind === 'storm' && !cur.over) { for (let k = 0; k < 3; k++) later(stormSpawn, 200 + k * 350); } }
   function onOverlayClick(e) {
     const a = e.target.closest('[data-a]')?.dataset.a;
     if (a === 'close') { modal = null; closeOverlay(); refresh(); return; }
     const w = e.target.closest('[data-w]')?.dataset.w; if (w) { wishPick(w); return; }
+    const pf = e.target.closest('[data-pof]'); if (pf) { panTap(pf.dataset.pof); return; }
     const v = e.target.closest('[data-v]'); if (v) { forkVote(v.dataset.p, v.dataset.v); return; }
     const c = e.target.closest('[data-c]')?.dataset.c; if (c && cur?.kind === 'fork' && !cur.result) { if (me().length <= 1) forkVote(me()[0]?.id, c); return; }
   }
@@ -448,7 +558,9 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
       else if (s.kind === 'storm') stormStart(d, s.started_at);
       else if (s.kind === 'fork') forkOpen(d, s.started_at);
       else if (s.kind === 'finale') timerStart(d, s.started_at);
-    } else if (!s && cur && ['thief', 'storm', 'fork', 'finale'].includes(cur.kind)) {
+      else if (s.kind === 'pan') panStart(d, s.started_at);
+    } else if (!s && cur && ['thief', 'storm', 'fork', 'finale', 'pan'].includes(cur.kind)) {
+      if (cur.kind === 'pan') { panEnd(); return; }
       if (cur.kind === 'finale' && ['finale', 'klaar'].includes(g.phase)) { timerRescued(); return; }
       if (cur.kind === 'storm' && !cur.over) return; // de regie zet de storm straks af met storm.end
       if (cur.ending) return;
@@ -462,7 +574,7 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
   later(() => syncGame(S().game), 0);
 
   return {
-    get current() { return cur ? { kind: cur.kind, ...(cur.kind === 'storm' ? { taps: cur.taps, over: cur.over } : {}), ...(cur.kind === 'thief' ? { i: cur.i, part: cur.part } : {}), ...(cur.kind === 'fork' ? { result: cur.result } : {}) } : null; },
+    get current() { return cur ? { kind: cur.kind, ...(cur.kind === 'storm' ? { taps: cur.taps, over: cur.over } : {}), ...(cur.kind === 'thief' ? { i: cur.i, part: cur.part } : {}), ...(cur.kind === 'fork' ? { result: cur.result } : {}), ...(cur.kind === 'pan' ? { tiles: cur.tiles.slice(), empty: cur.empty, moves: cur.moves, done: cur.doneMs != null } : {}) } : null; },
     get overlayOpen() { return !!ov; },
     get modal() { return modal; },
     openOverlay: () => openOverlay(),
