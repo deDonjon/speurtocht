@@ -349,7 +349,12 @@ function kernPanel() {
     <p class="note">Wekken = de wekzin op de laptop. Loting = de vijf anderen krijgen een willekeurig talent, ${esc(bday?.name || 'de jarige')} wordt Sleutelbewaarder; de kern laat de namen draaien en Mecha-Pof kondigt elk talent aan. Volgorde: wekken → loting → passen uitdelen → voorstelronde via de walkie → speluitleg → inloggen → start. Monteurspassen (<a href="./print/monteurspas.html?namen=1" target="_blank">met namen en codes</a>).</p>
   </div>`;
 }
+function lotingVast() { // talenten al vooraf verdeeld (passen zijn gedrukt): zes verschillende, de jarige Sleutelbewaarder
+  const ps = players(), t = ps.map(p => p.talent).filter(Boolean);
+  return ps.length > 0 && t.length === ps.length && new Set(t).size === t.length && ps.filter(p => p.is_birthday).every(p => p.talent === 'sleutelbewaarder');
+}
 function lotingTalents() {
+  if (lotingVast()) return Object.fromEntries(players().map(p => [p.id, p.talent])); // de animatie onthult de vaste verdeling
   const ps = players(), out = {}, bday = ps.filter(p => p.is_birthday), rest = ps.filter(p => !p.is_birthday).sort(() => Math.random() - .5);
   const pool = Object.keys(TALENTS).filter(t => !(bday.length && t === 'sleutelbewaarder')).sort(() => Math.random() - .5);
   bday.forEach(p => out[p.id] = 'sleutelbewaarder');
@@ -565,7 +570,7 @@ app.addEventListener('click', async e => {
       return busy(() => sync.regie.event('monster.call', { player_id: kh.id, message_id: uid(), text: `Bzzzt! Bonusklus, speurders. ${x.clue} ${x.puzzle.question} Over!` }), `📞 Mecha-Pof belt met ${x.id}; vink af met "Stop goedkeuren" of gewoon doorlopen`); }
     case 'wake': return busy(() => sync.regie.event('monster.say', { text: WEKZIN, mood: 'wakker', wake: true, kern: true }), '⏻ Mecha-Pof wordt wakker');
     case 'uitleg': return busy(() => sync.regie.event('monster.say', { text: 'Speluitleg! Volg mijn signaal, luister naar de radio, los samen de puzzel op, en blijf bij elkaar.', kern: true, uitleg: true }), '📋 Speluitleg gestart');
-    case 'loting': return confirmAnd('Loting starten? De talenten worden live geloot op het kernscherm (de jarige vast op Sleutelbewaarder).', () => sync.regie.event('roles.shuffle', { talents: lotingTalents(), loting: true }), '🎰 Loting gestart');
+    case 'loting': return confirmAnd(lotingVast() ? 'Loting starten? De talenten zijn al verdeeld (zoals op de passen); het kernscherm onthult ze met de animatie.' : 'Loting starten? De talenten worden live geloot op het kernscherm (de jarige vast op Sleutelbewaarder).', () => sync.regie.event('roles.shuffle', { talents: lotingTalents(), loting: true }), '🎰 Loting gestart');
     case 'quick': ui.say = b.dataset.s; renderPanel(); return;
     case 'say': { const text = ui.say.trim(); if (!text) return toast('Typ eerst wat hij moet zeggen.'); if (await busy(() => sync.regie.event('monster.say', { text, ...(ui.mood ? { mood: ui.mood } : {}) }), '🗣️ Gestuurd')) { ui.say = ''; renderPanel(); } return; }
     case 'call': { if (!ui.call) return; const p = { player_id: ui.call, message_id: uid() }; if (ui.callText.trim()) p.text = ui.callText.trim(); return busy(() => sync.regie.event('monster.call', p), `📞 ${playerName(ui.call)} wordt gebeld`); }

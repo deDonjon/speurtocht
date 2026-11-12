@@ -115,6 +115,7 @@ async function withRegie() {
   render([]); document.getElementById('login').hidden = false;
   document.getElementById('lf').onsubmit = async e => { e.preventDefault(); try { await sync.regie.login(document.getElementById('lk').value.trim()); await load(); } catch (err) { document.getElementById('lerr').textContent = err.message || 'Verkeerde sleutel'; } };
 }
+window.__render = render; // voor het maken van de PDF met namen (print/make-pdf.mjs laat dit ongemoeid)
 if (withNames) withRegie(); else render([]);
 </script>
 </body>
