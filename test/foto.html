@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Teken ons · proef</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
+<!-- PROEF (12 nov 2026): foto → Mecha-Pof-tekening via de Edge Function monster-foto (OpenAI). Los van het spel.
+     Test alleen met foto's van het eigen gezin. Niets wordt bewaard: de foto gaat via de functie naar OpenAI en het
+     resultaat komt direct terug; deze pagina houdt het alleen in het geheugen tot je hem sluit. -->
+<style>
+:root{--page:#FFF4DF;--card:#FFFCF5;--ink:#2E1A0B;--stroop:#4A250E;--muted:#6B4E33;--line:#E7D3AE;--pan:#F6C35B;--panD:#C9892C;
+  --cyan:#1FA9C9;--red:#C2362B;--ok:#2F7D4E;--display:'Lilita One',system-ui,sans-serif;--body:'Nunito',system-ui,sans-serif;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:600 16px/1.4 var(--body);-webkit-text-size-adjust:100%}
+main{max-width:980px;margin:0 auto;padding:max(12px,env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:14px}
+h1{font:400 1.8rem/1.1 var(--display);color:var(--stroop);margin:0}
+h2{font:400 1.1rem/1.2 var(--display);color:var(--stroop);margin:0 0 8px;letter-spacing:.02em}
+section{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:14px}
+.note{font-size:.88rem;color:var(--muted);margin:4px 0 0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+label.f{display:flex;flex-direction:column;gap:4px;font-weight:800;font-size:.9rem;flex:1;min-width:140px}
+input[type=password],input[type=text],select{font:inherit;width:100%;border:2px solid var(--line);border-radius:12px;padding:10px;background:#fff;color:var(--ink);min-height:44px}
+button,.knop{font:800 1rem var(--body);border:0;border-radius:12px;padding:10px 14px;min-height:44px;background:var(--pan);color:var(--stroop);box-shadow:0 3px 0 var(--panD);
+  touch-action:manipulation;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+button:active,.knop:active{transform:translateY(2px);box-shadow:0 1px 0 var(--panD)}
+button.alt,.knop.alt{background:#fff;border:2px solid var(--line);box-shadow:0 3px 0 var(--line)}
+button:disabled{opacity:.5;cursor:default;transform:none}
+#teken{font:400 1.5rem/1 var(--display);padding:16px 28px;background:#2E1A0B;color:#FFE98A;box-shadow:0 4px 0 #000}
+input[type=file]{display:none}
+#voorbeeld{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-top:10px}
+#voorbeeld img{max-width:min(100%,320px);max-height:260px;border-radius:12px;border:2px solid var(--line)}
+#uitkomsten{display:grid;grid-template-columns:1fr;gap:14px}
+@media (min-width:900px){#uitkomsten.twee{grid-template-columns:1fr 1fr}}
+.uit h2{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.uit .klok{font:800 1rem var(--body);color:var(--muted);font-variant-numeric:tabular-nums}
+.uit .beeld{display:flex;align-items:center;justify-content:center;min-height:220px;border-radius:14px;background:#14202F;overflow:hidden}
+.uit .beeld img{width:100%;display:block;cursor:zoom-in}
+.uit .wacht{color:#7FE8FF;font-weight:800;text-align:center;padding:30px 16px}
+.wacht .stip{display:inline-block;width:10px;height:10px;border-radius:50%;background:#7FE8FF;margin:0 3px;animation:p 1.2s infinite}
+.wacht .stip:nth-child(2){animation-delay:.2s}.wacht .stip:nth-child(3){animation-delay:.4s}
+@keyframes p{0%,100%{opacity:.2}50%{opacity:1}}
+.meta{font-size:.88rem;color:var(--muted);margin-top:8px;font-variant-numeric:tabular-nums}
+.weigering{background:#FFF0EE;border:2px solid #F3B8B1;border-radius:12px;padding:12px;color:var(--red);white-space:pre-wrap;word-break:break-word;font:700 .95rem/1.45 var(--body);margin:0}
+.weigering b{color:var(--ink)}
+#groot{position:fixed;inset:0;background:rgba(10,12,18,.94);display:none;align-items:center;justify-content:center;z-index:50;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+#groot.open{display:flex}
+#groot img{max-width:100vw;max-height:100vh;object-fit:contain}
+details{font-size:.9rem}
+details pre{white-space:pre-wrap;font:600 .85rem/1.4 ui-monospace,monospace;background:#fff;border:2px solid var(--line);border-radius:10px;padding:10px;max-height:240px;overflow:auto}
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>Teken ons · Mecha-Pof-proef</h1>
+    <p class="note">Losse proef, niet in het spel. Alleen foto's van ons eigen gezin. Niets wordt bewaard: de foto gaat via de server naar OpenAI en de tekening komt direct terug.</p>
+  </div>
+
+  <section>
+    <h2>1 · Regiesleutel</h2>
+    <label class="f">Regiesleutel<input id="sleutel" type="password" autocomplete="off" placeholder="zelfde als in regie"></label>
+  </section>
+
+  <section>
+    <h2>2 · Foto</h2>
+    <div class="row">
+      <label class="knop" for="kies">🖼️ Kies foto</label><input id="kies" type="file" accept="image/*">
+      <label class="knop alt" for="maak">📷 Maak foto</label><input id="maak" type="file" accept="image/*" capture="environment">
+    </div>
+    <div id="voorbeeld"></div>
+  </section>
+
+  <section>
+    <h2>3 · Instellingen</h2>
+    <div class="row">
+      <label class="f">Stijl<select id="variant">
+        <option value="beide" selected>Beide naast elkaar (strip + prent)</option>
+        <option value="strip">Stripboek</option>
+        <option value="prent">Prentenboek</option>
+      </select></label>
+      <label class="f">Kwaliteit<select id="kwaliteit">
+        <option value="medium">medium (snel, goedkoop)</option>
+        <option value="high" selected>high</option>
+        <option value="xhigh">xhigh (langzamer, duurder)</option>
+      </select></label>
+      <label class="f">Model<select id="model">
+        <option value="gpt-image-2.5-sunburst" selected>gpt-image-2.5-sunburst</option>
+        <option value="gpt-image-2.5-flare">gpt-image-2.5-flare (sneller)</option>
+        <option value="gpt-image-2.6-sunburst">gpt-image-2.6-sunburst</option>
+        <option value="gpt-image-1.5">gpt-image-1.5 (gezichten: input_fidelity high)</option>
+      </select></label>
+    </div>
+    <p class="note">Een beeld duurt meestal een halve tot anderhalve minuut. "Beide" maakt twee beelden tegelijk en kost dus twee keer.</p>
+  </section>
+
+  <div class="row"><button id="teken" disabled>Teken ons</button><span id="status" class="note"></span></div>
+
+  <div id="uitkomsten"></div>
+</main>
+<div id="groot"><img alt=""></div>
+
+<script type="module">
+const FUNCTIE = 'https://lnhliamckstuwiwyzxyl.supabase.co/functions/v1/monster-foto';
+const PUBLIEK = 'sb_publishable_hoQWFp1gmy-qfG6IICNckw_ewEXmm_3'; // publishable key: mag openbaar (zelfde als js/sync.js)
+const MAX_ZIJDE = 1600;
+const NAMEN = { strip: 'Stripboek', prent: 'Prentenboek' };
+const $ = s => document.querySelector(s);
+let foto = null; // { blob, w, h }
+
+// regiesleutel: alleen in deze sessie onthouden; neem hem over uit regie als die in dit tabblad al is ingevuld
+try { $('#sleutel').value = sessionStorage.getItem('pkm_foto_regie') || sessionStorage.getItem('pkm2_regie') || ''; } catch {}
+$('#sleutel').addEventListener('input', () => { try { sessionStorage.setItem('pkm_foto_regie', $('#sleutel').value.trim()); } catch {} klaar(); });
+function klaar() { $('#teken').disabled = !(foto && $('#sleutel').value.trim()); }
+
+// foto inlezen en verkleinen tot max 1600 px lange zijde (met de juiste draaiing van de camera)
+async function verklein(file) {
+  let bron;
+  try { bron = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+  catch { bron = await new Promise((ok, nee) => { const i = new Image(); i.onload = () => ok(i); i.onerror = nee; i.src = URL.createObjectURL(file); }); }
+  const w0 = bron.width, h0 = bron.height, k = Math.min(1, MAX_ZIJDE / Math.max(w0, h0));
+  const w = Math.round(w0 * k), h = Math.round(h0 * k);
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  c.getContext('2d').drawImage(bron, 0, 0, w, h);
+  const blob = await new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.9));
+  return { blob, w, h, w0, h0 };
+}
+for (const id of ['#kies', '#maak']) $(id).addEventListener('change', async e => {
+  const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
+  $('#voorbeeld').innerHTML = '<p class="note">foto inlezen…</p>';
+  try {
+    foto = await verklein(f);
+    const img = new Image(); img.src = URL.createObjectURL(foto.blob); img.alt = 'gekozen foto';
+    $('#voorbeeld').replaceChildren(img, Object.assign(document.createElement('p'), { className: 'note',
+      textContent: `${foto.w0}×${foto.h0} → ${foto.w}×${foto.h} px, ${(foto.blob.size / 1024).toFixed(0)} KB · uitvoer ${formaat(foto)}` }));
+  } catch (err) { foto = null; $('#voorbeeld').innerHTML = `<p class="weigering">Kon de foto niet lezen: ${esc(err.message || err)}</p>`; }
+  klaar();
+});
+function formaat({ w, h }) { const r = w / h; return r > 1.2 ? '1536x1024' : r < 0.83 ? '1024x1536' : '1024x1024'; }
+
+let stijlBlob = null;
+async function stijl() { if (!stijlBlob) { const r = await fetch('mecha-pof-stijl.png'); if (!r.ok) throw new Error('stijlvoorbeeld niet gevonden'); stijlBlob = await r.blob(); } return stijlBlob; }
+
+$('#teken').addEventListener('click', async () => {
+  const key = $('#sleutel').value.trim(); if (!foto || !key) return;
+  const keus = $('#variant').value, varianten = keus === 'beide' ? ['strip', 'prent'] : [keus];
+  $('#teken').disabled = true; $('#status').textContent = 'bezig…';
+  const box = $('#uitkomsten'); box.className = varianten.length > 1 ? 'twee' : ''; box.replaceChildren();
+  let s; try { s = await stijl(); } catch (e) { $('#status').textContent = e.message; klaar(); return; }
+  await Promise.all(varianten.map(v => tekenEen(v, key, s, box)));
+  $('#status').textContent = 'klaar'; klaar();
+});
+
+async function tekenEen(variant, key, stijlPng, box) {
+  const kaart = document.createElement('section'); kaart.className = 'uit';
+  kaart.innerHTML = `<h2><span>${NAMEN[variant]}</span><span class="klok">0 s</span></h2>
+    <div class="beeld"><div class="wacht">Mecha-Pof tekent… <span class="stip"></span><span class="stip"></span><span class="stip"></span></div></div><div class="na"></div>`;
+  box.append(kaart);
+  const klok = kaart.querySelector('.klok'), t0 = performance.now();
+  const tik = setInterval(() => { klok.textContent = Math.round((performance.now() - t0) / 1000) + ' s'; }, 500);
+  const fd = new FormData();
+  fd.append('foto', foto.blob, 'foto.jpg'); fd.append('stijl', stijlPng, 'mecha-pof.png');
+  fd.append('variant', variant); fd.append('size', formaat(foto));
+  fd.append('quality', $('#kwaliteit').value); fd.append('model', $('#model').value);
+  let j;
+  try {
+    const r = await fetch(FUNCTIE, { method: 'POST', body: fd, headers: { apikey: PUBLIEK, Authorization: 'Bearer ' + PUBLIEK, 'x-regie-key': key } });
+    const tekst = await r.text();
+    try { j = JSON.parse(tekst.trim()); } catch { j = { ok: false, error: `Geen geldig antwoord (HTTP ${r.status}): ${tekst.slice(0, 400)}`, code: r.headers.get('sb-error-code') }; }
+  } catch (e) { j = { ok: false, error: 'Kon de server niet bereiken: ' + (e.message || e) }; }
+  clearInterval(tik);
+  const sec = ((performance.now() - t0) / 1000).toFixed(1); klok.textContent = sec + ' s';
+  const beeld = kaart.querySelector('.beeld'), na = kaart.querySelector('.na');
+  if (j.ok) {
+    const blob = await (await fetch(`data:${j.mime};base64,${j.b64}`)).blob(); j.b64 = '(weggelaten)';
+    const url = URL.createObjectURL(blob), naam = `mecha-pof-${variant}-${new Date().toISOString().slice(11, 19).replace(/:/g, '')}.jpg`;
+    const img = new Image(); img.src = url; img.alt = NAMEN[variant] + ' tekening'; img.onclick = () => groot(url);
+    beeld.replaceChildren(img);
+    const eur = j.kosten_usd != null ? ` · ± $${j.kosten_usd.toFixed(3)}` : '';
+    na.innerHTML = `<p class="meta">${sec} s totaal (OpenAI ${(j.ms / 1000).toFixed(1)} s) · ${esc(j.model)} · ${esc(j.quality)} · ${esc(j.size)}${eur}</p>
+      <div class="row"><button class="opslaan">💾 Opslaan</button><button class="alt groot">⛶ Groot</button></div>
+      <details><summary>Details (tokens)</summary><pre>${esc(JSON.stringify(j.usage, null, 2))}</pre></details>`;
+    na.querySelector('.groot').onclick = () => groot(url);
+    na.querySelector('.opslaan').onclick = () => opslaan(blob, naam);
+  } else {
+    beeld.replaceChildren(Object.assign(document.createElement('div'), { className: 'wacht', textContent: 'Geen tekening' }));
+    const regels = [`<b>Melding:</b> ${esc(j.error ?? 'onbekend')}`];
+    if (j.code) regels.push(`<b>Code:</b> ${esc(j.code)}`);
+    if (j.type) regels.push(`<b>Soort:</b> ${esc(j.type)}`);
+    if (j.status != null) regels.push(`<b>HTTP:</b> ${esc(j.status)}`);
+    if (j.details) regels.push(`<b>Details:</b> ${esc(JSON.stringify(j.details))}`);
+    if (j.ms) regels.push(`<b>Na:</b> ${(j.ms / 1000).toFixed(1)} s`);
+    na.innerHTML = `<p class="weigering" style="margin-top:10px">${regels.join('\n')}</p>`;
+  }
+}
+
+async function opslaan(blob, naam) {
+  const file = new File([blob], naam, { type: blob.type });
+  if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file] }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: naam }); document.body.append(a); a.click(); a.remove();
+}
+function groot(url) { const g = $('#groot'); g.querySelector('img').src = url; g.classList.add('open'); }
+$('#groot').onclick = () => $('#groot').classList.remove('open');
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); }
+klaar();
+</script>
+</body>
+</html>
