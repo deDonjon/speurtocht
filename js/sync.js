@@ -29,6 +29,9 @@ const SUPABASE_ESM = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
 const SFX = IS_TEST ? '_' + GAME_CODE : '';
 const SESSION_KEY = 'pkm2_session' + SFX, OUTBOX_KEY = 'pkm2_outbox' + SFX, REGIE_KEY = 'pkm2_regie' + SFX;
 const HEARTBEAT_MS = 10_000, FLUSH_MS = 5_000, EVENTS_LOAD = 50;
+// Alleen de spelerspagina (index.html) meldt bewakers aan in presence en stuurt de hartslag. Kern, regie en bord delen de
+// sessie van de browser (localStorage) en zouden anders als extra "telefoon" meetellen en een rol (werkbank, radio) pakken.
+const PLAYER_PAGE = typeof location === 'undefined' || !/\/(kern|regie|bord|scout|dans|qr-kaartje)\.html$/.test(location.pathname);
 
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
@@ -128,7 +131,7 @@ function presenceMap() {
 }
 async function track() {
   if (!channel || channel.state !== 'joined') return;
-  try { await channel.track({ device_id: state.get().device.id, players: myIds(), at: new Date().toISOString() }); } catch {}
+  try { await channel.track({ device_id: state.get().device.id, players: PLAYER_PAGE ? myIds() : [], at: new Date().toISOString() }); } catch {}
 }
 async function subscribe() {
   const c = await client();
@@ -150,7 +153,7 @@ async function reload() { if (!gameId) return; await loadAll(); }
 function startHeartbeat() {
   clearInterval(hbTimer);
   hbTimer = setInterval(async () => {
-    const codes = Object.values(session.codes); if (!codes.length) return;
+    const codes = Object.values(session.codes); if (!codes.length || !PLAYER_PAGE) return;
     const pos = state.get().pos; let battery = null;
     try { if (navigator.getBattery) battery = Math.round((await navigator.getBattery()).level * 100); } catch {}
     rpc('heartbeat', { p_codes: codes, p_lat: pos?.lat ?? null, p_lng: pos?.lng ?? null, p_acc: pos?.acc ?? null, p_battery: battery }).catch(() => {});
