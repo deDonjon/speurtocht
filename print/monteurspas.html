@@ -20,25 +20,43 @@ body{background:#2A3142;font-family:'Nunito',system-ui,sans-serif;font-weight:80
 .sheet::before,.sheet::after{content:'';position:absolute;border:0 dashed #B9A68A;pointer-events:none}
 .sheet::before{left:105mm;top:0;bottom:0;border-left-width:.3mm}
 .sheet::after{top:148.5mm;left:0;right:0;border-top-width:.3mm}
-.pas{position:relative;padding:6mm 6.5mm 5mm;display:flex;flex-direction:column;gap:3.4mm;--c:#F2BE62}
-.pas.leeg{opacity:.0}
-.band{display:flex;justify-content:space-between;align-items:center;background:#141A26;color:#7FE8FF;border-radius:2.5mm;padding:1.6mm 3mm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:3mm;letter-spacing:.18em}
-.band b{color:#F2BE62;letter-spacing:.12em}
-.head{display:flex;gap:3.5mm;align-items:center;border-left:2.2mm solid var(--c);padding-left:3mm}
-.head svg{width:26mm;height:26mm;flex:none;background:#141A26;border-radius:50%;padding:2.5mm;border:.6mm solid var(--c)}
-.head h1{margin:0;font-family:'Lilita One',sans-serif;font-weight:400;font-size:9.5mm;line-height:1;color:#2B1606}
-.head p{margin:1mm 0 0;font-size:3.3mm;line-height:1.25}
-.field{display:flex;align-items:flex-end;gap:2.5mm;font-size:3mm;color:#7A5A3A;text-transform:uppercase;letter-spacing:.12em;font-family:'Chakra Petch',monospace;font-weight:700}
-.field .line{flex:1;border-bottom:.45mm solid #2B1606;height:9mm;font-family:'Lilita One',sans-serif;font-weight:400;font-size:7.5mm;letter-spacing:.02em;text-transform:none;color:#2B1606;padding-left:1mm;line-height:9mm}
-.code{display:flex;gap:1.6mm}.code i{width:8mm;height:10mm;border:.45mm solid #2B1606;border-radius:1.5mm;font-style:normal;font-family:'Chakra Petch',monospace;font-weight:700;font-size:6.5mm;display:grid;place-items:center;color:#2B1606;background:#fff}
-.verm{font-size:3.7mm;line-height:1.3;background:#FCEFD6;border-radius:2mm;padding:2mm 2.6mm;margin:0}
-.koppel{font-size:3.35mm;margin:0;color:#5A3A1A}
-.walkie{border:.45mm solid #141A26;border-radius:2.4mm;padding:2.4mm 3mm;font-size:3.5mm;line-height:1.28}
-.walkie h2{margin:0 0 1mm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.9mm;letter-spacing:.14em;color:#15A4C8}
-.walkie ol{margin:0;padding-left:4.2mm}.walkie li{margin:.4mm 0}
-.foot{margin-top:auto;display:flex;justify-content:space-between;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.5mm;letter-spacing:.12em;color:#9A7A55}
-.rivet{position:absolute;width:2.4mm;height:2.4mm;border-radius:50%;background:radial-gradient(circle at 35% 35%,#E6EAEE,#8E979F 60%,#4A5058)}
-.rivet.a{left:2.2mm;top:2.2mm}.rivet.b{right:2.2mm;top:2.2mm}.rivet.c{left:2.2mm;bottom:2.2mm}.rivet.d{right:2.2mm;bottom:2.2mm}
+.pas{position:relative;display:flex;flex-direction:column;--c:#F2BE62;overflow:hidden}
+.pas.leeg{opacity:0}
+/* bovenstuk: donkere pas met raster, lanyard-gat, gloeiend onderdeel */
+.top{position:relative;height:45mm;padding:9mm 6mm 0 6mm;color:#EAF2FF;display:flex;gap:4mm;align-items:center;
+  background:linear-gradient(rgba(127,232,255,.10) .2mm,transparent .2mm) 0 0/5mm 5mm,linear-gradient(90deg,rgba(127,232,255,.10) .2mm,transparent .2mm) 0 0/5mm 5mm,radial-gradient(120% 120% at 20% 40%,#2B3A58 0%,#0E1522 75%)}
+.gat{position:absolute;left:50%;top:3mm;width:16mm;height:3.4mm;margin-left:-8mm;border-radius:2mm;background:#FFF9EE;box-shadow:inset 0 .3mm .6mm rgba(0,0,0,.5)}
+.serie{position:absolute;right:5mm;top:3.2mm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.4mm;letter-spacing:.16em;color:#7FE8FF;opacity:.85}
+.merk{position:absolute;left:6mm;top:3.2mm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.4mm;letter-spacing:.16em;color:#F2BE62}
+.ring{flex:none;width:30mm;height:30mm;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,#16263F 55%,#0B1220 100%);border:.9mm solid var(--c);box-shadow:0 0 0 1.1mm rgba(255,255,255,.06),0 0 5mm var(--c)}
+.ring svg{width:21mm;height:21mm}
+.wie{min-width:0}
+.wie small{display:block;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.7mm;letter-spacing:.2em;color:#7FE8FF}
+.wie h1{margin:.6mm 0 1mm;font-family:'Lilita One',sans-serif;font-weight:400;line-height:.95;color:#F2BE62;text-shadow:0 .6mm 0 #7A4310}
+.wie p{margin:0;font-size:3.1mm;line-height:1.25;color:#DCE6F5}
+.wie p b{color:#fff}
+.niveau{display:inline-block;margin-top:1.4mm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.3mm;letter-spacing:.14em;color:#0E1522;background:var(--c);border-radius:1mm;padding:.5mm 1.8mm}
+.streep{height:3.2mm;flex:none;background:repeating-linear-gradient(-45deg,#F2BE62 0 3mm,#141A26 3mm 6mm)}
+.body{flex:1;display:flex;flex-direction:column;gap:2.5mm;padding:3.2mm 6mm 3.6mm}
+.rij{display:flex;align-items:flex-end;gap:3mm}
+.field{display:flex;flex-direction:column;gap:.6mm;font-size:2.5mm;color:#7A5A3A;text-transform:uppercase;letter-spacing:.14em;font-family:'Chakra Petch',monospace;font-weight:700}
+.field.naam{flex:1;min-width:0}
+.field .line{border-bottom:.5mm solid #2B1606;height:9mm;font-family:'Lilita One',sans-serif;font-weight:400;font-size:7.4mm;letter-spacing:.02em;text-transform:none;color:#2B1606;padding-left:.6mm;line-height:9.4mm;white-space:nowrap;overflow:hidden}
+.code{display:flex;gap:1.2mm}.code i{width:7.4mm;height:9.4mm;border:.45mm solid #2B1606;border-radius:1.4mm;font-style:normal;font-family:'Chakra Petch',monospace;font-weight:700;font-size:6mm;display:grid;place-items:center;color:#2B1606;background:#fff}
+.verm{font-size:3.25mm;line-height:1.3;background:#FCEFD6;border-left:1.4mm solid var(--c);border-radius:1.6mm;padding:1.7mm 2.4mm;margin:0}
+.verm small{display:block;margin-top:.7mm;font-size:2.9mm;color:#5A3A1A}
+.walkie{background:#141A26;color:#EAF2FF;border-radius:2.2mm;padding:2mm 2.8mm 2.2mm;font-size:3.1mm;line-height:1.3}
+.walkie h2{margin:0 0 .8mm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.6mm;letter-spacing:.16em;color:#7FE8FF;display:flex;justify-content:space-between}
+.walkie h2 span{color:#F2BE62}
+.walkie ol{margin:0;padding-left:4mm}.walkie li{margin:.3mm 0}.walkie b{color:#F2BE62}
+.delen h2{margin:0 0 1mm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.5mm;letter-spacing:.16em;color:#7A5A3A}
+.delen div{display:grid;grid-template-columns:repeat(7,1fr);gap:1.2mm}
+.delen span{position:relative;aspect-ratio:1;border:.4mm dashed #9A7A55;border-radius:50%;display:grid;place-items:center;background:#fff}
+.delen span.mijn{border:.6mm solid var(--c);background:#FFF3D6}
+.delen svg{width:68%;height:68%;opacity:.5}
+.delen span.mijn svg{opacity:1}
+.foot{margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:3mm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.3mm;letter-spacing:.12em;color:#9A7A55}
+.streepjes{flex:none;width:26mm;height:4.2mm;background:repeating-linear-gradient(90deg,#2B1606 0 .5mm,transparent .5mm 1.1mm,#2B1606 1.1mm 1.4mm,transparent 1.4mm 2.5mm,#2B1606 2.5mm 3.4mm,transparent 3.4mm 3.9mm)}
 #login{max-width:420px;margin:30px auto;background:#1A1F2A;color:#EAF2FF;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px}
 #login input{font:inherit;font-size:18px;padding:8px 10px;border-radius:8px;border:2px solid #15A4C8;background:#0E1B2E;color:#7FE8FF}
 #login button{font:inherit;font-weight:900;border:0;border-radius:10px;padding:10px;background:#F2BE62}
@@ -57,21 +75,28 @@ const qs = new URLSearchParams(location.search), withNames = qs.has('namen');
 document.getElementById('mode').textContent = withNames ? 'Met namen en codes uit het spel (na de loting). Codes zijn geheim: niet laten slingeren.' : 'Voorgedrukt per talent met een open naamvak; Hannah staat vast als Sleutelbewaarder. 2 vel A4, stevig papier, langs de stippellijnen knippen.';
 if (withNames) { const a = document.getElementById('switch'); a.href = '?'; a.textContent = 'Zonder namen (voorgedrukt)'; }
 
+const DELEN = ['lijf', 'ogen', 'neus', 'mond', 'armen', 'benen', 'hoed'];
 function pas(talent, p) {
   const t = TALENT_INFO[talent], code = p?.code ? String(p.code).split('') : ['', '', '', ''];
   const name = p?.name || (talent === 'sleutelbewaarder' ? 'Hannah' : '');
-  return `<section class="pas" style="--c:${PART_COLOR[t.part]}"><i class="rivet a"></i><i class="rivet b"></i><i class="rivet c"></i><i class="rivet d"></i>
-    <div class="band"><span>MONTEURSPAS</span><b>OPERATIE MECHA-POF</b></div>
-    <div class="head">${icon(t.part)}<div><h1 style="font-size:${t.label.length > 12 ? 7.2 : 9.5}mm">${esc(t.label)}</h1><p>Jij monteert <b>${esc(t.deel)}</b> van Mecha-Pof.</p></div></div>
-    <div class="field">Naam<span class="line">${esc(name)}</span></div>
-    <div class="field">Jouw code<span class="code">${code.map(c => `<i>${esc(c)}</i>`).join('')}</span></div>
-    <p class="verm">${esc(t.vermogen)}</p>
-    <p class="koppel">Je deelt een telefoon met de <b>${esc(t.koppel)}</b>. De telefoon wisselt per plek van rol: radio · kaart · werkbank.</p>
-    <div class="walkie"><h2>WALKIETALKIE-REGELS</h2><ol>
-      <li>Eindig elk bericht met <b>"over"</b>.</li>
-      <li>Klaar met praten? Zeg <b>"over en sluiten"</b>.</li>
-      <li>Mecha-Pof is een robot met een computerbrein. Hij geeft nooit zomaar het antwoord.</li></ol></div>
-    <div class="foot"><span>REPARATIETEAM HANNAH 10</span><span>VR 13 NOV</span></div>
+  const nr = ORDER.indexOf(talent) + 1;
+  return `<section class="pas" style="--c:${PART_COLOR[t.part]}">
+    <div class="top"><i class="gat"></i><span class="merk">MONTEURSPAS</span><span class="serie">MP-0${nr}/06 · KANAAL 07</span>
+      <div class="ring">${icon(t.part)}</div>
+      <div class="wie"><small>OPERATIE MECHA-POF</small><h1 style="font-size:${t.label.length > 12 ? 7.4 : t.label.length > 10 ? 8.6 : 10}mm">${esc(t.label)}</h1>
+        <p>Jij monteert <b>${esc(t.deel)}</b>.</p><span class="niveau">TOEGANG: GEHEIM · NIVEAU ${nr === 6 ? '10 ★' : '10'}</span></div>
+    </div><div class="streep"></div>
+    <div class="body">
+      <div class="rij"><div class="field naam">Naam<span class="line">${esc(name)}</span></div><div class="field">Geheime code<span class="code">${code.map(c => `<i>${esc(c)}</i>`).join('')}</span></div></div>
+      <p class="verm">${esc(t.vermogen)}<small>Je deelt een telefoon met de <b>${esc(t.koppel)}</b>. Per plek wisselt hij: radio · kaart · werkbank.</small></p>
+      <div class="walkie"><h2>RADIOREGELS <span>📻 KANAAL 07</span></h2><ol>
+        <li>Eindig elk bericht met <b>“over”</b>.</li>
+        <li>Klaar? Zeg <b>“over en sluiten”</b>.</li>
+        <li>Belt Mecha-Pof? Luister tot het eind en zeg wat <b>groot in beeld</b> staat.</li>
+        <li>Niet verstaan? Tik op <b>↻ HERHAAL</b>.</li></ol></div>
+      <div class="delen"><h2>ONDERDELEN TERUG? KRUIS AAN!</h2><div>${DELEN.map(d => `<span class="${d === t.part ? 'mijn' : ''}">${icon(d)}</span>`).join('')}</div></div>
+      <div class="foot"><i class="streepjes"></i><span>REPARATIETEAM HANNAH 10 · VR 13 NOV 2026</span></div>
+    </div>
   </section>`;
 }
 function render(players) {

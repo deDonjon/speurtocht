@@ -23,6 +23,9 @@ const JOBS = [
   { file: 'poster-qr.html', pdf: 'qr-poster-groene-kastje-90x120.pdf', w: '90cm', h: '120cm' },
   { file: 'poster-tankstation.html', pdf: 'stroop-tankstation-90x60.pdf', w: '90cm', h: '60cm' },
   { file: 'monteurspas.html', pdf: 'monteurspassen-A4.pdf', w: '210mm', h: '297mm' },
+  { file: 'spelkaart.html', pdf: 'spelkaart-A4.pdf', w: '210mm', h: '297mm' },
+  { file: 'draaiboek.html', pdf: 'draaiboek-begeleider-A4.pdf', w: '210mm', h: '297mm' },
+  { file: 'diploma.html', pdf: 'monteursdiploma-A4.pdf', w: '297mm', h: '210mm' },
 ];
 const only = process.argv.slice(2).filter(a => !a.startsWith('--')), png = process.argv.includes('--png');
 fs.mkdirSync(OUT, { recursive: true });

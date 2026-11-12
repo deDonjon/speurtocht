@@ -53,6 +53,15 @@ body.slaap #mon::after{background:radial-gradient(closest-side,rgba(127,232,255,
 .slot.lock .t{border-color:var(--acc,var(--led));color:#fff;animation:klik .35s}
 @keyframes klik{0%{transform:scale(1.15)}100%{transform:none}}
 .slot.vast::after{content:'🎂 vast';grid-column:2;justify-self:end;font-size:.75rem;color:var(--gold);font-family:var(--hud);margin-top:-6px}
+/* speluitleg: vijf kaarten, de actieve licht op */
+.uitleg{display:grid;gap:10px}
+.ucard{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:14px;background:var(--visor);border:2px solid var(--line);border-radius:14px;padding:10px 16px;opacity:.38;transition:opacity .3s,transform .3s,border-color .3s,box-shadow .3s}
+.ucard em{font-style:normal;font-size:clamp(1.6rem,3vw,2.8rem);line-height:1}
+.ucard b{display:block;font-size:clamp(1.05rem,1.8vw,1.7rem);font-weight:900;color:#fff;line-height:1.15}
+.ucard small{display:block;color:var(--muted);font-size:clamp(.8rem,1.15vw,1.05rem);font-weight:800;line-height:1.25}
+.ucard.done{opacity:.75;border-color:var(--ok)}
+.ucard.on{opacity:1;border-color:var(--gold);box-shadow:0 0 22px rgba(242,190,98,.45);transform:scale(1.03)}
+.ucard.on small{color:var(--ink)}
 /* onderweg */
 .parts{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
 .part{aspect-ratio:1;border-radius:50%;background:var(--visor);border:2px dashed var(--line2);display:grid;place-items:center;font-size:clamp(1.2rem,2.4vw,2.2rem);opacity:.55}
@@ -76,17 +85,17 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:75}
 <div id="gate"><div class="panel"><h2>Kern van Mecha-Pof</h2><p class="sub" id="gatemsg">Regiesleutel (één keer op deze laptop).</p>
   <form id="gateform" class="row" style="justify-content:center"><input type="password" id="key" placeholder="sleutel" aria-label="Regiesleutel" style="width:12em"><button type="submit">Aan</button></form>
   <p class="muted" id="gateerr"></p></div></div>
-<div id="tools"><button class="plain" data-t="wake">⏻ Wakker</button><button class="plain" data-t="finale">▶ Finale</button><button class="plain" data-t="full">⛶ Volledig scherm</button></div>
+<div id="tools"><button class="plain" data-t="wake">⏻ Wakker</button><button class="plain" data-t="uitleg">📋 Uitleg</button><button class="plain" data-t="finale">▶ Finale</button><button class="plain" data-t="full">⛶ Volledig scherm</button></div>
 <div id="conn"></div>
 <canvas id="confetti" hidden></canvas>
 <script type="module">
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync, IS_TEST } from './js/sync.js';
-import { createMonster, lineText } from './js/monster.js?v=20';
+import { createMonster, lineText } from './js/monster.js?v=21';
 import { audio } from './js/audio.js?v=11';
 import { voice } from './js/voice.js?v=7';
-import { LINES } from './js/monster-lines.js?v=11';
-import { createFinale, endCards, END_CSS, fillLine, stageHTML, TAART_HTML, buildHighlights } from './js/finale.js?v=5';
+import { LINES } from './js/monster-lines.js?v=12';
+import { createFinale, endCards, END_CSS, fillLine, stageHTML, TAART_HTML, buildHighlights } from './js/finale.js?v=6';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -122,7 +131,15 @@ state.on('event', ev => { if (!ev || seen.has(ev.id)) return; seen.add(ev.id); i
 window.pkm = { state, sync, router, mon, finale, audio, callRinging: () => false, PARTS, TALENTS };
 
 /* ---------- stand bepalen */
-let mode = 'slaap'; // slaap | wakker | loting | onderweg | klaar
+let mode = 'slaap'; // slaap | wakker | loting | uitleg | onderweg | klaar
+let uitleg = null; // { i } tijdens de speluitleg
+const UITLEG = [ // kaarten bij LINES.uitleg (zelfde volgorde)
+  ['📍', 'Volg het signaal', 'De kaart-telefoon wijst de weg naar de volgende plek.'],
+  ['📻 🗺️ 🔧', 'Drie telefoons, drie taken', 'Radio · kaart · werkbank. Ze wisselen bij elke plek.'],
+  ['📞', 'Mecha-Pof belt de radio', 'Luister tot het eind. Zeg samen wat groot in beeld staat. Niet verstaan? ↻ Herhaal.'],
+  ['🔑', 'Opgelost? Indienen en schudden', 'De Sleutelbewaarder dient in, de monteur schudt het onderdeel vast. Hints kosten druppels.'],
+  ['🚸', 'Blijf bij elkaar', 'Oversteken alleen samen met de begeleider.'],
+];
 let loting = null;  // { order:[{p, talent}], i, spinning }
 const wokeSinceReset = () => { // wekzin na de laatste reset (events nieuwste eerst)
   for (const e of S().events) { if (e.type === 'game.reset') return false; if (e.type === 'monster.say' && e.payload?.wake) return true; }
@@ -145,6 +162,7 @@ function modeFor() {
   if (g.phase === 'klaar') return 'klaar';
   if (g.phase !== 'lobby') return 'onderweg';
   if (loting) return 'loting';
+  if (uitleg) return 'uitleg';
   return woke || wokeSinceReset() ? 'wakker' : 'slaap';
 }
 let woke = false;
@@ -157,7 +175,7 @@ function render() {
   if (m !== mode) { mode = m; document.body.classList.toggle('slaap', m === 'slaap'); document.body.classList.toggle('klaar', m === 'klaar'); }
   const parts = g?.parts || [];
   if (m === 'slaap') { mon.setMood('slaap'); mon.setParts([]); }
-  else if (m === 'wakker' || m === 'loting') { if (mon.mood === 'slaap') mon.setMood('wakker'); }
+  else if (m === 'wakker' || m === 'loting' || m === 'uitleg') { if (mon.mood === 'slaap') mon.setMood('wakker'); }
   else if (m === 'onderweg' && !landing) { mon.setParts(parts); mon.setMood(parts.length <= 2 ? 'wakker' : parts.length <= 4 ? 'nieuwsgierig' : 'brutaal'); }
   const eb = $('#eyebrow'), cap = $('#caption'), side = $('#side');
   if (m !== 'klaar') delete side.dataset.sig; // de finale tekent het zijpaneel alleen opnieuw als de stap verandert
@@ -176,6 +194,10 @@ function render() {
     cap.innerHTML = `<h1 class="title">De loting</h1>`;
     side.innerHTML = `<div class="panel"><h2>Wie wordt wat?</h2><div class="reel" id="reel">${loting.order.map((o, i) => `<div class="slot ${i < loting.i ? 'lock' : i === loting.i && loting.spinning ? 'spin' : ''} ${o.p.is_birthday ? 'vast' : ''}" style="--acc:${PARTS[TALENTS[o.talent]?.part]?.color || '#7FE8FF'}" data-i="${i}">
       <b>${esc(o.p.name)}${o.p.is_birthday ? ' 🎂' : ''}</b><div class="t"><span>${i < loting.i ? `${PARTS[TALENTS[o.talent].part].icon} ${esc(TALENTS[o.talent].label)}` : i === loting.i && loting.spinning ? `<span class="spinlabel"></span>` : '…'}</span></div></div>`).join('')}</div></div>`;
+  } else if (m === 'uitleg') {
+    eb.textContent = 'Kern van Mecha-Pof · speluitleg';
+    cap.innerHTML = `<h1 class="title">Zo werkt het</h1>`;
+    side.innerHTML = `<div class="uitleg">${UITLEG.map(([ic, t, sub], i) => `<div class="ucard ${i === uitleg.i ? 'on' : i < uitleg.i ? 'done' : ''}"><em>${ic}</em><div><b>${i + 1}. ${esc(t)}</b><small>${esc(sub)}</small></div></div>`).join('')}</div>`;
   } else if (m === 'onderweg') {
     const r = state.route(), act = state.activeStop(), done = r.slice(0, g.active_index).filter(s => s.part).length, total = r.filter(s => s.part).length;
     const mins = g.started_at ? Math.max(0, Math.round((Date.now() - Date.parse(g.started_at)) / 60000)) : 0;
@@ -216,11 +238,21 @@ async function wake(text) {
 }
 function prewarmLoting() { // namen × talenten vooraf laten opnemen, zodat de loting niet hapert
   const ps = S().players, texts = [...(LINES.loting?.intro || []), ...(LINES.loting?.klaar || [])];
+  texts.push(...(LINES.uitleg || []));
   for (const p of ps) for (const t of (p.is_birthday ? ['sleutelbewaarder'] : Object.keys(TALENTS).filter(x => x !== 'sleutelbewaarder'))) for (const l of LINES.loting?.[t] || []) texts.push(fillLine(l, { naam: p.name }));
   voice.prewarm?.(texts).catch?.(() => {});
 }
+async function speelUitleg() { // regie: knop "Speluitleg". Eén kaart per zin; daarna terug naar het wachtscherm.
+  if (uitleg || loting) return;
+  woke = true; uitleg = { i: 0 }; render();
+  const zinnen = LINES.uitleg || [];
+  for (let i = 0; i < UITLEG.length && uitleg; i++) { uitleg.i = i; render(); audio.play('plop'); await say(zinnen[i] || UITLEG[i][1], { ms: 15000 }); await sleep(350); }
+  if (uitleg) { confetti(); audio.play('badge'); }
+  uitleg = null; render();
+}
 router.on('monster.say', p => {
   if (p.wake) { wake(p.text); return; }
+  if (p.uitleg) { speelUitleg(); return; }
   if (mode !== 'onderweg') say(p.text || '…'); // tijdens het lopen praat de radiotelefoon; thuis de kern
 });
 
@@ -249,8 +281,8 @@ router.on('roles.shuffle', async p => {
 });
 
 /* ---------- start, onderdelen, finale */
-router.on('game.start', async () => { woke = true; render(); await sleep(1200); say(pick(LINES.kern?.wacht)); });
-router.on('game.reset', () => { woke = false; loting = null; finale.reset(); render(); });
+router.on('game.start', async () => { woke = true; uitleg = null; render(); await sleep(1200); say(pick(LINES.kern?.wacht)); });
+router.on('game.reset', () => { woke = false; loting = null; uitleg = null; finale.reset(); render(); });
 router.on('stop.solved', p => {
   if (!p.part) { audio.play('ok'); return; } // bonusstop: geen onderdeel
   landing = true;
@@ -266,6 +298,7 @@ document.addEventListener('click', async e => {
   const t = e.target.closest('[data-t]')?.dataset.t; if (!t) return;
   if (t === 'full') { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch {} }
   if (t === 'wake') wake();
+  if (t === 'uitleg') speelUitleg();
   if (t === 'finale') { finale.reset(); mon.setParts(Object.keys(PARTS)); finale.start(); }
   if (t === 'foto') { await say(pick(LINES.teamfoto)); confetti(); audio.play('klik'); }
 });

@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Draaiboek begeleider · Operatie Mecha-Pof</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+/* Draaiboek voor de begeleider (12 nov): wat doe je wanneer. Vier bladen A4, inktvriendelijk. Geen geheimen (sleutel en codes staan er niet in). */
+@page{size:A4 portrait;margin:0}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:#2A3142;font-family:'Nunito',system-ui,sans-serif;font-weight:600;color:#1E2430;font-size:3.25mm;line-height:1.36;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pbar{position:sticky;top:0;z-index:5;display:flex;gap:12px;align-items:center;padding:10px 16px;background:#141A26;color:#EAF2FF;font-size:14px}
+.pbar span{color:#93A0B8;flex:1}.pbar button{font:inherit;font-weight:900;border:0;border-radius:10px;padding:8px 14px;background:#F2BE62;color:#3A1C06;cursor:pointer}
+.sheet{width:210mm;height:297mm;margin:16px auto;background:#fff;padding:11mm 12mm 10mm;position:relative;box-shadow:0 10px 40px rgba(0,0,0,.5);break-after:page;page-break-after:always;overflow:hidden;display:flex;flex-direction:column;gap:3mm}
+@media print{body{background:none}.pbar{display:none}.sheet{margin:0;box-shadow:none}}
+header{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:1.2mm solid #141A26;padding-bottom:2mm}
+header h1{margin:0;font-family:'Lilita One',sans-serif;font-weight:400;font-size:9mm;line-height:1;color:#141A26}
+header small{font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.8mm;letter-spacing:.14em;color:#0E6F8A;text-align:right}
+h2{margin:1mm 0 0;font-family:'Chakra Petch',monospace;font-weight:700;font-size:3.5mm;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:#141A26;border-radius:1.4mm;padding:1.1mm 2.6mm;display:flex;justify-content:space-between}
+h2 span{color:#F2BE62}
+h3{margin:1.2mm 0 .4mm;font-weight:900;font-size:3.4mm;color:#0E6F8A}
+p{margin:0}
+b{font-weight:900}
+ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.9mm}
+ul li{position:relative;padding-left:5.6mm}
+ul li::before{content:'';position:absolute;left:0;top:.5mm;width:3.2mm;height:3.2mm;border:.4mm solid #141A26;border-radius:.7mm}
+ul.dots li{padding-left:3.6mm}ul.dots li::before{width:1.3mm;height:1.3mm;border:0;background:#0E6F8A;border-radius:50%;top:1.5mm}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:3mm 6mm}
+.box{border:.4mm solid #C9D3E0;border-radius:2mm;padding:2mm 2.6mm;display:flex;flex-direction:column;gap:1mm}
+.box.warn{border-color:#E0352B;background:#FFF3F1}.box.tip{border-color:#F2BE62;background:#FFF9EA}.box.blue{border-color:#15A4C8;background:#F1FBFE}
+table{width:100%;border-collapse:collapse;font-size:3.05mm}
+th{font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.6mm;letter-spacing:.1em;text-transform:uppercase;text-align:left;color:#5B6680;border-bottom:.5mm solid #141A26;padding:.8mm 1.2mm}
+td{border-bottom:.25mm solid #C9D3E0;padding:1.05mm 1.2mm;vertical-align:top}
+td.t{font-family:'Chakra Petch',monospace;font-weight:700;white-space:nowrap;color:#0E6F8A}
+td.a{font-weight:900;color:#B3261E}
+.say{font-style:italic;color:#3A4356}
+code{font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.95mm;background:#EEF2F7;border-radius:.8mm;padding:0 1mm;white-space:nowrap}
+footer{margin-top:auto;display:flex;justify-content:space-between;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.4mm;letter-spacing:.12em;color:#93A0B8}
+</style>
+</head>
+<body>
+<div class="pbar"><b>Draaiboek begeleider</b><span>Vier bladen A4: voorbereiding · onboarding thuis · onderweg · finale en limieten.</span><button onclick="print()">🖨️ Afdrukken</button></div>
+
+<!-- ============================================================ blad 1 -->
+<section class="sheet">
+  <header><h1>Draaiboek · voorbereiding</h1><small>OPERATIE MECHA-POF<br>VRIJDAG 13 NOV 2026 · BLAD 1 VAN 4</small></header>
+  <p><b>Wat heb je:</b> 3 iPhones voor de kinderen (2 monteurs per telefoon), jouw iPhone als regie, de laptop als kernscherm (onboarding en finale). <b>Tijden:</b> 15:00 binnenkomst · 15:30 start lopen · ±16:46 thuis · finale tot ±16:55 · taart en pannenkoeken. Het lopen duurt ±1 uur en 20 minuten.</p>
+
+  <h2>Donderdag (vandaag) <span>± 1 uur</span></h2>
+  <div class="cols">
+    <div>
+      <h3>Printen</h3>
+      <ul>
+        <li><b>Monteurspassen</b>: 2 vel A4 op stevig papier, knippen op de stippellijn. Gaatje in het witte vakje bovenaan, koord of keycord erdoor.</li>
+        <li><b>Spelkaart blad 1</b> (Monteurskaart): 3× (één per telefoon) of 6×. Blad 2 (Begeleiderskaart) 1× voor jezelf.</li>
+        <li><b>Monteursdiploma</b>: 6× (uitreiken bij de taart).</li>
+        <li>Dit draaiboek. De posters hangen/liggen al klaar (zie hieronder).</li>
+      </ul>
+      <h3>Buiten klaarzetten (vanavond of morgenochtend)</h3>
+      <ul>
+        <li>Gebruiksaanwijzing LED-ogen: opgerold onder het bruggetje, in een plastic zak.</li>
+        <li>QR-poster aan het groene kastje (tape op de hoeken). Reserve-kaartje in je jaszak.</li>
+        <li>Stroop-tankstation bij Esther en Jeroen.</li>
+        <li>Thuis: Mega-poster ophangen, laken ervoor.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>De 3 iPhones (alle drie hetzelfde)</h3>
+      <ul>
+        <li>Open <code>dedonjon.github.io/speurtocht</code> in <b>Safari</b> (niet als icoon op het beginscherm).</li>
+        <li><b>aA → Website-instellingen</b>: Microfoon, Camera en Locatie op <b>Sta toe</b>.</li>
+        <li>Instellingen → Toegankelijkheid → Aanraken → <b>Schud voor herstel uit</b>.</li>
+        <li><b>Energiebesparing uit</b>, automatisch slot op 5 min, helderheid hoog.</li>
+        <li><b>Stil-schakelaar uit, volume maximaal.</b> Niet storen uit.</li>
+        <li><b>Mobiele data aan</b> (of jouw hotspot). Zonder internet werkt niets.</li>
+        <li>Opladen tot 100%. Powerbank + kabel mee in je jaszak.</li>
+        <li>Controle: 📻 openen, ophangen, opnieuw openen: er komt geen vraag om de microfoon meer.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="cols">
+    <div class="box blue"><b>Proefronde (10 min, aanrader vanavond)</b>
+      <p>Laptop: <code>…/speurtocht/kern.html?spel=test&amp;proef</code> → “Kern aanzetten” → “▶ Finale afspelen”. Telefoon: <code>…/speurtocht/?spel=test&amp;test=1</code>, inloggen met een testcode, 📻 openen en de nieuwe knop <b>↻ Herhaal</b> proberen. Daarna overal terug naar het echte spel: <code>?spel=hannah10</code> (en <code>&amp;test=0</code>).</p></div>
+    <div class="box warn"><b>Eén ding dat ik niet voor je kan nakijken: ElevenLabs</b>
+      <p>Log in op elevenlabs.io → abonnement en verbruik. Het spel gebruikt naar schatting <b>35 tot 50 minuten</b> walkie-gesprek. Staat er minder tegoed dan dat, dan loopt het door tegen ± $0,08 per minuut als “usage-based billing” aan staat; staat dat uit, dan stopt de walkie halverwege. Zet het dus aan, of zorg voor genoeg minuten. Zie blad 4.</p></div>
+  </div>
+
+  <h2>Vrijdag vóór 15:00 <span>± 20 min, vanaf 14:30</span></h2>
+  <div class="cols">
+    <ul>
+      <li><b>Jouw iPhone:</b> <code>…/speurtocht/regie.html</code>, regiesleutel invullen. Controleer bovenaan: fase <b>lobby</b>. Zo niet: <b>↺ Reset naar lobby</b>.</li>
+      <li><b>Laptop:</b> <code>…/speurtocht/kern.html</code> (zonder <code>?spel=test</code>!), sleutel, klik <b>🔊 Kern aanzetten</b>, daarna <b>⛶ Volledig scherm</b>. Volume hoog, lader erin, slaapstand uit.</li>
+      <li>In de regie staat nu “Kernscherm: <b>aan</b>”.</li>
+      <li>Beslag klaar, taart en versiering klaar, poppers bij de laptop.</li>
+    </ul>
+    <ul>
+      <li>De drie iPhones: Safari open op de spelpagina. Tot 15:00 tonen ze de voorpret; <b>inloggen kan pas vanaf 15:00</b>.</li>
+      <li>Passen, koorden en een stift bij de laptop. Spelkaarten erbij.</li>
+      <li>Krukjes voor de teamfoto vóór de poster.</li>
+      <li>Begeleiderskaart, QR-reservekaartje, powerbank, zaklamp in je jaszak.</li>
+      <li>Koppels: Speurneus + Kaartlezer · Codekraker + Rekenmeester · Tijdbewaker + Sleutelbewaarder (Hannah).</li>
+    </ul>
+  </div>
+  <footer><span>DRAAIBOEK BEGELEIDER</span><span>GEEN SLEUTEL OF CODES OP DIT BLAD: DIE STAAN IN HET PROJECT</span></footer>
+</section>
+
+<!-- ============================================================ blad 2 -->
+<section class="sheet">
+  <header><h1>Draaiboek · thuis</h1><small>ONBOARDING 15:00 – 15:30<br>BLAD 2 VAN 4</small></header>
+  <p>Alles op het kernscherm stuur je vanaf jouw iPhone: <b>regie.html → tab Spel → blok “Thuis · kern en loting”</b>. Mecha-Pof praat via de laptop. Hou het tempo erin: de kinderen willen naar buiten.</p>
+  <table>
+    <tr><th style="width:15mm">Tijd</th><th style="width:47mm">Wat gebeurt er</th><th style="width:48mm">Jij doet</th><th>Jij zegt (kort)</th></tr>
+    <tr><td class="t">15:00</td><td>Binnenkomst. Laptop in slaapstand: “Hier rust de kern van Mecha-Pof”.</td><td>Jassen aanhouden of klaarleggen. Iedereen rond de laptop.</td><td class="say">“Niet aankomen. Hij slaapt. Er is iets misgegaan met de verjaardagspannenkoek…”</td></tr>
+    <tr><td class="t">15:05</td><td><b>Wakker worden.</b> Wekzin + startzin (±25 s).</td><td>Tik <b>⏻ Wek Mecha-Pof</b>.</td><td class="say">Niets. Laat hem praten.</td></tr>
+    <tr><td class="t">15:07</td><td><b>Loting.</b> Namen draaien, één voor één een talent. Hannah als laatste: Sleutelbewaarder (±1,5 min).</td><td>Tik <b>🎰 Loting starten</b> en bevestig.</td><td class="say">“Wie wordt wat? Kijken!”</td></tr>
+    <tr><td class="t">15:10</td><td><b>Monteurspassen.</b></td><td>Deel de pas per talent uit. Naam erop met de stift. De code schrijf je erbij vanaf <code>print/monteurspas.html?namen=1</code> (of print die versie nu).</td><td class="say">“Dit is je pas. De code is geheim. Onderaan kruis je aan welke onderdelen terug zijn.”</td></tr>
+    <tr><td class="t">15:13</td><td><b>Speluitleg</b> op het kernscherm: vijf kaarten, Mecha-Pof zegt bij elke kaart één zin (±1 min).</td><td>Tik <b>📋 Speluitleg op het kernscherm</b>.</td><td class="say">Na afloop alleen: “Oversteken doen we samen met mij. Altijd.”</td></tr>
+    <tr><td class="t">15:15</td><td><b>Inloggen.</b> Twee monteurs per telefoon. In de lobby staat welke rol de telefoon bij plek 1 heeft.</td><td>Geef elk koppel een telefoon. Eerste code → “+ Tweede monteur op deze telefoon” → tweede code. In de regie zie je 6 van 6 online, 3 telefoons.</td><td class="say">“Tik je code in. Daarna je maatje op dezelfde telefoon.”</td></tr>
+    <tr><td class="t">15:20</td><td><b>Voorstelronde via de walkie</b> (±4 min). De telefoon met 📻 belt Mecha-Pof. Om de beurt: naam + “over”. Hij noemt haar talent.</td><td>Laat de radiotelefoon op 📻 tikken. Wijs op de balk bovenin (blauw = luisteren, groen = praten) en op <b>↻ Herhaal</b>. Afsluiten: allemaal “over en sluiten”.</td><td class="say">“Blauw is luisteren, groen is praten. Elk bericht eindigt met over.”</td></tr>
+    <tr><td class="t">15:27</td><td>Spelkaart uitdelen, schoenen, jassen, plassen.</td><td>Controle: volume telefoons maximaal, powerbank mee.</td><td class="say">“De kaart laat zien waar hij signalen opvangt. De volgorde weet alleen hij.”</td></tr>
+    <tr><td class="t">15:30</td><td><b>Start.</b> Mecha-Pof: “Ik wacht hier op mijn onderdelen.” De telefoons tonen plek 1.</td><td>Tik <b>▶ Start (route in volgorde)</b>. Laptop laten aanstaan.</td><td class="say">“Reparatieteam: op pad!”</td></tr>
+  </table>
+  <div class="cols">
+    <div class="box tip"><b>Loopt het uit? Dit mag weg</b>
+      <ul class="dots"><li>De voorstelronde inkorten: alleen Hannah en één ander stellen zich voor.</li><li>De spelkaart pas bij plek 1 uitdelen.</li><li>Niet schrappen: de speluitleg (1 minuut) en één keer samen “over en sluiten” oefenen.</li></ul></div>
+    <div class="box blue"><b>Zo werkt de walkie (nieuw scherm)</b>
+      <ul class="dots"><li>Bovenin groot wie er belt en van welke plek.</li><li>Balk: <b>blauw RX</b> = Mecha-Pof praat, microfoon dicht · <b>groen TX</b> = jullie beurt.</li><li>Het bericht staat altijd als tekst in beeld en schuift mee. <b>↻ Herhaal</b>: hij zegt het nog een keer, de microfoon is dan even dicht.</li><li>Goud vak: wat ze terug moeten zeggen.</li><li>Ook op het puzzelscherm van de radiotelefoon: knop “Bericht nog eens horen”.</li></ul></div>
+  </div>
+
+  <footer><span>DRAAIBOEK BEGELEIDER</span><span>VOLGORDE: WEKKEN · LOTING · PASSEN · UITLEG · INLOGGEN · WALKIE · START</span></footer>
+</section>
+
+<!-- ============================================================ blad 3 -->
+<section class="sheet">
+  <header><h1>Draaiboek · onderweg</h1><small>LOPEN 15:30 – ±16:46<br>BLAD 3 VAN 4</small></header>
+  <p>Per plek hetzelfde ritme: <b>aankomen → Mecha-Pof belt de radio → “Begrepen, over en sluiten” → puzzel → Sleutelbewaarder dient in → monteur schudt het onderdeel vast → volgende aanwijzing.</b> De rollen radio / kaart / werkbank schuiven bij elke plek een telefoon door. Jij loopt mee met regie.html open.</p>
+  <table>
+    <tr><th style="width:11mm">Aank.</th><th style="width:36mm">Plek · onderdeel</th><th>Wat ze doen</th><th style="width:33mm">Antwoord</th><th style="width:45mm">Let op</th></tr>
+    <tr><td class="t">15:36</td><td><b>1 De palenrij</b><br>pantser</td><td>Palen tellen, dan keer zes monteurs (rekensom).</td><td class="a">138<br><span style="font-weight:700;color:#5B6680">23 palen × 6</span></td><td>Is er een kind afwezig? De vraag zegt “zes monteurs”: antwoord blijft 138.</td></tr>
+    <tr><td class="t">15:49</td><td><b>2 Bord met de sokjes</b><br>LED-ogen</td><td>Gebruiksaanwijzing zoeken onder het bruggetje. Slot met drie schijven, elke telefoon één schijf.</td><td class="a">6 · 10 · 6<br><span style="font-weight:700;color:#5B6680">dag · maand · sokjes</span></td><td>Vanaf hier zegt hij “warmer / kouder”.</td></tr>
+    <tr><td class="t">16:01</td><td><b>3 Het veldje</b><br>aardbei-knop</td><td>Driehoek maken met de drie telefoons (±15 grote stappen uit elkaar), stilstaan tot alles groen is.</td><td class="a">vanzelf</td><td>GPS heeft even nodig. Daarna op het pad: <b>🍪 Kruimelaar</b> starten (±3 min).</td></tr>
+    <tr><td class="t">16:14</td><td><b>4 De Stadsbrink</b><br>luidspreker</td><td>Zijn uitlezing “DE STROOPBRINK” vergelijken met het echte bord. Het echte woord in de walkie zeggen.</td><td class="a">“stadsbrink, over”</td><td>De radiotelefoon tikt zelf op 📻. Eventueel hier: <b>📡 Dubbel signaal</b>.</td></tr>
+    <tr><td class="t">16:25</td><td><b>5 Het groene kastje</b><br>spatel en garde</td><td>QR op de poster scannen (camera toestaan), of de code typen.</td><td class="a">POF-GARDE-35</td><td>Poster weg? Reservekaartje uit je jaszak. Snelle plek: tijd inhalen.</td></tr>
+    <tr><td class="t">16:35</td><td><b>6 Huis met de steen</b><br>zuigerbenen</td><td>Eén telefoon knippert een code van <b>6 kleuren</b>, de andere twee bouwen hem na.</td><td class="a">vanzelf</td><td>Tip: kleuren hardop meezeggen. Daarna <b>🔥 Jetpack-timer</b> (±10 min) starten.</td></tr>
+    <tr><td class="t">16:42</td><td><b>Tankstation</b> (buren)</td><td><b>⚡ Kortsluiting</b>: 30 tellen vonken wegtikken op alle telefoons.</td><td class="a">—</td><td>Start hem zodra ze vóór het bord staan, naast de rijbaan.</td></tr>
+    <tr><td class="t">16:46</td><td><b>7 Thuis</b><br>boterknop</td><td>Zie blad 4: finale.</td><td class="a">3× tegelijk</td><td></td></tr>
+  </table>
+  <div class="cols">
+    <div class="box tip"><b>Tijd bewaken (±1 u 20 lopen)</b>
+      <ul class="dots"><li>Meer dan 5 min <b>achter</b>: sla Kruimelaar of Dubbel signaal over, geef eerder een hint (regie → 💡), of keur een plek goed.</li><li>Meer dan 5 min <b>voor</b>: zet een bonus in (regie → tab Bonus): B1 de steen bij plek 6 (antwoord <b>1935</b>, de lastigste), B3 het stalen huis (<b>staal</b>), B2 het bankje (robotdans).</li><li>Zon onder 16:55. Plek 6 is in de schemer het mooist.</li></ul></div>
+    <div class="box warn"><b>Als er iets hapert</b>
+      <ul class="dots"><li><b>Plek gaat niet open</b> (GPS): regie → <b>📡 GPS overslaan</b>.</li><li><b>Puzzel loopt vast:</b> 💡 Hint, daarna <b>Stop goedkeuren</b>.</li><li><b>Walkie “geen verbinding”:</b> Opnieuw proberen. Blijft het: ophangen; op het puzzelscherm van de radiotelefoon staat “Bericht nog eens horen” (werkt zonder walkie). Plek 4 keur je dan goed.</li><li><b>Telefoon valt uit:</b> regie → Plan B. Met twee telefoons werkt alles ook.</li><li><b>Scherm bevroren:</b> pagina verversen. Het spel onthoudt alles.</li><li><b>Mecha-Pof iets laten zeggen of iemand bellen:</b> regie → tab Mecha-Pof.</li></ul></div>
+  </div>
+
+  <footer><span>DRAAIBOEK BEGELEIDER</span><span>BEGELEIDERSKAART MET DE ROUTE: SPELKAART BLAD 2</span></footer>
+</section>
+
+<!-- ============================================================ blad 4 -->
+<section class="sheet">
+  <header><h1>Draaiboek · finale en limieten</h1><small>FINALE ±16:46 – 16:55<br>BLAD 4 VAN 4</small></header>
+  <h2>Finale thuis <span>±16:46 – 16:55</span></h2>
+  <table>
+    <tr><th style="width:32mm">Moment</th><th>Wat gebeurt er vanzelf</th><th style="width:62mm">Jij doet</th></tr>
+    <tr><td><b>Aankomst erf</b></td><td>Mecha-Pof belt de radio: de Sleutelbewaarder is aan de beurt. Antwoord: “Klaar, over en sluiten”.</td><td>Iedereen naar binnen, rond de laptop.</td></tr>
+    <tr><td><b>Boterknop</b></td><td>Alle drie de telefoons tegelijk op BOTER, <b>drie keer raak</b>. Eén kind telt af.</td><td>Lukt het na een minuut niet: regie → <b>Stop goedkeuren</b>.</td></tr>
+    <tr><td><b>Hoed</b></td><td>Hannah schudt haar telefoon: de jetpack klikt vast. De finale start vanzelf op de laptop.</td><td>Start hij niet: knop <b>▶ Finale</b> rechtsonder op de laptop.</td></tr>
+    <tr><td><b>Mega</b></td><td>Check van 7 onderdelen → stroopmeter → “MEGA-MECHA-POF!”</td><td><b>Bij die zin: laken van de poster.</b> Poppers uitdelen.</td></tr>
+    <tr><td><b>Rap en dans</b></td><td>DJ Mecha-Pof, twee regels, drie keer “hiep hiep…”, robotdans (±16 s), terugblik in dia’s.</td><td>Hard meeroepen: <b>HOERA</b>. Meedansen. Poppers.</td></tr>
+    <tr><td><b>Nieuwe missie</b></td><td>“Eerst taart versieren, dan pannenkoeken.” Daarna: allemaal “over en sluiten” in de walkie.</td><td>Teamfoto vóór de poster (knop 📸). Diploma’s uitreiken bij de taart.</td></tr>
+  </table>
+  <p>De finale duurt ±3 minuten tot de walkie. Staat de laptop uit, dan speelt de radiotelefoon de finale zelf af (met muziek).</p>
+  <h2>Limieten van de diensten <span>nagekeken 12 nov</span></h2>
+  <table>
+    <tr><th style="width:30mm">Dienst</th><th style="width:60mm">Grens</th><th>Wat betekent dat morgen</th></tr>
+    <tr><td><b>GitHub Pages</b><br>(de app)</td><td>100 GB verkeer per maand, 10 publicaties per uur (zachte grenzen).</td><td>Geen risico. Wel: na een wijziging duurt het tot ±10 min voor telefoons de nieuwe versie zien. <b>Morgen na 14:00 niets meer wijzigen.</b></td></tr>
+    <tr><td><b>Supabase</b> (Pro)<br>(spelstand, stemmen)</td><td>Ruim: 500 gelijktijdige verbindingen, 2 miljoen functie-aanroepen. Nu in gebruik: 17 MB database, 93 MB opslag; morgen 5 toestellen.</td><td>Geen risico. Na het feest het project pauzeren of verwijderen ($10 per maand).</td></tr>
+    <tr><td><b>ElevenLabs</b><br>(stem en walkie)</td><td>Per abonnement: Free 15 min, Starter 75 min, Creator 275 min walkie per maand; daarboven ± $0,08 per minuut. Gelijktijdige gesprekken: 4 / 6 / 10.</td><td><b>Zelf nakijken</b> (blad 1). Verbruik morgen: 35–50 min. Er belt steeds maar één telefoon, dus gelijktijdigheid is geen probleem. Vaste zinnen zijn al opgenomen en kosten niets meer.</td></tr>
+    <tr><td><b>iPhone / Safari</b></td><td>Scherm uit of andere app = verbinding weg; microfoon alleen na een tik.</td><td>Telefoons aan en in de hand houden. Na terugkomen herstelt de app zichzelf binnen een paar seconden.</td></tr>
+    <tr><td><b>Mobiel internet</b></td><td>Alles loopt via 4G/5G.</td><td>Alle drie de telefoons hebben data nodig (of jouw hotspot, dan blijf je dichtbij).</td></tr>
+  </table>
+  <footer><span>DRAAIBOEK BEGELEIDER</span><span>NA HET FEEST: BUITENPRINTS WEGHALEN · SUPABASE PAUZEREN</span></footer>
+</section>
+<script>document.fonts.ready.then(() => { window.__ready = true; });</script>
+</body>
+</html>

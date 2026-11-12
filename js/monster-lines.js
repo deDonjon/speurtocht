@@ -82,6 +82,15 @@ export const LINES = {
       'Talenten verdeeld. Zes monteurs, één robot. Dit gaat helemaal goed komen. Denk ik. Bliep.',
     ],
   },
+  // Speluitleg op het kernscherm (regie: knop "Speluitleg"). Eén korte zin per kaart; de kaart zelf staat in kern.html (UITLEG).
+  // Zelfde volgorde als de kaarten: signaal volgen · drie telefoons · de radio · indienen en schudden · veiligheid.
+  uitleg: [
+    'Speluitleg! Vijf regels, dan mogen jullie los. Regel één: volg mijn signaal. De kaart-telefoon wijst de weg naar de volgende plek.',
+    'Regel twee: drie telefoons, drie taken. De radio, de kaart en de werkbank. Bij elke plek wisselen ze. Kijk dus steeds wat jouw telefoon is.',
+    'Regel drie: bij elke plek bel ik de radio. Luister tot het eind, en zeg dan samen wat groot in beeld staat. Niet verstaan? Druk op herhaal.',
+    'Regel vier: puzzel opgelost? Dan dient de Sleutelbewaarder hem in, en de monteur schudt het onderdeel vast. Een hint kost stroopdruppels.',
+    'Regel vijf, de belangrijkste: blijf bij elkaar, en oversteken doe je alleen samen met de begeleider. Klaar? Reparatieteam, starten maar!',
+  ],
   // Het spel start; de kern blijft thuis op tafel.
   kern: {
     wacht: ['Ik wacht hier op mijn onderdelen. Ik ga nergens heen. Ik kan ook nergens heen. Ik heb geen benen.'],
@@ -465,6 +474,8 @@ export const LINES = {
     // Slot van elke briefing (bij aankomst). 'zeg' = wat de kinderen terugzeggen; staat ook groot in beeld.
     // 'gemist' = als niemand opneemt, zegt de app de briefing zelf met dit slot (dan valt er niks terug te zeggen).
     briefingSlot: {
+      // Puzzels waar elke telefoon een eigen stuk heeft (slot, formatie, licht, splits).
+      samen: { tekst: 'Jullie opdracht: deze klus doen jullie met alle drie de telefoons tegelijk. Kijk allemaal op je eigen scherm. Begrepen? Zeg dan: begrepen, over en sluiten. Over!', zeg: 'Begrepen, over en sluiten', gemist: 'Jullie opdracht: deze klus doen jullie met alle drie de telefoons tegelijk. Kijk allemaal op je eigen scherm.' },
       werkbank: { tekst: 'Jullie opdracht: kijk op de werkbank-telefoon, daar staat de puzzel. Begrepen? Zeg dan: begrepen, over en sluiten. Over!', zeg: 'Begrepen, over en sluiten', gemist: 'Jullie opdracht: kijk op de werkbank-telefoon, daar staat de puzzel.' },
       wachtwoord: { tekst: 'Hier is een geheim wachtwoord verstopt. Zoek het! Gevonden? Druk dan op het walkie-knopje en zeg het hardop tegen mij. Nu eerst: zeg begrepen, over en sluiten. Over!', zeg: 'Begrepen, over en sluiten', gemist: 'Hier is een geheim wachtwoord verstopt. Zoek het! Gevonden? Druk op het walkie-knopje en zeg het hardop tegen mij.' },
       hoed: { tekst: 'Zeg: klaar, over en sluiten. Dan hang ik op en drukt de Sleutelbewaarder op de knop. Over!', zeg: 'Klaar, over en sluiten', gemist: 'Sleutelbewaarder, druk op de knop!' },

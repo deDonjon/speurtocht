@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monteursdiploma</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+/* Monteursdiploma A4 liggend (12 nov): 6× printen, naam en talent met de hand invullen, uitreiken bij de taart. */
+@page{size:A4 landscape;margin:0}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:#2A3142;font-family:'Nunito',system-ui,sans-serif;font-weight:800;color:#2B1606;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pbar{position:sticky;top:0;z-index:5;display:flex;gap:12px;align-items:center;padding:10px 16px;background:#141A26;color:#EAF2FF;font-size:14px}
+.pbar span{color:#93A0B8;flex:1}.pbar button{font:inherit;font-weight:900;border:0;border-radius:10px;padding:8px 14px;background:#F2BE62;color:#3A1C06;cursor:pointer}
+.sheet{width:297mm;height:210mm;margin:16px auto;background:#FFF9EE;position:relative;box-shadow:0 10px 40px rgba(0,0,0,.5);overflow:hidden;padding:9mm}
+@media print{body{background:none}.pbar{display:none}.sheet{margin:0;box-shadow:none}}
+.rand{position:absolute;inset:7mm;border:1.4mm solid #141A26;border-radius:5mm}
+.rand::after{content:'';position:absolute;inset:1.6mm;border:.5mm solid #F2BE62;border-radius:3.6mm}
+.streep{position:absolute;left:7mm;right:7mm;top:7mm;height:9mm;border-radius:5mm 5mm 0 0;background:repeating-linear-gradient(-45deg,#F2BE62 0 6mm,#141A26 6mm 12mm)}
+.in{position:absolute;inset:22mm 16mm 13mm 16mm;display:grid;grid-template-columns:1fr 78mm;gap:8mm;align-items:center}
+.eyebrow{font-family:'Chakra Petch',monospace;font-weight:700;font-size:4mm;letter-spacing:.24em;color:#0E6F8A}
+h1{margin:1mm 0 3mm;font-family:'Lilita One',sans-serif;font-weight:400;font-size:25mm;line-height:.95;color:#141A26;text-shadow:0 1.1mm 0 #F2BE62}
+p{margin:0;font-size:5.3mm;line-height:1.4}
+.lijn{display:flex;align-items:flex-end;gap:4mm;margin:5mm 0 2mm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:3.4mm;letter-spacing:.16em;color:#7A5A3A}
+.lijn i{flex:1;border-bottom:.7mm solid #2B1606;height:15mm}
+.lijn.kort i{height:10mm}
+.zin{font-size:4.7mm;color:#5A3A1A;margin-top:4mm}
+.onder{display:flex;justify-content:space-between;align-items:flex-end;margin-top:7mm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:3.1mm;letter-spacing:.14em;color:#7A5A3A}
+.sig{font-family:'Lilita One',sans-serif;font-size:8mm;letter-spacing:0;color:#15A4C8;transform:rotate(-4deg);display:block;margin-bottom:3.5mm}
+.stempel{width:32mm;height:32mm;flex:none;border-radius:50%;border:1.2mm solid #E0352B;color:#E0352B;display:grid;place-items:center;text-align:center;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.3mm;letter-spacing:.06em;line-height:1.3;transform:rotate(9deg);opacity:.9}
+.stempel b{display:block;font-family:'Lilita One',sans-serif;font-weight:400;font-size:6.4mm;letter-spacing:0}
+#mon{background:radial-gradient(closest-side,#DDF6FD 0%,#FFF9EE 72%);border-radius:50%;aspect-ratio:1;display:grid;place-items:center}
+#mon svg{width:100%;height:auto}
+</style>
+</head>
+<body>
+<div class="pbar"><b>Monteursdiploma</b><span>A4 liggend, 6× printen. Naam en talent met de hand invullen; uitreiken bij de taart.</span><button onclick="print()">🖨️ Afdrukken</button></div>
+<div class="sheet">
+  <div class="rand"></div><div class="streep"></div>
+  <div class="in">
+    <div>
+      <div class="eyebrow">OPERATIE MECHA-POF · REPARATIETEAM HANNAH 10</div>
+      <h1>Monteurs&shy;diploma</h1>
+      <p>Hierbij verklaart keukenrobot <b>Mecha-Pof</b> dat</p>
+      <div class="lijn">NAAM<i></i></div>
+      <div class="lijn kort">TALENT<i></i></div>
+      <p class="zin">mij weer helemaal in elkaar heeft gezet: pantser, ogen, neus, mond, armen, benen en de boterknop. Zonder jou was ik nog steeds een pratend doosje met een stroopvlek. Bliep!</p>
+      <div class="onder">
+        <div><span class="sig">Mecha-Pof ⚡</span>HANDTEKENING VAN DE ROBOT · VEGHEL, 13 NOVEMBER 2026</div>
+        <div class="stempel"><span>GOEDGEKEURD<b>MEGA</b>STROOPMETER VOL</span></div>
+      </div>
+    </div>
+    <div id="mon"></div>
+  </div>
+</div>
+<script type="module">
+import { monsterSvg } from './print.js';
+try { document.getElementById('mon').innerHTML = await monsterSvg(['lijf', 'ogen', 'neus', 'mond', 'armen', 'benen', 'hoed']); } catch (e) { console.warn(e); }
+await document.fonts.ready; window.__ready = true;
+</script>
+</body>
+</html>

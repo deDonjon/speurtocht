@@ -124,6 +124,7 @@ input.big:focus{border-color:var(--led);box-shadow:inset 0 2px 8px rgba(0,0,0,.5
 .guard small{display:block;color:var(--muted);font-size:.78rem;line-height:1.2}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#4A5058;margin-left:5px;vertical-align:middle}
 .dot.on{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.howto{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:8px}.howto li::marker{font-family:var(--hud);color:var(--led);font-weight:700}
 .talent{background:var(--visor);border:1px solid var(--line);border-left:4px solid var(--led);border-radius:12px;padding:10px 12px}
 
 /* ---------- onderweg */
@@ -243,15 +244,15 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:35}
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync } from './js/sync.js';
 import { createMap } from './js/map.js?v=5'; // ?v ophogen bij elke wijziging: GitHub Pages en Safari bewaren oude bestanden
-import { createMonster, monsterImage, lineText } from './js/monster.js?v=20'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
+import { createMonster, monsterImage, lineText } from './js/monster.js?v=21'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
 import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole } from './js/roles.js?v=1'; // radio / kaart / werkbank, roterend per stop
 import { createInstall } from './js/install.js?v=3'; // installatieritueel: monteur schudt, deel klikt vast
-import { openWalkie, incomingCall, callGreeting, arrivalCall } from './js/walkie.js?v=22'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
+import { openWalkie, incomingCall, callGreeting, arrivalCall } from './js/walkie.js?v=23'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
 import { createNavVoice } from './js/navvoice.js?v=1'; // gesproken navigatie zodra de LED-ogen terug zijn (radiotelefoon)
 import { createSurprises } from './js/surprises.js?v=2'; // Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens
 import { audio } from './js/audio.js?v=11'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
 import { teaserActive, mountTeaser } from './js/teaser.js?v=2'; // voorpret vóór het feest (game.settings.teaser)
-import { createFinale, endCards, END_CSS, CHECK_MS, TAART_HTML, slideHTML } from './js/finale.js?v=5'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
+import { createFinale, endCards, END_CSS, CHECK_MS, TAART_HTML, slideHTML } from './js/finale.js?v=6'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -426,12 +427,13 @@ function startWalkie() {
   if (walkie?.open) return;
   ring?.close();
   const afscheid = S().game?.phase === 'klaar'; // na de finale: korte eigen begroeting, en "Over en sluiten" groot in beeld
-  walkie = openWalkie({ mon, context: walkieContext, tools: walkieTools(), ...(afscheid ? { greeting: lineText('walkie', { sub: 'afscheid' }), zeg: 'Over en sluiten' } : {}), onClose: () => { walkie = null; placeMonster(); } });
+  walkie = openWalkie({ mon, context: walkieContext, tools: walkieTools(), sub: afscheid ? 'Afscheid van het Reparatieteam' : S().game?.phase === 'lobby' ? 'Kern · thuisbasis' : state.activeStop()?.name ? 'Plek: ' + state.activeStop().name : '', ...(afscheid ? { greeting: lineText('walkie', { sub: 'afscheid' }), zeg: 'Over en sluiten' } : {}), onClose: () => { walkie = null; placeMonster(); } });
 }
 /* ---------- inkomende oproepen: alleen de radiotelefoon gaat over (belgeluid, knop Opnemen); opnemen = walkie met `greeting` als {{begroeting}}.
    stop.arrived → briefing van het onderdeel van die plek (walkie.briefing.<deel>). monster.call {player_id, message_id, text?} → eigen tekst of
    walkie.oproep met {naam}. Is de walkie al open, dan krijgt de agent de tekst als context. Niet opgenomen (40 s) → Mecha-Pof zegt de tekst zelf. */
 const seenCalls = new Set();
+let lastBrief = null; // { stopId, text }: de briefing van deze plek, om op het puzzelscherm nog eens te laten horen
 const callRinging = () => !!ring?.open;
 function ringCall({ greeting, title = 'Mecha-Pof belt!', sub = '', zeg = '', gemist = '' }) {
   if (!greeting || !sync.isLoggedIn() || !hasRole('radio')) return false;
@@ -447,6 +449,7 @@ router.on('stop.arrived', p => {
   const st = state.stop(p.stop_id); if (!st) return;
   const cfg = st.puzzles?.[S().puzzle?.stop_id === st.id ? S().puzzle.variant ?? 0 : 0] || st.puzzles?.[0] || {};
   const call = arrivalCall({ part: st.part || 'bonus', type: cfg.type }); // briefing + duidelijk slot: wat nu, en wat ze terugzeggen
+  lastBrief = { stopId: st.id, text: call.gemist || call.greeting };
   setTimeout(() => { if (state.activeStop()?.id === st.id) ringCall({ ...call, sub: `Signaal van ${st.name}` }); }, 300); // vóór de aankomstzin van monster.js (600 ms), die dan zwijgt
 });
 router.on('monster.call', p => {
@@ -705,12 +708,12 @@ screens.teaser = el => mountTeaser(el, { game: S().game, mon, esc, mslot, birthd
 screens.login = el => {
   const extra = sync.isLoggedIn();
   el.innerHTML = `${extra ? '' : `<div class="center"><span class="eyebrow">Het feest van ${esc(birthday()?.name || 'de jarige')}</span><h1>${esc(S().game?.title || 'Mecha-Pof')}</h1></div>${mslot('md')}`}
-    <div class="page"><span class="tab">${extra ? 'Tweede bewaker' : 'Geheim dossier'}</span><span class="stamp">GEHEIM</span>
+    <div class="page"><span class="tab">${extra ? 'Tweede monteur' : 'Geheim dossier'}</span><span class="stamp">GEHEIM</span>
       <h2>${extra ? 'Wie loopt er met deze telefoon mee?' : 'Wie ben jij?'}</h2>
-      <p>Tik de code van vier cijfers van je uitnodiging in.</p>
+      <p>Tik de code van vier cijfers van je <b>monteurspas</b> in.</p>
       <form class="row" autocomplete="off"><input class="big grow" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="code" aria-label="Code"><button class="ok" type="submit">Open</button></form>
       <p class="feedback"></p>
-      ${extra ? '<button class="ghost" id="back">← Terug</button>' : '<p class="note">Geen eigen telefoon? Log in op die van een vriendin: één telefoon kan twee bewakers dragen.</p>'}
+      ${extra ? '<button class="ghost" id="back">← Terug</button>' : '<p class="note">Jullie delen een telefoon met z’n tweeën: log daarna ook de tweede monteur in op deze telefoon.</p>'}
     </div>`;
   const inp = $('input', el), fb = $('.feedback', el);
   inp.addEventListener('input', () => { inp.value = inp.value.replace(/\D/g, '').slice(0, 4); if (inp.value.length === 4) $('form', el).requestSubmit(); });
@@ -728,22 +731,27 @@ screens.login = el => {
 
 /* ---------- lobby: wie is er, wie ben jij */
 screens.lobby = el => {
-  el.innerHTML = `<div class="center"><span class="eyebrow">De bende van ${esc(birthday()?.name || 'de jarige')}</span><h1>Wachten op de start</h1></div>
+  el.innerHTML = `<div class="center"><span class="eyebrow">Reparatieteam van ${esc(birthday()?.name || 'de jarige')}</span><h1>Klaar voor de start</h1></div>
     ${mslot('md')}<div id="mine"></div>
-    <div class="page"><span class="tab">De bewakers</span><div class="guards" id="guards"></div>
+    <div class="page"><span class="tab">De monteurs</span><div class="guards" id="guards"></div>
       <p class="note center" id="lnote"></p></div>
-    <div class="row"><button class="plain grow" id="add">+ Nog een bewaker op deze telefoon</button></div>`;
+    <div class="row"><button class="plain grow" id="add">+ Tweede monteur op deze telefoon</button></div>`;
   $('#add', el).onclick = () => { wantLogin = true; refresh(); };
   el.addEventListener('click', e => { const id = e.target.closest('[data-out]')?.dataset.out; if (id && confirm('Afmelden op deze telefoon?')) { sync.logout(id); refresh(); } });
   const update = () => {
     const ps = S().players, mine = new Set(S().device.players);
     $('#mine', el).innerHTML = state.me().map(p => { const x = guard(p); return `<div class="page acc" style="--acc:${x.color}"><span class="tab">Jouw dossier</span>
       <div class="row"><span style="font-size:2.4rem">${x.icon}</span><div class="grow"><h2>${esc(p.name)}</h2>
-      <p>${x.part ? 'Bewaker van ' + esc(PARTS[x.part].label) : 'Je deel wordt nog geloot…'}</p></div></div>
+      <p>${x.part ? 'Monteur van ' + esc(PARTS[x.part].label) : 'Je talent wordt nog geloot…'}</p></div></div>
       ${x.talent ? `<div class="talent">Talent: <b>${esc(x.talent)}</b></div>` : ''}
       <button class="ghost" data-out="${p.id}">Afmelden op deze telefoon</button></div>`; }).join('')
       + (state.me().length ? `<div class="page"><span class="tab">Deze telefoon</span><p>De rollen wisselen bij elke plek. Bij de eerste plek is deze telefoon: <b>${myRoles().map(r => ROLE_INFO[r].icon + ' ' + ROLE_INFO[r].label).join(', ') || '…'}</b>.</p>
-        <p class="note">📻 Radio: Mecha-Pof praat en belt · 🗺️ Kaart: ziet de kaart en de afstand · 🔧 Werkbank: maakt de puzzel.</p></div>` : '');
+        <p class="note">📻 Radio: Mecha-Pof praat en belt · 🗺️ Kaart: ziet de kaart en de afstand · 🔧 Werkbank: maakt de puzzel.</p></div>
+        <div class="page"><span class="tab">Zo werkt het</span><ol class="howto">
+          <li><b>Volg het signaal.</b> De kaart-telefoon wijst de weg naar de volgende plek.</li>
+          <li><b>Mecha-Pof belt de radio.</b> Luister tot het eind en zeg samen wat groot in beeld staat. Niet verstaan? Tik op <b>↻ Herhaal</b>.</li>
+          <li><b>Los de puzzel op.</b> De Sleutelbewaarder dient hem in, de monteur schudt het onderdeel vast.</li>
+          <li><b>Blijf bij elkaar.</b> Oversteken doe je alleen samen met de begeleider.</li></ol></div>` : '');
     $('#guards', el).innerHTML = ps.map(p => { const x = guard(p); return `<div class="guard ${mine.has(p.id) ? 'mine' : ''}" style="--acc:${x.color}"><span class="ic">${x.icon}</span>
       <div><b>${esc(p.name)}<span class="dot ${p.online ? 'on' : ''}"></span></b><small>${esc(x.talent || 'nog geen talent')}</small></div></div>`; }).join('');
     const on = ps.filter(p => p.online).length;
@@ -811,8 +819,9 @@ screens.puz = (el, id) => {
     <div class="page"><span class="tab">📍 Jullie zijn er · ${st.key === 'home' ? 'Finale' : isBonus(st) ? 'Bonus' : `plek ${n} van ${total}`}</span>
       <h2>${esc(st.name)}</h2>
       <div id="pz" class="col" style="display:flex;flex-direction:column;gap:12px"><p class="note">Puzzel wordt opengevouwen…</p></div>
-      <div id="hintbox"></div><div id="submit" class="submit" hidden></div></div>`;
+      <div id="radiobox"></div><div id="hintbox"></div><div id="submit" class="submit" hidden></div></div>`;
   const pz = $('#pz', el);
+  el.addEventListener('click', e => { if (e.target.closest('#rebrief') && lastBrief?.text && !busy()) say(lastBrief.text, { voice: true, ms: 16000 }); });
   let modType = null;
   const ps = () => { const p = S().puzzle; return p && p.stop_id === st.id ? p : null; };
   const config = p => (st.puzzles || [])[p?.variant ?? 0] || st.puzzles?.[0] || { type: 'opdracht', question: '' };
@@ -843,7 +852,7 @@ screens.puz = (el, id) => {
     pending = pending.filter(x => !p.moves.some(m => m.id === x.id));
     const cfg = config(p), ctx = ctxOf(p), moves = [...p.moves, ...pending];
     const roles = myRoles(), werkbank = roles.includes('werkbank') || !!mod.multi;
-    const s = [p.id, moves.length, p.hints, p.solved_at, ctx.phones, ctx.devices.join(), roles.join(), submitting, state.myTalents().join(), S().game?.settings?.any_can_submit, keyHolder()?.id].join('|');
+    const s = [lastBrief?.stopId, p.id, moves.length, p.hints, p.solved_at, ctx.phones, ctx.devices.join(), roles.join(), submitting, state.myTalents().join(), S().game?.settings?.any_can_submit, keyHolder()?.id].join('|');
     if (s === sig && !force) return; sig = s;
     let data; try { data = moves.reduce((d, m) => mod.reduce(d, m, ctx), mod.init(cfg, ctx)); }
     catch (e) { console.error(e); pz.innerHTML = '<p class="feedback">Deze puzzel struikelt. Vraag de begeleider.</p>'; return; }
@@ -856,7 +865,8 @@ screens.puz = (el, id) => {
       pz.innerHTML = `${pimgHtml(cfg)}<p class="question">${esc(cfg.question || '')}</p>
         <p class="clue" style="font-size:1rem">🔧 De werkbank staat op de telefoon van <b>${esc(whoHas('werkbank') || 'een ander')}</b>. ${solved ? 'De puzzel is opgelost!' : 'Help mee denken en roep het antwoord!'}</p>`;
     }
-    // hint: op elke telefoon zichtbaar zodra één bewaker hem vraagt
+    $('#radiobox', el).innerHTML = roles.includes('radio') && lastBrief?.stopId === st.id && !solved ? '<button class="plain wide" id="rebrief">📻 Bericht van Mecha-Pof nog eens horen</button>' : '';
+    // hint: op elke telefoon zichtbaar zodra één monteur hem vraagt
     $('#hintbox', el).innerHTML = !cfg.hint ? '' : p.hints > 0 ? `<div class="hint">💡 ${esc(cfg.hint)}</div>` : solved ? '' : '<button class="ghost" id="askhint">💡 Hint nodig? (kost stroopdruppels)</button>';
     const ah = $('#askhint', el); if (ah) ah.onclick = () => { if (confirm('Hint vragen? Dat kost de groep stroopdruppels.')) sync.hint(st.id).catch(e => toast(e.message)); };
     const sb = $('#submit', el); sb.hidden = !solved;
