@@ -36,7 +36,7 @@ h1{margin:.6cm 0 .5cm;font-family:'Lilita One',sans-serif;font-weight:400;font-s
 <body>
 <div class="wrap"><div class="sheet" id="sheet">
   <div class="head"><div class="tag">EIGENDOM VAN MECHA-POF · TYPE MP-2</div><h1>GEBRUIKSAANWIJZING<br><span>LED-OGEN</span></h1><p>Mijn ogen zitten achter een slot met drie schijven. Zo lees je ze af.</p></div>
-  <div class="intro"><p>Alles wat je nodig hebt staat op het <b>bord met de sokjes</b>. Elke schijf gaat van <b>0 tot 12</b>. Draai ze in de app op de telefoons. Zitten alle drie goed? Dan zie ik weer iets. Bliep.</p>
+  <div class="intro"><p>Alles wat je nodig hebt staat op het <b>bord met de sokjes</b>. Elke schijf gaat van <b>0 tot 12</b>. Elke telefoon heeft één schijf: draai ze in de app. Zitten alle drie goed? Dan zie ik weer iets. Bliep.</p>
     <div class="mini"><div id="mini"></div><span class="say">Ik zie niks…</span></div></div>
   <div class="rows" id="rows"></div>
   <div class="foot"><div class="warn"><b>LET OP:</b> niet in de afwasmachine. Niet in de stroop. Klaar? Rol mij weer op en leg mij terug onder het bruggetje. Dank je wel, monteurs!</div><div class="serial">SN 2026-11-13 · HANNAH 10</div></div>
@@ -55,11 +55,11 @@ const kalenderDag = `<svg viewBox="0 0 100 100"><rect x="14" y="14" width="72" h
 const kalenderMaand = `<svg viewBox="0 0 100 100"><rect x="10" y="14" width="80" height="76" rx="8" fill="#fff" stroke="#2B1606" stroke-width="3"/><rect x="10" y="14" width="80" height="20" rx="8" fill="#15A4C8"/><rect x="10" y="26" width="80" height="8" fill="#15A4C8"/>
   <text x="50" y="30" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="10" fill="#fff">MAAND</text>${Array.from({ length: 12 }, (_, i) => `<rect x="${16 + (i % 4) * 18}" y="${42 + Math.floor(i / 4) * 15}" width="14" height="11" rx="2" fill="#EFE2C8"/>`).join('')}</svg>`;
 const sokjes = `<svg viewBox="0 0 100 100"><path d="M4 22q46 14 92 0" stroke="#2B1606" stroke-width="3" fill="none"/>${[0, 1, 2].map(i => { const x = 14 + i * 26; return `<rect x="${x + 7}" y="${24 + (i === 1 ? 4 : 2)}" width="3" height="7" fill="#9A7A55"/><path d="M${x} ${32 + (i === 1 ? 4 : 2)}h16v30q0 8 8 10t-2 10h-14q-10 0-8-12z" fill="${['#FF5A4E', '#7FE8FF', '#F2BE62'][i]}" stroke="#2B1606" stroke-width="2.4"/>`; }).join('')}
-  <text x="50" y="98" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="9" fill="#2B1606">TEL ZE ALLEMAAL</text></svg>`;
+  <text x="50" y="98" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="9" fill="#2B1606">TEL ZE · DAN KEER 2</text></svg>`;
 const ROWS = [
   [1, 'DAG', 'De datum op het bord: op welke <b>dag</b> van de maand is het meisje geboren? Het eerste getal.', kalenderDag],
   [2, 'MAAND', 'Dezelfde datum: in welke <b>maand</b>? Het tweede getal. Als cijfer, dus geen woord.', kalenderMaand],
-  [3, 'SOKJES', 'Hoeveel <b>sokjes</b> hangen er onder het bord? Tel ze één voor één. Ook de kleintjes.', sokjes],
+  [3, 'SOKJES × 2', 'Tel de <b>sokjes</b> onder het bord. Let op: mijn LED-ogen zien alles <b>dubbel</b>. Draai dus het dubbele van wat jij telt.', sokjes],
 ];
 document.getElementById('rows').innerHTML = ROWS.map(([n, h, t, pic]) => `<div class="row">${dial(n)}<div><h2>SCHIJF ${n}</h2><h3>${h}</h3><p>${t}</p></div>${pic}</div>`).join('');
 document.getElementById('mini').innerHTML = await monsterSvg(['lijf']); // bij stop 2 heeft hij alleen zijn pantser

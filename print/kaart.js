@@ -6,7 +6,7 @@ import { ICONS } from './print.js';
 /* ---------- gegevens */
 export const STOPS = [ // zelfde plekken als in Supabase (stop.seq)
   { n: 1, lat: 51.61734,  lng: 5.560498, naam: 'De palenrij',        deel: 'lijf',  tijd: '15:36', antw: '138 (23 palen × 6)' },
-  { n: 2, lat: 51.614426, lng: 5.560948, naam: 'Bord met de sokjes', deel: 'ogen',  tijd: '15:49', antw: 'slot 6 · 10 · 6' },
+  { n: 2, lat: 51.614426, lng: 5.560948, naam: 'Bord met de sokjes', deel: 'ogen',  tijd: '15:49', antw: 'slot 6 · 10 · 12' },
   { n: 3, lat: 51.61309,  lng: 5.56152,  naam: 'Het veldje',         deel: 'neus',  tijd: '16:01', antw: 'driehoek, 3 telefoons' },
   { n: 4, lat: 51.613259, lng: 5.564092, naam: 'De Stadsbrink',      deel: 'mond',  tijd: '16:14', antw: 'walkie: “stadsbrink”' },
   { n: 5, lat: 51.614586, lng: 5.56587,  naam: 'Het groene kastje',  deel: 'armen', tijd: '16:25', antw: 'QR · POF-GARDE-35' },

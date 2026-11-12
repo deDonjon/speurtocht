@@ -48,7 +48,8 @@ const qs = new URLSearchParams(location.search);
 if (qs.has('donker')) document.documentElement.classList.add('dark');
 const NAMES = ['Hannah', 'Elin', 'Isa', 'Evy', 'Lauren', 'Julia'];
 const LABEL = { speurneus: 'SPEURNEUS', kaartlezer: 'KAARTLEZER', codekraker: 'CODEKRAKER', rekenmeester: 'REKENMEESTER', tijdbewaker: 'TIJDBEWAKER', sleutelbewaarder: 'SLEUTELBEWAARDER' };
-const team = (talents = {}) => document.getElementById('team').innerHTML = NAMES.map(n => `<div class="plate"><b>${n}</b><span>${talents[n] || (n === 'Hannah' ? 'SLEUTELBEWAARDER' : '')}</span></div>`).join('');
+const VAST = { Hannah: 'SLEUTELBEWAARDER', Elin: 'TIJDBEWAKER', Isa: 'KAARTLEZER', Evy: 'SPEURNEUS', Lauren: 'REKENMEESTER', Julia: 'CODEKRAKER' }; // verdeling van 12 nov (zelfde als de passen)
+const team = (talents = VAST) => document.getElementById('team').innerHTML = NAMES.map(n => `<div class="plate"><b>${n}</b><span>${talents[n] || (n === 'Hannah' ? 'SLEUTELBEWAARDER' : '')}</span></div>`).join('');
 team();
 if (qs.has('talenten')) { // na de loting: talenten uit het spel
   const { sync } = await import('../js/sync.js');
