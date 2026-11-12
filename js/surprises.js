@@ -45,6 +45,8 @@ const mmss = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function haversine(a, b) { const R = 6371000, r = x => x * Math.PI / 180, dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(s)); }
+// zelfde regel als js/map.js: vanaf 16:30 (of ?avond=1) de donkere avondkaart; de Kruimelaar-kaart gebruikt de spelkaartstijl (.wmap)
+const isAvond = () => { const q = new URLSearchParams(location.search).get('avond'); if (q != null) return q !== '0'; const d = new Date(); return d.getHours() + d.getMinutes() / 60 >= 16.5; };
 const WISHES = { overslaan: 'puzzel overslaan', hint: 'gratis hint', dansje: 'dansje van Mecha-Pof' };
 const wishKind = f => /dans/i.test(f) ? 'dansje' : /hint/i.test(f) ? 'hint' : 'overslaan';
 
@@ -62,8 +64,8 @@ const CSS = `
 #sp-ov p{margin:0;color:#EAF2FF;font-weight:800}
 #sp-ov .sp-note{color:#93A0B8;font-size:.9rem;font-weight:700}
 #sp-ov .sp-big{font-family:'Chakra Petch',ui-monospace,monospace;font-weight:700;font-size:3.2rem;color:#7FE8FF;line-height:1;text-shadow:0 0 16px rgba(127,232,255,.55);font-variant-numeric:tabular-nums}
-#sp-ov .sp-map{width:100%;height:min(40vh,300px);border-radius:14px;overflow:hidden;border:2px solid #15A4C8;background:#0E1B2E;position:relative}
-#sp-ov .sp-map .leaflet-tile-pane{filter:invert(.92) hue-rotate(185deg) saturate(.75) brightness(.95) contrast(.95)}
+#sp-ov .sp-map{width:100%;height:min(40vh,300px)!important;border-radius:14px;overflow:hidden;border:2px solid #15A4C8;background:#0E1B2E;position:relative}
+#sp-ov .sp-map:not(.wmap) .leaflet-tile-pane{filter:invert(.92) hue-rotate(185deg) saturate(.75) brightness(.95) contrast(.95)}
 #sp-ov .sp-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;width:100%}
 #sp-ov .sp-list li{background:#0E1B2E;border:2px solid #3C4A66;border-radius:12px;padding:8px 12px;display:flex;justify-content:space-between;gap:10px;color:#EAF2FF;font-weight:800}
 #sp-ov .sp-list li.now{border-color:#F2BE62;box-shadow:0 0 14px rgba(242,190,98,.3)}
@@ -171,7 +173,7 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
     return `<span class="sp-eye">🍪 Alarm · kruimelrobot</span><h2>De Kruimelaar!</h2>
       <p>Hij heeft <b>${esc(label)}</b> gepikt en rent ermee weg. Volg het kruimelspoor op de kaart${n ? `: hij zit nu bij punt <b>${cur.i + 1} van ${n}</b>` : ''}.</p>
       ${d != null ? `<div class="sp-big">${d}<small style="font-size:1.1rem;color:#93A0B8"> m</small></div>` : '<p class="sp-note">Nog geen GPS: kijk op de kaart waar hij zit.</p>'}
-      ${typeof L !== 'undefined' && n ? '<div class="sp-map" id="sp-map"></div>' : ''}
+      ${typeof L !== 'undefined' && n ? `<div class="sp-map wmap${isAvond() ? ' avond' : ''}" id="sp-map"></div>` : ''}
       <ul class="sp-list">${cur.points.map((pt, i) => `<li class="${i === cur.i ? 'now' : i < cur.i ? 'done' : ''}"><span>${i === cur.i ? '🍪' : i < cur.i ? '✓' : '·'} Punt ${i + 1}</span><span>${S().pos ? Math.round(haversine(S().pos, pt)) + ' m' : ''}</span></li>`).join('')}</ul>
       <p class="sp-note">${has('armen') ? 'Loop ernaartoe en roep de begeleider. Met mijn spatel en garde pak ik het terug!' : 'Loop ernaartoe en roep de begeleider. Zonder armen kan ik niks vastpakken, maar ik heb een reservelaatje.'}</p>
       <button class="sp-close" data-a="close">Kaart dicht (de achtervolging gaat door)</button>`;
