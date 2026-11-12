@@ -22,6 +22,8 @@ const JOBS = [
   { file: 'poster-gebruiksaanwijzing.html', pdf: 'gebruiksaanwijzing-led-ogen-90x150.pdf', w: '90cm', h: '150cm' },
   { file: 'poster-qr.html', pdf: 'qr-poster-groene-kastje-90x120.pdf', w: '90cm', h: '120cm' },
   { file: 'poster-qr-puzzel.html', pdf: 'qr-puzzel-groene-kastje-90x120.pdf', w: '90cm', h: '120cm' },
+  { file: 'puzzelbord-qr.html', pdf: 'puzzelbord-groene-kastje-A1.pdf', w: '594mm', h: '841mm' },
+  { file: 'qr-stukken-a4.html', pdf: 'qr-stukken-9x-A4.pdf', w: '297mm', h: '210mm' },
   { file: 'poster-tankstation.html', pdf: 'stroop-tankstation-90x135.pdf', w: '90cm', h: '135cm' },
   { file: 'monteurspas.html', pdf: 'monteurspassen-A4.pdf', w: '210mm', h: '297mm' },
   { file: 'spelkaart.html', pdf: 'spelkaart-A4.pdf', w: '210mm', h: '297mm' },

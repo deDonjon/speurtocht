@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QR-stukken A4</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style id="base"></style>
+<style id="puzzel"></style>
+<style>
+/* De 9 stukken van de QR-puzzel (stop 5), één per A4 liggend. Zelfde maat als het raster op puzzelbord-qr.html en de rol:
+   stuk 10,5 × 10,5 cm (blokje 1,5 cm). Afdrukken op 100 % / werkelijke grootte: controleer met de lijn van 10 cm.
+   Per blad: strook voorkant | achterkant uitknippen, dubbelvouwen, magneet ertussen, dichtlijmen. QR en sommen uit qr-puzzel.js. */
+@page{size:297mm 210mm;margin:0}
+body{font-family:'Nunito',sans-serif}
+.sheet{width:29.7cm;height:21cm;margin:16px auto;position:relative;overflow:hidden;background:#fff;color:#2B1606;box-shadow:0 10px 40px rgba(0,0,0,.5);break-after:page;page-break-after:always}
+.sheet:last-child{break-after:auto;page-break-after:auto}
+.hd{position:absolute;left:1.2cm;top:1cm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:.42cm;letter-spacing:.14em;color:#9A8F80}
+.hd b{color:#9A5419}
+.pair{position:absolute;left:4.35cm;top:5.25cm}
+.tip{position:absolute;left:1.2cm;right:1.2cm;bottom:1cm;display:flex;justify-content:space-between;align-items:flex-end;gap:1cm;font-size:.36cm;line-height:1.35;color:#7A6E60}
+.ruler{flex:none;text-align:center;font-weight:800;color:#9A5419}
+.ruler i{display:block;width:10cm;height:.25cm;border:.03cm solid #9A5419;border-top:0;margin-top:.12cm}
+@media print{body{background:none}.sheet{margin:0;box-shadow:none}}
+</style>
+</head>
+<body>
+<main id="sheets"></main>
+<script src="vendor/qrcode.js"></script>
+<script type="module">
+import { BASE_CSS } from './print.js';
+import { PUZZEL_CSS, ORDER, puzzel } from './qr-puzzel.js';
+document.getElementById('base').textContent = BASE_CSS;
+document.getElementById('puzzel').textContent = PUZZEL_CSS;
+const P = puzzel();
+document.getElementById('sheets').innerHTML = ORDER.map((k, n) => `<section class="sheet">
+  <div class="hd">QR-PUZZEL MECHA-POF · STOP 5 · <b>STUK ${n + 1} VAN 9</b></div>
+  ${P.pairHtml(k)}
+  <div class="tip"><span><b>Knippen</b> langs de stippellijn, <b>dubbelvouwen</b> over de middellijn (QR en som naar buiten), <b>magneet</b> ertussen, dichtlijmen.<br>
+  Op het kastje hangen <b>met de som naar voren</b>. Afdrukken op 100 % (werkelijke grootte), niet "passend maken".</span>
+  <span class="ruler">deze lijn moet 10 cm zijn<i></i></span></div>
+</section>`).join('');
+window.__ready = true;
+</script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Puzzelbord groene kastje</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style id="base"></style>
+<style id="puzzel"></style>
+<style>
+/* Puzzelbord voor stop 5 (groene kastje), A1 staand (59,4 × 84,1 cm): los op te hangen in plaats van poster + overplakvel.
+   Leeg raster 3 × 3 met uitkomsten (stukken van 10,5 cm, zelfde maat als qr-stukken-a4.html en de rol), uitleg voor de meiden,
+   spatel en garde, briefje voor voorbijgangers. Geen code in letters op het bord. QR en sommen uit qr-puzzel.js. */
+@page{size:594mm 841mm;margin:0}
+.sheet{width:59.4cm;height:84.1cm;position:relative;overflow:hidden;background:#FFF4DF;color:#2B1606;font-family:'Nunito',sans-serif}
+.sheet::before{content:'';position:absolute;inset:0;background:radial-gradient(60% 40% at 50% 50%,rgba(127,232,255,.2),transparent 70%)}
+.sheet>*{position:absolute}
+.tag{left:0;right:0;top:2.6cm;text-align:center;font-family:'Chakra Petch',monospace;font-weight:700;font-size:1.25cm;letter-spacing:.3em;color:#15A4C8}
+h1{left:0;right:0;top:4.2cm;margin:0;text-align:center;font-family:'Lilita One',sans-serif;font-weight:400;font-size:6.6cm;line-height:1;color:#F2BE62;-webkit-text-stroke:.18cm #9A5419;paint-order:stroke fill;text-shadow:0 .38cm 0 #9A5419}
+.sub{left:0;right:0;top:11.1cm;text-align:center;font-family:'Lilita One',sans-serif;font-size:2.5cm;line-height:1.05}
+.qbox{left:9.1cm;top:18.6cm}
+.lbl{left:50%;top:16.95cm;transform:translateX(-50%);background:#141A26;color:#7FE8FF;font-family:'Chakra Petch',monospace;font-weight:700;font-size:1.5cm;letter-spacing:.3em;padding:.3cm 1.3cm;border-radius:.8cm;white-space:nowrap;z-index:2}
+.tool{top:24cm;width:7.4cm}.tool svg{width:100%;height:auto;display:block}
+.tool.l{left:.9cm;transform:rotate(-8deg)}.tool.r{right:.9cm;transform:rotate(8deg)}
+.how{left:3cm;right:3cm;top:62.2cm;background:#141A26;color:#EAF2FF;border-radius:1.4cm;padding:.9cm 1.6cm}
+.how h2{margin:0 0 .5cm;font-family:'Lilita One',sans-serif;font-weight:400;font-size:2cm;color:#F2BE62}
+.how ol{margin:0;padding-left:1.4cm;font-size:1.15cm;line-height:1.3;font-weight:800}.how li{margin:0 0 .2cm}
+.how b{color:#7FE8FF}
+.foot{left:3cm;right:3cm;bottom:1.6cm;border:.2cm dashed #9A5419;border-radius:1.1cm;padding:.7cm 1.2cm;font-size:.95cm;line-height:1.3;font-weight:800;color:#5A3A1A;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="sheet" id="sheet">
+  <div class="tag">STORING · OPERATIE MECHA-POF</div>
+  <h1>BLIEP! KAPOT!</h1>
+  <div class="sub">Ik zwaaide te hard met mijn garde.<br>Nu is mijn QR in 9 stukken gevlogen!</div>
+  <div class="tool l" id="spatel"></div>
+  <span class="lbl">LEG MIJ HIER</span>
+  <div class="qbox" id="raster"></div>
+  <div class="tool r" id="garde"></div>
+  <div class="how">
+    <h2>Zo maak je mij weer heel</h2>
+    <ol>
+      <li>De 9 stukken hangen hier aan het kastje.</li>
+      <li><b>Rekenmeester:</b> reken de som achter op elk stuk uit. Het stuk hoort in het vak met dat antwoord.</li>
+      <li>De QR naar voren en het <b>blauwe pijltje naar boven</b>. Randen strak tegen elkaar.</li>
+      <li>Alles op zijn plek? Scan mij met de app!</li>
+    </ol>
+  </div>
+  <div class="foot">Gevonden door een voorbijganger? Dit bord en de losse stukjes horen bij de speurtocht van een kinderfeestje. Laat ze alsjeblieft hangen, en hang een gevallen stukje terug op het kastje. Vrijdagavond 13 november halen we alles weer weg. Dank je wel!</div>
+</div></div>
+<script src="vendor/qrcode.js"></script>
+<script type="module">
+import { BASE_CSS, preview } from './print.js';
+import { PUZZEL_CSS, puzzel, SPATEL, GARDE } from './qr-puzzel.js';
+document.getElementById('base').textContent = BASE_CSS;
+document.getElementById('puzzel').textContent = PUZZEL_CSS;
+const P = puzzel();
+document.getElementById('raster').innerHTML = P.gridHtml();
+document.getElementById('spatel').innerHTML = SPATEL;
+document.getElementById('garde').innerHTML = GARDE;
+const fit = preview(document.getElementById('sheet'), { title: 'Puzzelbord groene kastje', size: 'A1 (59,4 × 84,1 cm)', hint: `stukken: qr-stukken-a4.html · code ${P.code} staat niet op het bord` });
+window.__ready = true; fit();
+</script>
+</body>
+</html>
