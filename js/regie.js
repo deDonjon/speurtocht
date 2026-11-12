@@ -4,6 +4,7 @@
 import { state, PARTS, TALENTS } from './state.js';
 import { sync, IS_TEST } from './sync.js';
 import { LINES } from './monster-lines.js?v=12'; // wekzin (chat 7)
+import * as tk from './tekening.js?v=1'; // tab 📸 Tekeningen (12 nov)
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -94,7 +95,9 @@ async function login(key, remember) {
   if (remember) store.set(KEY_REMEMBER, key); else store.del(KEY_REMEMBER);
   loggedIn = true; await loadRegie();
   clearInterval(regieTimer); regieTimer = setInterval(loadRegie, 60_000);
+  tekeningAan();
 }
+function tekeningAan() { tk.init({ onChange: () => renderPanel(), toast, players }); }
 function logout() { loggedIn = false; sync.regie.logout(); store.del(KEY_REMEMBER); clearInterval(regieTimer); R = { game: null, players: [], stops: [], puzzle_states: [], events: [] }; render(); }
 
 /* ================================================================ kaart (eigen Leaflet-kaart: alle stops, de route, de telefoons, de Kruimelaar) */
@@ -259,15 +262,15 @@ function surpriseStatus() {
 setInterval(() => { if (loggedIn && game()?.surprise && $('#surprise')) $('#surprise').innerHTML = surpriseStatus(); }, 1000);
 
 /* ---------- tabbladen */
-const TABS = [['spel', '🎮 Spel'], ['monster', '🤖 Mecha-Pof'], ['verras', '✨ Verrassingen'], ['bonus', '⭐ Bonus'], ['spelers', '👧 Spelers'], ['stops', '📍 Stops'], ['log', '📜 Logboek']];
+const TABS = [['spel', '🎮 Spel'], ['monster', '🤖 Mecha-Pof'], ['foto', '📸 Tekeningen'], ['verras', '✨ Verrassingen'], ['bonus', '⭐ Bonus'], ['spelers', '👧 Spelers'], ['stops', '📍 Stops'], ['log', '📜 Logboek']];
 function renderPanel() {
   const panel = $('#panel');
   if (panel.contains(document.activeElement) && document.activeElement.matches('input,textarea,select')) { pendingPanel = true; return; }
   pendingPanel = false;
   const g = game(), pz = activePuzzle();
-  const badge = { spel: pz && !pz.solved_at && g?.phase === 'puzzel' ? '!' : '' };
+  const badge = { spel: pz && !pz.solved_at && g?.phase === 'puzzel' ? '!' : '', foto: tk.badge() };
   panel.innerHTML = `<nav class="tabs">${TABS.map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" data-tab="${k}">${l}${badge[k] ? `<span class="n">${badge[k]}</span>` : ''}</button>`).join('')}</nav>
-    <div id="tabbody" class="stack">${({ spel: tabSpel, monster: tabMonster, verras: tabVerras, bonus: tabBonus, spelers: tabSpelers, stops: tabStops, log: tabLog }[tab] || tabSpel)()}</div>`;
+    <div id="tabbody" class="stack">${({ spel: tabSpel, monster: tabMonster, foto: tk.tabHTML, verras: tabVerras, bonus: tabBonus, spelers: tabSpelers, stops: tabStops, log: tabLog }[tab] || tabSpel)()}</div>`;
 }
 document.addEventListener('focusout', () => { if (pendingPanel) setTimeout(() => { if (!$('#panel')?.contains(document.activeElement)) renderPanel(); }, 50); });
 app.addEventListener('click', e => { const t = e.target.closest('[data-tab]')?.dataset.tab; if (t) { tab = t; store.set(KEY_TAB, t); renderPanel(); } });
@@ -751,7 +754,7 @@ async function boot() {
   try { await sync.connect(); for (const e of S().events) seen.add(e.id); primed = true; booted = true; }
   catch (e) { bootError = e.message || 'Geen verbinding'; render(); return; }
   const remembered = store.get(KEY_REMEMBER, null);
-  if (sync.regie.restore()) { loggedIn = true; await loadRegie(); if (loggedIn) { clearInterval(regieTimer); regieTimer = setInterval(loadRegie, 60_000); } }
+  if (sync.regie.restore()) { loggedIn = true; await loadRegie(); if (loggedIn) { clearInterval(regieTimer); regieTimer = setInterval(loadRegie, 60_000); tekeningAan(); } }
   else if (remembered) { try { await login(remembered, true); } catch { store.del(KEY_REMEMBER); } }
   render();
 }

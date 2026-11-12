@@ -233,6 +233,7 @@ export const sync = {
     },
     restore() { try { regieKey = sessionStorage.getItem(REGIE_KEY); } catch {} return !!regieKey; },
     logout() { regieKey = null; try { sessionStorage.removeItem(REGIE_KEY); } catch {} },
+    sleutel() { return regieKey; }, // voor de Edge Function monster-foto (js/tekening.js)
     state()                 { return rpc('regie_state', { p_key: key() }); },
     start()                 { return rpc('regie_start', { p_key: key() }); },
     reset(keepLog = false)  { return rpc('regie_reset', { p_key: key(), p_keep_log: keepLog }); },

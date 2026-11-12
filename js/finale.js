@@ -4,7 +4,7 @@
 //   fin.start()        speel de finale (kort, afwisselend zin / beeld / muziek): check → mega (onthulling) → rapje op dansmuziek
 //                      (dj, vers, hiep, dans) → dansstuk met confetti → taart (volgende missie) → eind. music() = speelt dit toestel de muziek
 //   fin.stage          'idle' | 'check' | 'mega' | 'vers' | 'confetti' | 'terugblik' | 'taart' | 'eind'
-//   fin.slide          tijdens 'terugblik': { i, n, item:{icon,title,sub} }
+//   fin.slide          tijdens 'terugblik': { i, n, item:{icon,title,sub} } of item:{img,title,sub,ms} (de groepstekening, kern.html)
 //   highlights()       optioneel: (async) lijst dia's; anders buildHighlights(state.get())
 //   fin.done           true als de finale (op dit toestel) al gespeeld is; blijft bewaard per spel (localStorage)
 //   fin.reset()        opnieuw kunnen afspelen (kern.html: knop "Finale opnieuw")
@@ -43,7 +43,7 @@ export function badgeInfo(b) {
 }
 
 /** Eindscherm: één kaart per speurder, jarige eerst, daarna op talentvolgorde. */
-export function endCards(st) {
+export function endCards(st, { portret = {} } = {}) { // portret: { [player_id]: url } (kern.html, goedgekeurde tekeningen)
   const s = st.get(), order = Object.keys(TALENTS);
   const ps = s.players.slice().sort((a, b) => (!!b.is_birthday - !!a.is_birthday) || (order.indexOf(a.talent) - order.indexOf(b.talent)) || a.name.localeCompare(b.name));
   return ps.map(p => {
@@ -51,7 +51,7 @@ export function endCards(st) {
     const zin = fillLine(pick(LINES.eind?.[p.talent] || LINES.eind?.geen) || '', { naam: p.name });
     const extra = (p.badges || []).map(b => pick(LINES.eindBadge?.[b])).filter(Boolean).join(' ');
     const badges = [...new Set(p.badges || [])].map(b => { const x = badgeInfo(b); return `<span class="fin-badge" title="${esc(x.label)}">${x.icon} ${esc(x.label)}</span>`; }).join('');
-    return `<div class="fin-card" style="--acc:${p.color || info?.color || '#7FE8FF'}">
+    return `<div class="fin-card" style="--acc:${p.color || info?.color || '#7FE8FF'}">${portret[p.id] ? `<img class="fin-portret" src="${esc(portret[p.id])}" alt="" data-groot>` : ''}
       <div class="fin-head"><span class="fin-ic">${info?.icon || '⭐'}</span><div><b>${esc(p.name)}${p.is_birthday ? ' 🎂' : ''}</b><small>${esc(t?.label || 'Monteur')}${info ? ' · ' + esc(info.label) : ''}</small></div></div>
       <p class="fin-zin">“${esc(zin)}${extra ? ' ' + esc(extra) : ''}”</p>
       <div class="fin-badges">${badges || '<span class="fin-badge dim">nog geen badges</span>'}</div></div>`;
@@ -85,6 +85,9 @@ export const END_CSS = `.fin-cards{display:grid;grid-template-columns:repeat(aut
 .fin-slide b{font-weight:900;font-size:clamp(1.3rem,2.8vw,2.6rem);color:#fff;line-height:1.15}
 .fin-slide small{color:#93A0B8;font-weight:800;font-size:clamp(.9rem,1.5vw,1.3rem)}
 .fin-dots{display:flex;gap:6px;margin-top:6px}.fin-dots i{width:9px;height:9px;border-radius:50%;background:#3C4A66}.fin-dots i.on{background:#F2BE62}
+.fin-slide-img{max-width:100%;max-height:52vh;border-radius:14px;border:3px solid #F2BE62;box-shadow:0 0 24px rgba(242,190,98,.35);cursor:zoom-in}
+.fin-portret{width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top;border-radius:10px;border:2px solid var(--acc);cursor:zoom-in}
+.fin-feest{width:100%;max-height:48vh;object-fit:contain;background:#0E1B2E;border-radius:14px;border:3px solid #F2BE62;box-shadow:0 0 24px rgba(242,190,98,.35);cursor:zoom-in;display:block}
 @keyframes finSlide{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}`;
 // Beeld van de volgende missie (finale-stap 'taart' en het eindscherm): eerst taart versieren, dan pannenkoeken.
 export const TAART_HTML = `<div class="fin-taart"><div><small>Eerst</small><em>🎂</em><b>Taart versieren</b></div><span class="pijl">➜</span><div class="na"><small>Daarna</small><em style="animation-delay:.4s">🥞</em><b>Pannenkoeken</b></div></div>`;
@@ -116,6 +119,7 @@ export function buildHighlights(d = {}) {
 }
 export function slideHTML(sl, i = 0, n = 1) {
   if (!sl) return '';
+  if (sl.img) return `<div class="fin-slide"><img class="fin-slide-img" src="${esc(sl.img)}" alt="" data-groot><b>${esc(sl.title)}</b>${sl.sub ? `<small>${esc(sl.sub)}</small>` : ''}<span class="fin-dots">${Array.from({ length: n }, (_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</span></div>`;
   return `<div class="fin-slide"><em class="${sl.wide ? 'wide' : ''}">${sl.icon}</em><b>${esc(sl.title)}</b>${sl.sub ? `<small>${esc(sl.sub)}</small>` : ''}<span class="fin-dots">${Array.from({ length: n }, (_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</span></div>`;
 }
 // Beeld per finale-stap voor het kernscherm (groot). check en taart; mega = stroopmeter; vers/confetti = equalizer.
@@ -174,7 +178,7 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
     await say(fillLine(pick(LINES.terugblik), { jarige: jarige() }), { ms: 4000 }); if (!alive()) return;
     for (let i = 0; i < list.length; i++) {
       slide = { i, n: list.length, item: list[i] }; set('terugblik'); audio?.play?.('plop');
-      await sleep(SLIDE_MS); if (!alive()) return;
+      await sleep(list[i].ms || SLIDE_MS); if (!alive()) return;
     }
     slide = null;
   }
