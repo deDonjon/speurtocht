@@ -7,51 +7,95 @@
 <link rel="stylesheet" href="fonts/fonts.css">
 <style id="base"></style>
 <style>
-/* Stroop-tankstation bij Esther en Jeroen (scoutplek 41), ±90 × 60 cm liggend. Het podium voor de Kortsluiting tussen stop 6 en thuis.
-   Na overleg met de buren ophangen; vrijdagavond weer weg. */
-@page{size:90cm 60cm;margin:0}
-.sheet{width:90cm;height:60cm;position:relative;overflow:hidden;background:#141A26;color:#EAF2FF;display:grid;grid-template-columns:1fr 30cm;grid-template-rows:auto 1fr auto}
-.sheet::before{content:'';position:absolute;inset:0;background:linear-gradient(rgba(60,74,102,.4) .2cm,transparent .2cm) 0 0/6cm 6cm,linear-gradient(90deg,rgba(60,74,102,.4) .2cm,transparent .2cm) 0 0/6cm 6cm}
-.sheet>*{position:relative}
-.stripe{grid-column:1/-1;height:3.4cm;background:repeating-linear-gradient(-45deg,#F2BE62 0 3cm,#141A26 3cm 6cm)}
-.stripe.b{align-self:end}
-.left{padding:3cm 0 0 5cm;display:flex;flex-direction:column;gap:1.2cm}
-.tag{font-family:'Chakra Petch',monospace;font-weight:700;font-size:1.8cm;letter-spacing:.3em;color:#7FE8FF}
-h1{margin:0;font-family:'Lilita One',sans-serif;font-weight:400;font-size:9.2cm;line-height:.88;color:#F2BE62;-webkit-text-stroke:.2cm #9A5419;paint-order:stroke fill;text-shadow:0 .45cm 0 #9A5419}
-.sub{font-family:'Lilita One',sans-serif;font-size:3.4cm;color:#EAF2FF}
-.warn{display:inline-flex;align-items:center;gap:1cm;align-self:flex-start;background:#FF5A4E;color:#fff;border-radius:1.2cm;padding:.5cm 1.6cm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.6cm;letter-spacing:.12em;box-shadow:0 .4cm 0 #7A2A26}
-.warn svg{width:3cm;height:3cm}
-.right{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2cm 3cm 0 0;gap:.8cm}
-.right svg{width:26cm;height:auto}
-.right p{margin:0;font-family:'Chakra Petch',monospace;font-weight:700;font-size:1.6cm;letter-spacing:.2em;color:#FF5A4E}
-.foot{position:absolute;left:5cm;right:5cm;bottom:4.2cm;font-size:1.25cm;font-weight:800;color:#93A0B8}
+/* Stroop-tankstation bij Esther en Jeroen (scoutplek 41), 90 × 135 cm STAAND (12 nov, nieuw ontwerp): een stroop-pomp op ware
+   grootte. Het podium voor de Kortsluiting tussen stop 6 en thuis. Na overleg met de buren ophangen; vrijdagavond weer weg. */
+@page{size:90cm 135cm;margin:0}
+.sheet{width:90cm;height:135cm;position:relative;overflow:hidden;background:#141A26}
+.sheet svg{position:absolute;inset:0;width:100%;height:100%}
 </style>
 </head>
 <body>
-<div class="wrap"><div class="sheet" id="sheet">
-  <div class="stripe"></div>
-  <div class="left"><div class="tag">OPERATIE MECHA-POF · TANKPUNT 41</div><h1>STROOP-<br>TANKSTATION</h1><div class="sub">Hier tankt Mecha-Pof.</div>
-    <div class="warn"><svg viewBox="0 0 24 24"><path d="M13 1L3 14h7l-1 9 10-13h-7z" fill="#FFE98A" stroke="#7A2A26" stroke-width="1"/></svg>KORTSLUITINGSGEVAAR</div></div>
-  <div class="right"><svg viewBox="0 0 200 150" id="meter"></svg><p>STROOPMETER: ROOD</p></div>
-  <div class="stripe b"></div>
-  <div class="foot">Tijdelijk bord voor de speurtocht van een kinderfeestje. Vrijdagavond 13 november gaat het weer weg. Dank je wel, Esther en Jeroen!</div>
-</div></div>
+<div class="wrap"><div class="sheet" id="sheet"></div></div>
 <script type="module">
 import { BASE_CSS, preview } from './print.js';
 document.getElementById('base').textContent = BASE_CSS;
-// stroopmeter: boog van blauw (vol) via goud naar rood (leeg); de wijzer staat diep in het rood
-const arc = (a0, a1, r) => { const p = a => [100 + r * Math.cos(a), 120 + r * Math.sin(a)].map(v => v.toFixed(2)); const [x0, y0] = p(a0), [x1, y1] = p(a1); return `M${x0} ${y0}A${r} ${r} 0 0 1 ${x1} ${y1}`; };
-const seg = (a0, a1, c) => `<path d="${arc(a0, a1, 78)}" stroke="${c}" stroke-width="22" fill="none"/>`;
-const A = Math.PI, B = 2 * Math.PI, cols = ['#15A4C8', '#7FE8FF', '#4ADE80', '#F2BE62', '#F59E2E', '#FF5A4E', '#E0352B'];
-const ticks = Array.from({ length: 13 }, (_, i) => { const a = A + i * A / 12, c = Math.cos(a), s = Math.sin(a); return `<path d="M${(100 + 60 * c).toFixed(1)} ${(120 + 60 * s).toFixed(1)}L${(100 + 52 * c).toFixed(1)} ${(120 + 52 * s).toFixed(1)}" stroke="#EAF2FF" stroke-width="2"/>`; }).join('');
-const needle = A + A * 0.93;
-document.getElementById('meter').innerHTML = `<rect x="2" y="2" width="196" height="146" rx="18" fill="#2F3542" stroke="#9AA3AD" stroke-width="3"/>
-  ${cols.map((c, i) => seg(A + i * A / 7, A + (i + 1) * A / 7, c)).join('')}${ticks}
-  <text x="34" y="138" font-family="Chakra Petch" font-weight="700" font-size="11" fill="#7FE8FF">VOL</text><text x="148" y="138" font-family="Chakra Petch" font-weight="700" font-size="11" fill="#FF5A4E">LEEG</text>
-  <path d="M100 120L${(100 + 70 * Math.cos(needle)).toFixed(1)} ${(120 + 70 * Math.sin(needle)).toFixed(1)}" stroke="#FFE98A" stroke-width="5" stroke-linecap="round"/><circle cx="100" cy="120" r="10" fill="#141A26" stroke="#FFE98A" stroke-width="3"/>
-  <text x="100" y="92" text-anchor="middle" font-family="Lilita One" font-size="18" fill="#F2BE62">STROOP</text>`;
-const fit = preview(document.getElementById('sheet'), { title: 'Stroop-tankstation', size: '90 × 60 cm (liggend)', hint: 'bij Esther en Jeroen, scoutplek 41 · eerst overleggen' });
-window.__ready = true; fit();
+// Alles in één SVG, eenheid = cm (viewBox 90 × 135). Geen emoji: alles getekend.
+const GOLD = '#F2BE62', GOLD2 = '#C9792C', RED = '#E0352B', RED2 = '#A3241C', LED = '#7FE8FF', INK = '#141A26', STEEL = '#C9D1D8';
+const hud = (x, y, t, size, fill = LED, extra = '') => `<text x="${x}" y="${y}" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="${size}" letter-spacing="${(size * .16).toFixed(2)}" fill="${fill}" ${extra}>${t}</text>`;
+const big = (x, y, t, size, fill = GOLD) => `<text x="${x}" y="${y}" text-anchor="middle" font-family="Lilita One" font-size="${size}" fill="${fill}" stroke="#7A4310" stroke-width="${(size * .05).toFixed(2)}" paint-order="stroke">${t}</text>`;
+const bolt = (x, y, s, rot = 0, fill = '#FFE98A') => `<path d="M2 -9L-5 1h4.2l-1.6 8L5 -1.6H.6z" fill="${fill}" stroke="#7A2A26" stroke-width=".25" transform="translate(${x} ${y}) rotate(${rot}) scale(${s})"/>`;
+const drop = (x, y, s) => `<path d="M0 -3.2C-2.4 .2 -2.6 1.4 -2.6 2.2a2.6 2.6 0 0 0 5.2 0C2.6 1.4 2.4 .2 0 -3.2z" fill="${GOLD}" stroke="${GOLD2}" stroke-width=".25" transform="translate(${x} ${y}) scale(${s})"/>`;
+// stroopmeter: boog van blauw (vol) naar rood (leeg), wijzer diep in het rood
+const CX = 43, CY = 88, arc = (a0, a1, r) => { const p = a => [(CX + r * Math.cos(a)).toFixed(2), (CY + r * Math.sin(a)).toFixed(2)]; const [x0, y0] = p(a0), [x1, y1] = p(a1); return `M${x0} ${y0}A${r} ${r} 0 0 1 ${x1} ${y1}`; };
+const A = Math.PI, cols = ['#15A4C8', LED, '#4ADE80', GOLD, '#F59E2E', '#FF5A4E', RED], needle = A + A * .93;
+const meter = cols.map((c, i) => `<path d="${arc(A + i * A / 7, A + (i + 1) * A / 7, 11.5)}" stroke="${c}" stroke-width="3.6" fill="none"/>`).join('')
+  + Array.from({ length: 13 }, (_, i) => { const a = A + i * A / 12; return `<path d="M${(CX + 8.6 * Math.cos(a)).toFixed(2)} ${(CY + 8.6 * Math.sin(a)).toFixed(2)}L${(CX + 7.4 * Math.cos(a)).toFixed(2)} ${(CY + 7.4 * Math.sin(a)).toFixed(2)}" stroke="#EAF2FF" stroke-width=".3"/>`; }).join('')
+  + `<path d="M${CX} ${CY}L${(CX + 10 * Math.cos(needle)).toFixed(2)} ${(CY + 10 * Math.sin(needle)).toFixed(2)}" stroke="#FFE98A" stroke-width=".8" stroke-linecap="round"/><circle cx="${CX}" cy="${CY}" r="1.6" fill="${INK}" stroke="#FFE98A" stroke-width=".45"/>`;
+const stripes = y => `<rect x="0" y="${y}" width="90" height="4.5" fill="url(#gevaar)"/>`;
+const rivets = [[25, 43], [61, 43], [25, 113], [61, 113], [25, 78], [61, 78]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".7" fill="#E6EAEE" stroke="#4A5058" stroke-width=".2"/>`).join('');
+
+document.getElementById('sheet').innerHTML = `<svg viewBox="0 0 90 135" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="gevaar" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><rect width="6" height="6" fill="${INK}"/><rect width="3" height="6" fill="${GOLD}"/></pattern>
+    <pattern id="raster" width="7.5" height="7.5" patternUnits="userSpaceOnUse"><path d="M7.5 0H0V7.5" fill="none" stroke="rgba(60,74,102,.55)" stroke-width=".2"/></pattern>
+    <radialGradient id="gloed" cx="50%" cy="55%" r="55%"><stop offset="0" stop-color="#33405A"/><stop offset="1" stop-color="${INK}"/></radialGradient>
+    <linearGradient id="lak" x1="0" x2="1"><stop offset="0" stop-color="${RED2}"/><stop offset=".18" stop-color="${RED}"/><stop offset=".55" stop-color="#F0584D"/><stop offset="1" stop-color="${RED2}"/></linearGradient>
+  </defs>
+  <rect width="90" height="135" fill="url(#gloed)"/><rect width="90" height="135" fill="url(#raster)"/>
+  ${stripes(0)}${stripes(130.5)}
+  ${hud(45, 9.8, 'OPERATIE MECHA-POF · TANKPUNT 41', 2.1)}
+  ${big(45, 19.6, 'STROOP-', 9.4)}${big(45, 29.2, 'TANKSTATION', 9.4)}
+
+  <!-- vonken -->
+  ${bolt(10, 50, 1.1, -18)}${bolt(15.5, 66, .7, 12)}${bolt(82, 112, .9, 14)}${bolt(8.5, 96, .8, -8)}${bolt(74.5, 44, .7, 24)}
+  <g fill="none" stroke="#FFE98A" stroke-width=".35" stroke-linecap="round" opacity=".8"><path d="M17 56l2.6 1.2M14 60.5l3 .2M18.6 61.8l1.6 2.4"/></g>
+
+  <!-- schaduw en voet -->
+  <ellipse cx="43" cy="124.4" rx="30" ry="2.6" fill="#070A10" opacity=".7"/>
+  <rect x="17" y="118" width="52" height="5.6" rx="1.4" fill="#2F3542" stroke="#9AA3AD" stroke-width=".35"/>
+
+  <!-- lamp bovenop -->
+  <rect x="39.6" y="34" width="6.8" height="5" rx="1" fill="#4A5058"/><circle cx="43" cy="34.6" r="3.2" fill="#FF5A4E" stroke="#7A2A26" stroke-width=".35"/><circle cx="42" cy="33.6" r="1" fill="#fff" opacity=".7"/>
+  <g stroke="#FF5A4E" stroke-width=".4" stroke-linecap="round" opacity=".85"><path d="M36.6 33.4l-2.4-.8M49.4 33.4l2.4-.8M38 29.6l-1.6-1.8M48 29.6l1.6-1.8"/></g>
+
+  <!-- pomp -->
+  <rect x="21" y="38.4" width="44" height="80.4" rx="5" fill="url(#lak)" stroke="#5E130E" stroke-width=".55"/>
+  <rect x="21" y="52" width="44" height="2.2" fill="${GOLD}"/><rect x="21" y="100.6" width="44" height="2.2" fill="${GOLD}"/>
+  <path d="M24 42.6h6" stroke="#fff" stroke-width=".9" stroke-linecap="round" opacity=".5"/>
+  ${rivets}
+  ${hud(43, 48.4, 'MODEL MP-41 · ALLEEN VOOR KEUKENROBOTS', 1.25, '#FFE98A')}
+
+  <!-- telwerk -->
+  <rect x="26.4" y="56.6" width="33.2" height="16.4" rx="1.6" fill="#0E1B2E" stroke="${STEEL}" stroke-width=".55"/>
+  <text x="29" y="61.4" font-family="Chakra Petch" font-weight="700" font-size="1.5" letter-spacing=".24" fill="#93A0B8">LITERS STROOP</text>
+  <text x="57" y="67.4" text-anchor="end" font-family="Chakra Petch" font-weight="700" font-size="6.4" letter-spacing=".5" fill="${LED}">00,3</text>
+  <text x="29" y="71" font-family="Chakra Petch" font-weight="700" font-size="1.5" letter-spacing=".24" fill="${GOLD}">PRIJS: 1 PANNENKOEK</text>
+
+  <!-- stroopmeter -->
+  <path d="M27.6 ${CY + 2.4}v-3.4a15.4 15.4 0 0 1 30.8 0v3.4z" fill="#2F3542" stroke="${STEEL}" stroke-width=".45"/>
+  ${meter}
+  <text x="30.4" y="${CY + 1.6}" font-family="Chakra Petch" font-weight="700" font-size="1.3" fill="${LED}">VOL</text><text x="55.6" y="${CY + 1.6}" text-anchor="end" font-family="Chakra Petch" font-weight="700" font-size="1.3" fill="#FF5A4E">LEEG</text>
+  ${hud(43, 95, 'STROOPMETER: ROOD', 1.7, '#FFE98A')}
+
+  <!-- waarschuwing -->
+  <rect x="25" y="104.6" width="36" height="9.6" rx="1.2" fill="#FFE98A" stroke="${INK}" stroke-width=".5"/>
+  ${bolt(29.6, 109.4, .46, 0, RED)}
+  <text x="33" y="108.6" font-family="Chakra Petch" font-weight="700" font-size="1.45" letter-spacing=".2" fill="${INK}">PAS OP</text>
+  <text x="33" y="112.4" font-family="Lilita One" font-size="3.1" fill="${RED2}">KORTSLUITING!</text>
+
+  <!-- slang en vulpistool -->
+  <path d="M65 62c9 0 13 6 13 16s-2 24-7 30c-3 3.4-7 2-7-2" fill="none" stroke="#0B0E15" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M65 62c9 0 13 6 13 16s-2 24-7 30c-3 3.4-7 2-7-2" fill="none" stroke="#3A4356" stroke-width="1.5" stroke-linecap="round"/>
+  <rect x="63.4" y="59.4" width="3.4" height="5.2" rx=".8" fill="${STEEL}" stroke="#4A5058" stroke-width=".3"/>
+  <g transform="translate(60 84) rotate(18)"><rect x="0" y="0" width="10.5" height="4.4" rx="1.2" fill="${STEEL}" stroke="#4A5058" stroke-width=".35"/><path d="M1.4 4.4v5.4h3.4V4.4" fill="#2F3542" stroke="#4A5058" stroke-width=".3"/><path d="M10.5 .8h4.6l1.6 6h-2.2l-1-3.6h-3z" fill="${STEEL}" stroke="#4A5058" stroke-width=".35"/></g>
+  ${drop(74.6, 96.4, .9)}${drop(75.4, 103.4, .65)}
+  <path d="M68 121.6c3-1.6 11-1.6 14 0c2 1.2-1 2.4-7 2.4s-9-1.2-7-2.4z" fill="${GOLD}" stroke="${GOLD2}" stroke-width=".3"/>
+
+  ${big(45, 127.4, 'Hier tankt Mecha-Pof.', 3, '#EAF2FF').replace('stroke="#7A4310"', 'stroke="#141A26"')}
+  <text x="45" y="129.7" text-anchor="middle" font-family="Nunito" font-weight="800" font-size="1.05" fill="#C9D3E0">Tijdelijk bord voor de speurtocht van een kinderfeestje. Vrijdagavond 13 november gaat het weer weg. Dank je wel, Esther en Jeroen!</text>
+</svg>`;
+const fit = preview(document.getElementById('sheet'), { title: 'Stroop-tankstation', size: '90 × 135 cm (staand)', hint: 'bij Esther en Jeroen, scoutplek 41 · eerst overleggen' });
+await document.fonts.ready; window.__ready = true; fit();
 </script>
 </body>
 </html>

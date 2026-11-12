@@ -21,7 +21,7 @@ const JOBS = [
   { file: 'poster-mega.html', pdf: 'mega-mecha-pof-90x180.pdf', w: '90cm', h: '180cm' },
   { file: 'poster-gebruiksaanwijzing.html', pdf: 'gebruiksaanwijzing-led-ogen-90x150.pdf', w: '90cm', h: '150cm' },
   { file: 'poster-qr.html', pdf: 'qr-poster-groene-kastje-90x120.pdf', w: '90cm', h: '120cm' },
-  { file: 'poster-tankstation.html', pdf: 'stroop-tankstation-90x60.pdf', w: '90cm', h: '60cm' },
+  { file: 'poster-tankstation.html', pdf: 'stroop-tankstation-90x135.pdf', w: '90cm', h: '135cm' },
   { file: 'monteurspas.html', pdf: 'monteurspassen-A4.pdf', w: '210mm', h: '297mm' },
   { file: 'spelkaart.html', pdf: 'spelkaart-A4.pdf', w: '210mm', h: '297mm' },
   { file: 'draaiboek.html', pdf: 'draaiboek-begeleider-A4.pdf', w: '210mm', h: '297mm' },
