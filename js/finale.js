@@ -3,7 +3,9 @@
 //   const fin = createFinale({ mon, state, audio, confetti, voice: () => true|false|undefined, onStage, key })
 //   fin.start()        speel de finale (kort, afwisselend zin / beeld / muziek): check → mega (onthulling) → rapje op dansmuziek
 //                      (dj, vers, hiep, dans) → dansstuk met confetti → taart (volgende missie) → eind. music() = speelt dit toestel de muziek
-//   fin.stage          'idle' | 'check' | 'mega' | 'vers' | 'confetti' | 'terugblik' | 'taart' | 'eind'
+//   fin.stage          'idle' | 'check' | 'mega' | 'vers' | 'hoera' | 'confetti' | 'terugblik' | 'taart' | 'eind'
+//   hoera              optioneel (kern.html): de hoera-meter uit js/hoera.js. Met microfoon: na elk "hiep hiep" stap 'hoera' met de meter
+//                      in beeld (fin.hoera = { ronde, n, scores, luister, best }); onHoera(nu, piek) voor de naald. Zonder: zoals het was.
 //   fin.slide          tijdens 'terugblik': { i, n, item:{icon,title,sub} } of item:{img,title,sub,ms} (de groepstekening, kern.html)
 //   highlights()       optioneel: (async) lijst dia's; anders buildHighlights(state.get())
 //   fin.done           true als de finale (op dit toestel) al gespeeld is; blijft bewaard per spel (localStorage)
@@ -14,7 +16,8 @@
 // Start: monster.js roept globalThis.pkm.finale.start() aan zodra het zevende deel (de hoed) na het installatieritueel geland is
 // en de installatiezin klaar is. Kern.html heeft ook een knop. Speelt per toestel één keer per spel.
 import { PARTS, TALENTS } from './state.js';
-import { LINES, NAAM_JARIGE } from './monster-lines.js?v=19';
+import { LINES, NAAM_JARIGE } from './monster-lines.js?v=20';
+import { hoeraLabel, hoeraTier } from './hoera.js?v=1';
 
 const PART_KEYS = Object.keys(PARTS);
 const WOORDEN = ['nul', 'één', 'twee', 'drie', 'vier', 'vijf', 'zes', 'zeven', 'acht', 'negen', 'tien', 'elf', 'twaalf'];
@@ -92,6 +95,18 @@ export const END_CSS = `.fin-cards{display:grid;grid-template-columns:repeat(aut
 .fin-slide-img{max-width:100%;max-height:52vh;border-radius:14px;border:3px solid #F2BE62;box-shadow:0 0 24px rgba(242,190,98,.35);cursor:zoom-in}
 .fin-portret{width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top;border-radius:10px;border:2px solid var(--acc);cursor:zoom-in}
 .fin-feest{width:100%;max-height:48vh;object-fit:contain;background:#0E1B2E;border-radius:14px;border:3px solid #F2BE62;box-shadow:0 0 24px rgba(242,190,98,.35);cursor:zoom-in;display:block}
+.fin-hoera{display:flex;flex-direction:column;align-items:center;gap:clamp(6px,1.2vh,14px);text-align:center}
+.fin-hoera .roep{font-weight:900;font-size:clamp(1.6rem,4.4vw,4rem);color:#fff;line-height:1.05;letter-spacing:.04em}
+.fin-hoera.luister .roep{color:#FFE98A;animation:finRoep .45s ease-in-out infinite alternate}
+@keyframes finRoep{to{transform:scale(1.08)}}
+.fin-hbar{position:relative;width:min(100%,560px);height:clamp(34px,6vh,64px);border-radius:999px;background:#0E1B2E;border:3px solid #3C4A66;overflow:hidden}
+.fin-hbar b{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,#7FE8FF,#F2BE62 55%,#FF5A4E);transition:width .08s linear}
+.fin-hbar u{position:absolute;top:0;bottom:0;left:0;width:5px;background:#fff;box-shadow:0 0 10px #fff;transition:left .08s linear}
+.fin-hbar span{position:absolute;inset:0;display:grid;place-items:center;font-weight:900;letter-spacing:.14em;color:#fff;text-shadow:0 2px 0 #000;font-size:clamp(.9rem,1.6vw,1.4rem)}
+.fin-hbar.mega{border-color:#F2BE62;box-shadow:0 0 26px rgba(242,190,98,.7)}
+.fin-hrondes{display:flex;gap:clamp(6px,1vw,14px);justify-content:center;flex-wrap:wrap}
+.fin-hrondes i{font-style:normal;font-weight:900;background:#0E1B2E;border:2px solid #3C4A66;border-radius:12px;padding:4px 12px;color:#93A0B8;font-size:clamp(.85rem,1.3vw,1.2rem)}
+.fin-hrondes i.klaar{border-color:#7FE8FF;color:#7FE8FF}.fin-hrondes i.nu{border-color:#FFE98A;color:#FFE98A}.fin-hrondes i.top{border-color:#F2BE62;color:#F2BE62;box-shadow:0 0 12px rgba(242,190,98,.5)}
 @keyframes finSlide{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}`;
 // Beeld van de volgende missie (finale-stap 'taart' en het eindscherm): eerst taart versieren, dan pannenkoeken.
 export const TAART_HTML = `<div class="fin-taart"><div><small>Eerst</small><em>🎂</em><b>Taart versieren</b></div><span class="pijl">➜</span><div class="na"><small>Daarna</small><em style="animation-delay:.4s">🥞</em><b>Pannenkoeken</b></div></div>`;
@@ -126,9 +141,19 @@ export function slideHTML(sl, i = 0, n = 1) {
   if (sl.img) return `<div class="fin-slide"><img class="fin-slide-img" src="${esc(sl.img)}" alt="" data-groot><b>${esc(sl.title)}</b>${sl.sub ? `<small>${esc(sl.sub)}</small>` : ''}<span class="fin-dots">${Array.from({ length: n }, (_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</span></div>`;
   return `<div class="fin-slide"><em class="${sl.wide ? 'wide' : ''}">${sl.icon}</em><b>${esc(sl.title)}</b>${sl.sub ? `<small>${esc(sl.sub)}</small>` : ''}<span class="fin-dots">${Array.from({ length: n }, (_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</span></div>`;
 }
+// Hoera-meter (kern.html, js/hoera.js). h = fin.hoera: { ronde, n, scores:[%], luister, best }. De balk (#hoera-b), de piekstreep
+// (#hoera-p) en het getal (#hoera-t) worden tijdens het luisteren rechtstreeks bijgewerkt (kern.html → onHoera).
+export function hoeraHTML(h) {
+  if (!h) return '';
+  const klaar = !h.luister && h.scores.length >= h.n, toon = h.luister ? 0 : (klaar ? h.best : h.scores.at(-1) ?? 0);
+  return `<div class="fin-hoera ${h.luister ? 'luister' : ''}"><div class="roep">${h.luister ? 'HOERA!!!' : klaar ? esc(hoeraLabel(h.best)) : 'Hiep hiep…'}</div>
+    <div class="fin-hbar ${toon >= 90 ? 'mega' : ''}"><b id="hoera-b" style="width:${toon}%"></b><u id="hoera-p" style="left:${Math.min(99, toon)}%"></u><span id="hoera-t">${toon} %</span></div>
+    <div class="fin-hrondes">${Array.from({ length: h.n }, (_, i) => `<i class="${h.scores[i] != null ? (klaar && h.scores[i] === h.best ? 'top' : 'klaar') : i === h.ronde ? 'nu' : ''}">${i + 1}: ${h.scores[i] != null ? h.scores[i] + ' %' : '…'}</i>`).join('')}</div></div>`;
+}
 // Beeld per finale-stap voor het kernscherm (groot). check en taart; mega = stroopmeter; vers/confetti = equalizer.
 export function stageHTML(stage, fin) {
   if (stage === 'terugblik') return slideHTML(fin?.slide?.item, fin?.slide?.i, fin?.slide?.n);
+  if (stage === 'hoera') return hoeraHTML(fin?.hoera);
   if (stage === 'check') return `<div class="fin-check">${Object.values(PARTS).map((p, i) => `<i style="animation-delay:${(i * CHECK_MS / 1000).toFixed(2)}s">${p.icon}</i>`).join('')}</div>`;
   if (stage === 'mega') return `<div class="fin-meter"><b></b><span>STROOPMETER · MEGA</span></div>`;
   if (stage === 'vers' || stage === 'confetti') return `<div class="fin-eq">${Array.from({ length: 12 }, (_, i) => `<i style="animation-delay:${(i * 0.07 % 0.5).toFixed(2)}s;animation-duration:${(0.35 + (i * 37 % 30) / 100).toFixed(2)}s"></i>`).join('')}</div>`;
@@ -138,9 +163,10 @@ export function stageHTML(stage, fin) {
 
 // Dansnummer voor de finale (ElevenLabs Music, gemaakt met de functie monster-music). Laadt het niet, dan het eigen deuntje.
 export const CHECK_MS = 420; // per onderdeel in de check (kern.html en index.html animeren op dezelfde maat)
+export const HOERA_MS = 2600; // zo lang luistert de hoera-meter na elk "hiep hiep"
 export const DANS_URL = 'https://lnhliamckstuwiwyzxyl.supabase.co/storage/v1/object/public/monster/music/dans-a.mp3';
-export function createFinale({ mon, state, audio, confetti, voice = () => undefined, music = () => true, track = DANS_URL, onStage = () => {}, key = 'pkm2_finale', highlights = null } = {}) {
-  let stage = 'idle', running = false, runId = 0, slide = null;
+export function createFinale({ mon, state, audio, confetti, voice = () => undefined, music = () => true, track = DANS_URL, onStage = () => {}, key = 'pkm2_finale', highlights = null, hoera = null, onHoera = () => {} } = {}) {
+  let stage = 'idle', running = false, runId = 0, slide = null, hoeraStand = null;
   const gameKey = () => key + ':' + (state.get().game?.started_at || 'x');
   const set = s => { stage = s; try { onStage(s); } catch (e) { console.error('[finale]', e); } };
   const jarige = () => state.get().players.find(p => p.is_birthday)?.name || NAAM_JARIGE;
@@ -163,13 +189,30 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
       await sleep(dance ? dance.beat * 4 * 1000 : 300); if (!alive()) return; // één maat alleen muziek
       const vers = pick(LINES.vers), regels = Array.isArray(vers) ? vers : [vers];
       for (const r of regels) { await talk(w(r), 6000); if (!alive()) return; await sleep(dance ? dance.beat * 2 * 1000 : 200); } // halve maat muziek tussen de regels
-      for (const h of LINES.hiep || []) { await talk(w(h), 3000); if (!alive()) return; await sleep(1300); if (!alive()) return; } // HOERA!
+      const hiep = LINES.hiep || [], meet = !!hoera?.ok; // hoera-meter: alleen met een open microfoon (kern.html), anders de gewone pauze
+      if (meet) hoeraStand = { ronde: 0, n: hiep.length, scores: [], luister: false, best: 0 };
+      for (let i = 0; i < hiep.length; i++) {
+        if (meet) { hoeraStand.ronde = i; hoeraStand.luister = false; set('hoera'); }
+        await talk(w(hiep[i]), 3000); if (!alive()) return;
+        if (!meet) { await sleep(1300); if (!alive()) return; continue; } // HOERA!
+        hoeraStand.luister = true; set('hoera'); dance?.duck(true); // muziek zacht: de microfoon moet de meiden horen, niet de luidspreker
+        let piek = null;
+        try { piek = await hoera.listen(HOERA_MS, (nu, p) => { try { onHoera(nu, p); } catch {} }); } catch (e) { console.warn('[finale] hoera', e); }
+        dance?.duck(false); if (!alive()) return;
+        hoeraStand.scores.push(piek ?? 0); hoeraStand.best = Math.max(hoeraStand.best, piek ?? 0); hoeraStand.luister = false;
+        set('hoera'); audio?.play?.(piek >= 90 ? 'badge' : 'plop'); await sleep(900); if (!alive()) return;
+      }
+      if (meet) { // de uitslag: de beste van de drie telt
+        if (hoeraStand.best >= 90) confetti?.();
+        await talk(w(pick(LINES.hoera?.[hoeraTier(hoeraStand.best)]) || ''), 5000); if (!alive()) return;
+        set('vers');
+      }
       await talk(w(pick(LINES.dans) || ''), 5000); if (!alive()) return;
       set('confetti');
       dance?.drop(); confetti?.(); audio?.play?.('badge'); setTimeout(() => confetti?.(), 1800); setTimeout(() => confetti?.(), 6000);
       await sleep(dance ? dance.beat * 32 * 1000 : 1200); if (!alive()) return; // dansstuk: acht maten (±16 s)
       await terugblik(alive); // muziek loopt zachter door onder de dia's
-    } finally { dance?.stop(1.8); dance = null; slide = null; }
+    } finally { dance?.stop(1.8); dance = null; slide = null; hoera?.close?.(); }
     await sleep(1200);
   }
   // Terugblik: korte zin, dan de hoogtepunten als dia's met muziek eronder (geen gepraat).
@@ -197,6 +240,7 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
     const J = () => ({ jarige: jarige() });
     try {
       trackP = music() ? audio?.loadTrack?.(track) : null; // alvast laden
+      hoeraStand = null; hoera?.open?.().catch?.(() => {}); // microfoon alvast open voor de hoera-meter; lukt het niet, dan gewoon zonder
       if (intro) { await say(intro); if (!alive()) return; }
       mon.setParts(PART_KEYS); mon.setMood('wakker');
       // 1. beeld: zeven onderdelen klikken één voor één aan, dan één korte zin
@@ -229,9 +273,10 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
     start,
     get stage() { return stage; },
     get slide() { return slide; },
+    get hoera() { return hoeraStand; },
     get running() { return running; },
     get done() { return store.get(gameKey()) === '1'; },
-    reset() { runId++; running = false; dance?.stop(0.5); dance = null; store.del(gameKey()); set('idle'); },
+    reset() { runId++; running = false; dance?.stop(0.5); dance = null; hoera?.close?.(); hoeraStand = null; store.del(gameKey()); set('idle'); },
     voice,
   };
 }

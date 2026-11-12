@@ -199,11 +199,12 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:75}
 <script type="module">
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync, IS_TEST } from './js/sync.js';
-import { createMonster, lineText, monsterImage } from './js/monster.js?v=30';
+import { createMonster, lineText, monsterImage } from './js/monster.js?v=31';
 import { audio } from './js/audio.js?v=12';
 import { voice } from './js/voice.js?v=9';
-import { LINES } from './js/monster-lines.js?v=19';
-import { createFinale, endCards, END_CSS, fillLine, stageHTML, TAART_HTML, buildHighlights } from './js/finale.js?v=16';
+import { LINES } from './js/monster-lines.js?v=20';
+import { createFinale, endCards, END_CSS, fillLine, stageHTML, TAART_HTML, buildHighlights } from './js/finale.js?v=17';
+import { createHoeraMeter, HOERA_TOP } from './js/hoera.js?v=1'; // hoera-meter in de finale (microfoon van de laptop)
 import { kernTekeningen } from './js/tekening.js?v=2'; // goedgekeurde tekeningen (regie → 📸 Tekeningen), 12 nov
 
 const $ = s => document.querySelector(s);
@@ -230,7 +231,11 @@ function confetti() {
 const tek = kernTekeningen();
 const metTeam = list => { const g = tek.get().groep; return g ? [...list.slice(0, 7), { img: g, title: 'Het Reparatieteam', sub: 'getekend door Mecha-Pof', ms: 6500 }] : list; }; // groepstekening als laatste dia
 const highlights = async () => { if (PROEF) return metTeam(buildHighlights(demoSpel())); try { const r = await sync.regie.state(); return metTeam(buildHighlights({ ...S(), ...r, game: r?.game || S().game })); } catch { return metTeam(buildHighlights(S())); } };
-const finale = createFinale({ mon, state, audio, confetti, voice: () => true, key: 'pkm2_finale_kern', highlights, onStage: () => render() });
+// Hoera-meter: hoe harder HOERA, hoe hoger. Gevoeligheid bijstellen: kern.html?hoeratop=-20 (makkelijker) of -10 (moeilijker); blijft bewaard.
+const qTop = parseFloat(new URLSearchParams(location.search).get('hoeratop')); if (qTop <= -3 && qTop >= -40) store.set('pkm2_hoera_top', qTop);
+const hoera = createHoeraMeter({ top: store.get('pkm2_hoera_top', HOERA_TOP) });
+const onHoera = (nu, piek) => { const b = $('#hoera-b'), p = $('#hoera-p'), t = $('#hoera-t'); if (b) b.style.width = nu + '%'; if (p) p.style.left = Math.min(99, piek) + '%'; if (t) t.textContent = piek + ' %'; };
+const finale = createFinale({ mon, state, audio, confetti, voice: () => true, key: 'pkm2_finale_kern', highlights, hoera, onHoera, onStage: () => render() });
 
 /* ---------- event-router (zelfde vorm als index.html, zodat monster.js meeluistert) */
 const handlers = {}, seen = new Set(); let primed = false;
@@ -400,7 +405,7 @@ function render() {
     const stg = finale.stage;
     cap.innerHTML = `<h1 class="title">${stg === 'idle' && !finale.done ? 'Alle zeven onderdelen!' : stg === 'check' ? 'Systeemcontrole…' : stg === 'taart' ? 'Nieuwe missie!' : stg === 'terugblik' ? 'Wat een spel!' : 'MEGA-MECHA-POF!'}</h1>`;
     // Eén vast blok per stap; alleen opnieuw tekenen als de stap verandert (anders herstarten de animaties).
-    const sig = showEnd ? 'eind:' + tek.sig() + ':' + S().players.map(p => p.id + (p.badges || []).join()).join('|') : 'fin:' + stg + (finale.slide ? ':' + finale.slide.i : '');
+    const sig = showEnd ? 'eind:' + tek.sig() + ':' + S().players.map(p => p.id + (p.badges || []).join()).join('|') : 'fin:' + stg + (finale.slide ? ':' + finale.slide.i : '') + (stg === 'hoera' && finale.hoera ? ':' + finale.hoera.ronde + finale.hoera.luister + finale.hoera.scores.length : '');
     if (side.dataset.sig !== sig) {
       side.dataset.sig = sig;
       const T = tek.get();
@@ -408,7 +413,7 @@ function render() {
         <div class="panel"><h2>Het Reparatieteam</h2><div class="fin-cards">${endCards(state, { portret: T.portret })}</div></div>
         <div class="row" style="justify-content:center"><button data-t="foto">📸 Teamfoto</button></div>`
       : stg === 'idle' ? `<div class="panel"><h2>Finale</h2><p class="sub" style="text-align:left">De boterknop zit erop. Klaar voor Mega-Mecha-Pof?</p><button data-t="finale">▶ Finale afspelen</button></div>`
-      : `<div class="panel"><h2>${{ check: 'Systeemcontrole', mega: 'Stroopmeter', vers: 'DJ Mecha-Pof', confetti: 'Robotdans!', terugblik: 'Terugblik', taart: 'Eerst taart, dan pannenkoeken' }[stg] || 'Finale'}</h2>${stageHTML(stg, finale)}${{ vers: '<p class="sub">Na elk “hiep hiep”: HOERA!</p>', confetti: '<p class="sub">🎉 Poppers! Doe Mecha-Pof na.</p>' }[stg] || ''}</div>`;
+      : `<div class="panel"><h2>${{ check: 'Systeemcontrole', mega: 'Stroopmeter', vers: 'DJ Mecha-Pof', hoera: 'Hoera-meter', confetti: 'Robotdans!', terugblik: 'Terugblik', taart: 'Eerst taart, dan pannenkoeken' }[stg] || 'Finale'}</h2>${stageHTML(stg, finale)}${{ vers: '<p class="sub">Na elk “hiep hiep”: HOERA!</p>', hoera: `<p class="sub">Hoe harder jullie HOERA roepen, hoe hoger de meter!${PROEF && hoera.ok ? ` <span class="muted">(proef: hardste ${hoera.maxDb} dB, 100 % bij ${hoera.top} dB)</span>` : ''}</p>`, confetti: '<p class="sub">🎉 Poppers! Doe Mecha-Pof na.</p>' }[stg] || ''}</div>`;
     }
     if (finale.stage === 'idle' && !landing) { mon.setParts(Object.keys(PARTS)); mon.setMood('compleet'); }
   }
@@ -449,7 +454,7 @@ async function speelIntro() { // het verhaal van Mecha-Pof: één plaatje per zi
 }
 function prewarmThuis() { // alle zinnen van thuis vooraf laten opnemen (bij "Kern aanzetten" en na het wekken), zodat niets hapert
   const ps = S().players, jarige = ps.find(p => p.is_birthday)?.name;
-  const texts = [...(LINES.wek || []), ...(LINES.intro || []), ...(LINES.loting?.intro || []), ...(LINES.loting?.klaar || []), ...(LINES.uitleg || []), ...(LINES.kern?.wacht || [])].map(l => fillLine(l, { jarige }));
+  const texts = [...(LINES.wek || []), ...(LINES.intro || []), ...(LINES.loting?.intro || []), ...(LINES.loting?.klaar || []), ...(LINES.uitleg || []), ...(LINES.kern?.wacht || []), ...Object.values(LINES.hoera || {}).flat()].map(l => fillLine(l, { jarige }));
   for (const p of ps) for (const t of (p.talent ? [p.talent] : p.is_birthday ? ['sleutelbewaarder'] : Object.keys(TALENTS).filter(x => x !== 'sleutelbewaarder'))) for (const l of LINES.loting?.[t] || []) texts.push(fillLine(l, { naam: p.name }));
   voice.prewarm?.(texts).catch?.(() => {});
 }
@@ -543,6 +548,7 @@ async function gateOk() {
   tek.start().then(() => { delete $('#side').dataset.sig; render(); });
   render(); setInterval(render, 30_000);
   if (!PROEF) prewarmThuis();
+  hoera.vraag(); // de browser vraagt nu één keer om de microfoon (voor de hoera-meter), niet midden in de finale
 }
 $('#gateform').onsubmit = async e => {
   e.preventDefault();

@@ -29,7 +29,7 @@ const now = () => new Date().toISOString();
 const IMG = 'https://lnhliamckstuwiwyzxyl.supabase.co/storage/v1/object/public/monster/scout/x/stadsbrink.jpg';
 const PIXEL = Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=', 'base64');
 
-const browser = await chromium.launch({ channel: 'chrome', args: ['--autoplay-policy=no-user-gesture-required'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] }); // nep-microfoon (piepjes) voor de hoera-meter
 async function open(file, init, { width = 390, height = 844 } = {}) {
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1, hasTouch: width < 600, reducedMotion: 'reduce' });
   const errors = [];
@@ -222,6 +222,12 @@ if (!only || only === 'proef') {
   ok('proef: stand klaar terwijl het spel in de lobby staat', await K.until(() => document.body.classList.contains('klaar') && /PROEF/.test(document.querySelector('#eyebrow').textContent), 4000));
   await K.page.click('#side [data-t=finale]');
   ok('proef: finale loopt', await K.until(() => window.pkm.finale.stage === 'check', 6000));
+  ok('proef: hoera-meter in beeld na het eerste hiep hiep', await K.until(() => window.pkm.finale.stage === 'hoera' && !!document.querySelector('#side #hoera-b'), 60000));
+  ok('proef: hoera-meter luistert (HOERA!!! en de balk beweegt)', await K.until(() => !!document.querySelector('#side .fin-hoera.luister') && parseFloat(document.querySelector('#hoera-b').style.width) > 0, 15000), await K.txt('#side'));
+  await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-hoera.png') }).catch(() => {});
+  ok('proef: drie rondes gemeten en een uitslag van Mecha-Pof', await K.until(() => window.pkm.finale.hoera?.scores.length === 3 && __said.some(t => /^Hoera-meter: /.test(t)), 40000), JSON.stringify(await K.page.evaluate(() => window.pkm.finale.hoera)));
+  await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-hoera-uitslag.png') }).catch(() => {});
+  console.log('  hoera-scores (nep-microfoon):', JSON.stringify(await K.page.evaluate(() => window.pkm.finale.hoera)));
   ok('proef: terugblik met voorbeeldtijden', await K.until(() => /Snelste klus/.test(document.querySelector('#side')?.textContent || '') || /1 uur en 35 min/.test(document.querySelector('#side')?.textContent || ''), 90000));
   ok('proef: taart en eindscherm', await K.until(() => !!document.querySelector('#side .fin-taart') && window.pkm.finale.stage === 'eind', 90000));
   ok('proef: meldt zich niet als kernscherm, spel blijft in de lobby', await K.page.evaluate(() => !window.pkm.state.get().game.settings?.kern_at && window.pkm.state.get().game.phase === 'lobby'));

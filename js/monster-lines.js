@@ -145,6 +145,12 @@ export const LINES = {
     'Nog een keer! Hiep hiep...',
     'En de laatste! Hiep hiep...',
   ],
+  // Hoera-meter (js/hoera.js, alleen op het kernscherm met microfoon): de uitslag na drie keer HOERA. De beste van de drie telt.
+  hoera: {
+    mega: ['Hoera-meter: MEGA! Mijn schroeven trillen ervan!'],
+    hard: ['Hoera-meter: keihard! Mijn oren piepen ervan!'],
+    zacht: ['Hoera-meter: lekker hard! Mijn lampjes knipperen ervan.'],
+  },
   dans: [
     'Robotdans! Doe mij maar na. Bliep, bloep, stap!',
   ],

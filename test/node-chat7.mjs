@@ -76,5 +76,30 @@ t('bonus invoegen: onderweg vóór de doelstop, bij een puzzel direct erna, niet
   assert.equal(ins({ phase: 'finale', active_index: 6, stop_order: ord }, 'B2'), null);
   assert.equal(ins({ phase: 'lobby', active_index: 0, stop_order: ord }, 'B2'), null);
 });
+{ // hoera-meter: met een open microfoon drie rondes 'hoera' met de beste score en een uitslagzin; daarna gewoon verder
+  const { pct, hoeraTier, hoeraLabel } = await import('../js/hoera.js');
+  const { hoeraHTML } = await import('../js/finale.js');
+  assert.equal(pct(-46), 0); assert.equal(pct(-14), 100); assert.equal(pct(-30), 50); assert.equal(pct(0), 100); assert.equal(pct(-90), 0);
+  assert.equal(hoeraTier(95), 'mega'); assert.equal(hoeraTier(70), 'hard'); assert.equal(hoeraTier(10), 'zacht'); assert.match(hoeraLabel(95), /MEGA/);
+  for (const k of ['mega', 'hard', 'zacht']) assert.ok(LINES.hoera[k][0].split(/\s+/).length <= 15, 'korte uitslagzin');
+  const said = [], stages = [], seen = []; const rounds = [40, 95, 70]; let r = 0, closed = 0, levels = 0;
+  const mon = { say: async t => { said.push(t); return true; }, setParts() {}, setMood() {} };
+  const state = { get: () => ({ game: { hints: 0, started_at: 'h' }, players: [{ name: 'Hannah', is_birthday: true }] }) };
+  const meter = { ok: false, async open() { this.ok = true; return true; }, async listen(ms, cb) { cb(10, rounds[r]); return rounds[r++]; }, close() { closed++; this.ok = false; } };
+  let fin; fin = createFinale({ mon, state, audio: { play() {} }, confetti() {}, hoera: meter, onHoera: () => levels++, key: 'testh', onStage: s => { stages.push(s); if (s === 'hoera') seen.push(JSON.stringify(fin.hoera)); } });
+  const realTimeout = setTimeout; globalThis.setTimeout = (f, ms) => realTimeout(f, 0);
+  await fin.start();
+  globalThis.setTimeout = realTimeout;
+  assert.deepEqual(stages.filter((x, i) => x !== stages[i - 1]), ['check', 'mega', 'vers', 'hoera', 'vers', 'confetti', 'terugblik', 'taart', 'eind']);
+  assert.deepEqual(fin.hoera.scores, [40, 95, 70]); assert.equal(fin.hoera.best, 95); assert.equal(levels, 3); assert.ok(closed >= 1, 'microfoon weer los');
+  assert.ok(seen.some(x => /"luister":true/.test(x)));
+  const i3 = said.findIndex(x => /laatste! Hiep/.test(x)); assert.match(said[i3 + 1], /Hoera-meter: MEGA/); assert.match(said[i3 + 2], /Robotdans/);
+  assert.match(hoeraHTML(fin.hoera), /MEGA-HOERA/); assert.match(hoeraHTML({ ronde: 1, n: 3, scores: [40], luister: true, best: 40 }), /HOERA!!!/);
+  // microfoon geweigerd: geen stap 'hoera', de finale loopt zoals altijd
+  const st2 = []; const fin2 = createFinale({ mon, state, audio: { play() {} }, confetti() {}, hoera: { ok: false, async open() { return false; }, close() {} }, key: 'testh2', onStage: s => st2.push(s) });
+  globalThis.setTimeout = (f, ms) => realTimeout(f, 0); await fin2.start(); globalThis.setTimeout = realTimeout;
+  assert.ok(!st2.includes('hoera')); assert.ok(fin2.done);
+  n++; console.log('✓ hoera-meter: drie rondes, beste telt, uitslagzin; zonder microfoon gewoon de oude finale');
+}
 console.log(`\n${n} tests goed.`);
 process.exit(0); // state.js houdt een interval open
