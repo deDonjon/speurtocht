@@ -417,7 +417,7 @@ function render() {
     }
     if (finale.stage === 'idle' && !landing) { mon.setParts(Object.keys(PARTS)); mon.setMood('compleet'); }
   }
-  $('#conn').textContent = `${S().conn} · ${g?.phase || '–'}`;
+  $('#conn').textContent = `${S().conn} · ${g?.phase || '–'}${stemTekst()}`;
 }
 let landing = false;
 
@@ -456,8 +456,12 @@ function prewarmThuis() { // alle zinnen van thuis vooraf laten opnemen (bij "Ke
   const ps = S().players, jarige = ps.find(p => p.is_birthday)?.name;
   const texts = [...(LINES.wek || []), ...(LINES.intro || []), ...(LINES.loting?.intro || []), ...(LINES.loting?.klaar || []), ...(LINES.uitleg || []), ...(LINES.kern?.wacht || []), ...Object.values(LINES.hoera || {}).flat()].map(l => fillLine(l, { jarige }));
   for (const p of ps) for (const t of (p.talent ? [p.talent] : p.is_birthday ? ['sleutelbewaarder'] : Object.keys(TALENTS).filter(x => x !== 'sleutelbewaarder'))) for (const l of LINES.loting?.[t] || []) texts.push(fillLine(l, { naam: p.name }));
-  voice.prewarm?.(texts).catch?.(() => {});
+  stem = { ok: 0, fout: 0, n: texts.length, bezig: true }; toonStem();
+  voice.prewarm?.(texts, (i, n, _t, good) => { stem.n = n; if (good) stem.ok++; else stem.fout++; toonStem(); })?.then?.(() => { stem.bezig = false; toonStem(); }).catch?.(() => { stem.bezig = false; toonStem(); });
 }
+let stem = null; // voortgang van het vooraf opnemen van de thuiszinnen (linksonder in beeld)
+function stemTekst() { return !stem ? '' : stem.bezig ? ` · 🎙️ zinnen ${stem.ok + stem.fout}/${stem.n}…` : stem.fout ? ` · ⚠️ zinnen ${stem.ok}/${stem.n} (${stem.fout} mislukt, ververs om opnieuw te proberen)` : ` · ✅ zinnen ${stem.ok}/${stem.n} binnen`; }
+function toonStem() { const g = S().game; $('#conn').textContent = `${S().conn} · ${g?.phase || '–'}${stemTekst()}`; }
 async function speelUitleg() { // regie: knop "Speluitleg". Eén stap per zin, met een voorbeeld in beeld; daarna terug naar het wachtscherm.
   if (uitleg || loting || intro) return;
   woke = true; uitleg = { i: 0, k: 0 }; render();
