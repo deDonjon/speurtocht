@@ -449,33 +449,34 @@ export const LINES = {
       'Krrrk... inkomend bericht van mij, voor {naam}. Mijn antenne trilt ervan. Zeg het maar. Over!',
     ],
     // Briefing als ze bij een plek aankomen: Mecha-Pof belt zelf en zegt welk onderdeel hier ligt en wie de monteur is.
+    // {monteur} = talent + naam van de monteur van dit deel ("Tijdbewaker Elin"); zonder naam alleen het talent. Zij heeft op haar plek de leiding.
     // Wordt als begroeting meegestuurd (stop.arrived), per deel van de stop. Zonder "over" aan het eind: walkie.js plakt er
     // een slot uit briefingSlot achter, zodat de kinderen precies weten wat ze moeten doen en wat ze terug moeten zeggen.
     briefing: {
       lijf: [
-        'Krrrk, piep! Signaal sterk. Hier ergens ligt mijn pannenkoekenpantser. Vier lagen, met klinknagels. Zonder lijf ben ik maar een pratend doosje. Dit is de eerste klus, dus iedereen helpt mee. Lukt het, dan kunnen jullie mij eindelijk zien.',
+        'Krrrk, piep! Signaal sterk. Hier ergens ligt mijn pannenkoekenpantser. Vier lagen, met klinknagels. Zonder lijf ben ik maar een pratend doosje. Dit is de eerste klus, dus hier zijn jullie allemaal de baas. Lukt het, dan kunnen jullie mij eindelijk zien.',
       ],
       ogen: [
-        'Bzzzt, Mecha-Pof hier. Alles is zwart. Ik heb net sorry gezegd tegen een lantaarnpaal. Mijn LED-ogen liggen bij deze plek. Speurneus, jij bent de monteur. Krijg ik ze terug, dan zeg ik voortaan hoe ver het nog is.',
+        'Bzzzt, Mecha-Pof hier. Alles is zwart. Ik heb net sorry gezegd tegen een lantaarnpaal. Mijn LED-ogen liggen bij deze plek. {monteur}, jij bent de monteur, dus jij hebt hier de leiding. Jij verdeelt wie welke schijf doet. Krijg ik mijn ogen terug, dan zeg ik voortaan hoe ver het nog is.',
       ],
       neus: [
-        'Piep piep, snuf... niks. Ik ruik helemaal niks. Mijn aardbei-knop ligt hier. Kaartlezer, jij bent de monteur. Zonder neus kan ik geen hints ruiken, en hints ruiken naar warme stroop.',
+        'Piep piep, snuf... niks. Ik ruik helemaal niks. Mijn aardbei-knop ligt hier. {monteur}, jij bent de monteur, dus jij hebt hier de leiding. Jij zegt wie waar gaat staan. Zonder neus kan ik geen hints ruiken, en hints ruiken naar warme stroop.',
       ],
       mond: [
-        'Krrr... hoor je dat? Ik praat door een theezeefje. Mijn luidsprekerrooster ligt hier. Codekraker, jij bent de monteur. Met een mond kan ik alarm slaan. En nog brutaler doen. Sorry, niet sorry.',
+        'Krrr... hoor je dat? Ik praat door een theezeefje. Mijn luidsprekerrooster ligt hier. {monteur}, jij bent de monteur, dus jij hebt hier de leiding. Laat iedereen goed kijken, en jij beslist wanneer jullie het weten. Met een mond kan ik alarm slaan. En nog brutaler doen. Sorry, niet sorry.',
       ],
       armen: [
-        'Bliep. Ik wil zwaaien, maar er gebeurt niks. Mijn spatel en mijn garde liggen hier. Rekenmeester, jij bent de monteur. Met armen kan ik weer vastpakken. Handig, want er loopt hier een kruimelrobot rond die dingen pikt.',
+        'Bliep. Ik wil zwaaien, maar er gebeurt niks. Mijn spatel en mijn garde liggen hier. {monteur}, jij bent de monteur, dus jij hebt hier de leiding. Jij verdeelt de klusjes, zodat iedereen iets te doen heeft. Met armen kan ik weer vastpakken. Handig, want er loopt hier een kruimelrobot rond die dingen pikt.',
       ],
       benen: [
-        'Pssst... pssst... niks. Mijn zuigerbenen liggen hier, met de pannetjes eraan. Tijdbewaker, jij bent de monteur. Als ik kan lopen, loop ik met jullie mee op de kaart. Maar dan begint ook de klok te tikken.',
+        'Pssst... pssst... niks. Mijn zuigerbenen liggen hier, met de pannetjes eraan. {monteur}, jij bent de monteur, dus jij hebt hier de leiding. Tip van mijn processor: verdeel de kleuren, dan hoeft niemand alles te onthouden. Als ik kan lopen, loop ik met jullie mee op de kaart. Maar dan begint ook de klok te tikken.',
       ],
       // Bonusopdracht (stop zonder onderdeel, gekozen door de begeleider).
       bonus: [
         'Bzzzt! Extra klus, speurders. Hier ligt geen onderdeel, maar wel een bonus met stroopdruppels.',
       ],
       hoed: [
-        'Bzzzt! Thuis! Mijn kern ligt hier, en het laatste stuk ook: mijn boterknop en mijn stroop-jetpack. Sleutelbewaarder, dit is jouw moment. Druk op de knop, dan vlieg ik.',
+        'Bzzzt! Thuis! Mijn kern ligt hier, en het laatste stuk ook: mijn boterknop en mijn stroop-jetpack. {monteur}, dit is jouw moment, jij hebt hier de leiding. Druk op de knop, dan vlieg ik.',
       ],
     },
     // Afscheid na de finale (knop op het eindscherm): kort, zodat ze meteen met zijn zessen "over en sluiten" roepen.
@@ -489,7 +490,7 @@ export const LINES = {
       samen: { tekst: 'Jullie opdracht: deze klus doen jullie met alle drie de telefoons tegelijk. Kijk allemaal op je eigen scherm. Begrepen? Zeg dan: begrepen, over en sluiten. Over!', zeg: 'Begrepen, over en sluiten', gemist: 'Jullie opdracht: deze klus doen jullie met alle drie de telefoons tegelijk. Kijk allemaal op je eigen scherm.' },
       werkbank: { tekst: 'Jullie opdracht: kijk op de werkbank-telefoon, daar staat de puzzel. Begrepen? Zeg dan: begrepen, over en sluiten. Over!', zeg: 'Begrepen, over en sluiten', gemist: 'Jullie opdracht: kijk op de werkbank-telefoon, daar staat de puzzel.' },
       wachtwoord: { tekst: 'Hier is een geheim wachtwoord verstopt. Zoek het! Gevonden? Druk dan op het walkie-knopje en zeg het hardop tegen mij. Nu eerst: zeg begrepen, over en sluiten. Over!', zeg: 'Begrepen, over en sluiten', gemist: 'Hier is een geheim wachtwoord verstopt. Zoek het! Gevonden? Druk op het walkie-knopje en zeg het hardop tegen mij.' },
-      hoed: { tekst: 'Zeg: klaar, over en sluiten. Dan hang ik op en drukt de Sleutelbewaarder op de knop. Over!', zeg: 'Klaar, over en sluiten', gemist: 'Sleutelbewaarder, druk op de knop!' },
+      hoed: { tekst: 'Zeg: klaar, over en sluiten. Dan hang ik op en drukt {monteur} op de knop. Over!', zeg: 'Klaar, over en sluiten', gemist: 'Druk maar op de knop!' },
     },
   },
 };

@@ -82,7 +82,7 @@ function vars(ctx = {}) {
 // "Hannah, Elin, Isa" → "Hannah, Elin en Isa"
 function namen(list) { const a = String(list || '').split(/\s*,\s*/).filter(Boolean); return a.length > 1 ? a.slice(0, -1).join(', ') + ' en ' + a[a.length - 1] : a[0] || 'speurders'; }
 const lastGreet = {};
-const fillGreeting = (l, ctx = {}) => String(l || '').replace(/\{spelers\}/g, namen(ctx.spelers)).replace(/\{jarige\}/g, ctx.jarige && ctx.jarige !== 'de jarige' ? ctx.jarige : NAAM_JARIGE).replace(/\{naam\}/g, ctx.naam || 'speurder');
+const fillGreeting = (l, ctx = {}) => String(l || '').replace(/\{spelers\}/g, namen(ctx.spelers)).replace(/\{jarige\}/g, ctx.jarige && ctx.jarige !== 'de jarige' ? ctx.jarige : NAAM_JARIGE).replace(/\{naam\}/g, ctx.naam || 'speurder').replace(/\{monteur\}/g, ctx.monteur || 'monteur');
 function greeting(kind, ctx) {
   const list = LINES.walkie?.[kind] || [];
   const fresh = list.length > 1 ? list.filter(l => l !== lastGreet[kind]) : list;
@@ -92,20 +92,24 @@ function greeting(kind, ctx) {
 }
 /** Openingszin voor een oproep van Mecha-Pof: de briefing van een onderdeel (walkie.briefing.<deel>), of een algemene
     oproepzin (walkie.oproep, met {naam}). Voor index.html en de testpagina. */
-export function callGreeting({ part, naam, text, type } = {}) {
+export function callGreeting({ part, naam, text, type, monteur } = {}) {
   if (text) return fillGreeting(text, { naam });
-  if (part && LINES.walkie?.briefing?.[part]?.length) return arrivalCall({ part, type, naam }).greeting;
+  if (part && LINES.walkie?.briefing?.[part]?.length) return arrivalCall({ part, type, naam, monteur }).greeting;
   return greeting('oproep', { naam });
 }
 /** Oproep bij aankomst: briefing van het onderdeel + een duidelijk slot (walkie.briefingSlot): wat ze nu moeten doen en wat ze
     terugzeggen. type = puzzeltype van de stop ('wachtwoord' krijgt een eigen slot), part 'hoed' = thuis.
+    monteur = hoe Mecha-Pof de monteur van dit deel aanspreekt ("Tijdbewaker Elin"), voor {monteur} in briefing en slot.
     → { greeting (zin voor de walkie), zeg (staat groot in beeld), gemist (wat de app zelf zegt als niemand opneemt) } */
-export function arrivalCall({ part, type, naam } = {}) {
+const MONTEUR_TALENT = { ogen: 'Speurneus', neus: 'Kaartlezer', mond: 'Codekraker', armen: 'Rekenmeester', benen: 'Tijdbewaker', hoed: 'Sleutelbewaarder' };
+export function arrivalCall({ part, type, naam, monteur } = {}) {
+  monteur = monteur || MONTEUR_TALENT[part] || 'monteur';
   const list = LINES.walkie?.briefing?.[part] || LINES.walkie?.briefing?.bonus || [];
-  const body = fillGreeting(list[Math.floor(Math.random() * list.length)] || 'Bzzzt! Mecha-Pof hier. Jullie zijn er!', { naam });
+  const body = fillGreeting(list[Math.floor(Math.random() * list.length)] || 'Bzzzt! Mecha-Pof hier. Jullie zijn er!', { naam, monteur });
   const slots = LINES.walkie?.briefingSlot || {};
   const slot = (part === 'hoed' && slots.hoed) || (type === 'wachtwoord' && slots.wachtwoord) || (['slot', 'formatie', 'licht', 'splits'].includes(type) && slots.samen) || slots.werkbank || { tekst: 'Begrepen? Zeg dan: begrepen, over en sluiten. Over!', zeg: 'Begrepen, over en sluiten', gemist: '' };
-  return { greeting: body + ' ' + slot.tekst, zeg: slot.zeg, gemist: (body + ' ' + (slot.gemist || '')).trim() };
+  const f = t => fillGreeting(t, { naam, monteur });
+  return { greeting: body + ' ' + f(slot.tekst), zeg: slot.zeg, gemist: (body + ' ' + f(slot.gemist || '')).trim() };
 }
 // Eindigt dit bericht met "over en sluiten" (of "over en uit")? Spraakherkenning schrijft het soms los of met streepjes.
 const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();

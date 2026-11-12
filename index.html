@@ -425,6 +425,12 @@ router.on('badge.awarded', p => { if (install.onBadge(p.badge)) return; const me
 /* ================================================================ walkietalkie (js/walkie.js)
    Per groep één walkietalkie: alleen de radiotelefoon (rol `radio`, js/roles.js; die praat ook hardop) krijgt de knop. */
 const speakerNames = () => whoHas('radio');
+// De monteur van een deel (speelster met het talent van dat deel) heeft op haar plek de leiding; Mecha-Pof spreekt haar aan als "Tijdbewaker Elin".
+function monteurOf(part) {
+  const t = Object.keys(TALENTS).find(k => TALENTS[k].part === part); if (!t) return null;
+  const pl = (S().players || []).find(p => p.talent === t);
+  return { talent: TALENTS[t].label, name: pl?.name || '', aanspreek: [TALENTS[t].label, pl?.name].filter(Boolean).join(' ') };
+}
 function walkieContext() {
   const g = S().game || {}, st = state.activeStop(), route = state.route(), got = g.parts || [];
   const cfg = st?.puzzles?.[S().puzzle?.variant ?? 0] || st?.puzzles?.[0] || {};
@@ -432,7 +438,7 @@ function walkieContext() {
     jarige: birthday()?.name || 'de jarige',
     spelers: (S().players || []).map(p => p.name).join(', '),
     fase: { lobby: 'nog niet begonnen (voorstelronde)', onderweg: 'onderweg naar de volgende plek', puzzel: 'bij een puzzel', finale: 'bijna thuis, de finale', klaar: 'klaar, alles gevonden (hou het kort: nu eerst taart versieren, daarna pannenkoeken eten)' }[g.phase] || g.phase || '',
-    stop_naam: st?.name || '', stop_nummer: st ? route.indexOf(st) + 1 : '', stops_totaal: route.length || '',
+    stop_naam: (st?.name || '') + (st && monteurOf(st.part)?.name ? ` (hier heeft ${monteurOf(st.part).name}, de ${monteurOf(st.part).talent}, de leiding: spreek haar bij naam aan en laat haar verdelen wie wat doet)` : st?.part === 'lijf' ? ' (eerste klus: iedereen samen)' : ''), stop_nummer: st ? route.indexOf(st) + 1 : '', stops_totaal: route.length || '',
     aanwijzing: st?.clue || '',
     puzzel_vraag: g.phase === 'puzzel' ? (cfg.question || '') : '',
     puzzel_hint: g.phase === 'puzzel' ? (cfg.hint || '') : '',
@@ -489,7 +495,7 @@ function ringCall({ greeting, title = 'Mecha-Pof belt!', sub = '', zeg = '', gem
 router.on('stop.arrived', p => {
   const st = state.stop(p.stop_id); if (!st) return;
   const cfg = st.puzzles?.[S().puzzle?.stop_id === st.id ? S().puzzle.variant ?? 0 : 0] || st.puzzles?.[0] || {};
-  const call = arrivalCall({ part: st.part || 'bonus', type: cfg.type }); // briefing + duidelijk slot: wat nu, en wat ze terugzeggen
+  const call = arrivalCall({ part: st.part || 'bonus', type: cfg.type, monteur: monteurOf(st.part)?.aanspreek }); // briefing + duidelijk slot: wat nu, en wat ze terugzeggen
   lastBrief = { stopId: st.id, text: call.gemist || call.greeting };
   setTimeout(() => { if (state.activeStop()?.id === st.id) ringCall({ ...call, sub: `Signaal van ${st.name}` }); }, 300); // vóór de aankomstzin van monster.js (600 ms), die dan zwijgt
 });
@@ -909,7 +915,7 @@ screens.puz = (el, id) => {
   const kort = v => v.length > 22 ? v.slice(0, 20) + '…' : v;
   el.innerHTML = `${mslot('sm')}
     <div class="page"><span class="tab">📍 Jullie zijn er · ${st.key === 'home' ? 'Finale' : isBonus(st) ? 'Bonus' : `plek ${n} van ${total}`}</span>
-      <h2>${esc(st.name)}</h2>
+      <h2>${esc(st.name)}</h2>${(m => m?.name ? `<p class="note" style="margin:-4px 0 4px">🔧 Hier heeft <b>${esc(m.name)}</b> (${esc(m.talent)}) de leiding</p>` : '')(monteurOf(st.part))}
       <div id="pz" class="col" style="display:flex;flex-direction:column;gap:12px"><p class="note">Puzzel wordt opengevouwen…</p></div>
       <div id="radiobox"></div><div id="hintbox"></div><div id="submit" class="submit" hidden></div></div>`;
   const pz = $('#pz', el);
