@@ -74,10 +74,16 @@ export const state = {
   /** Gesorteerde lijst van toestel-id's die meedoen: presence met minstens één bewaker, bewakers die online zijn (last_seen_at)
    *  en dit toestel zelf zodra er hier iemand is ingelogd. Dezelfde lijst op elke telefoon → dezelfde rolverdeling (js/roles.js). */
   devices() {
-    const ids = new Set();
-    for (const [k, d] of presence) if (d.players?.length) ids.add(k);
-    for (const p of s.players) if (p.online && p.device_id) ids.add(p.device_id);
-    if (s.device.players.length) ids.add(s.device.id);
+    // Elke bewaker telt op één toestel: staat dezelfde speler op meer toestellen (link twee keer geopend, Safari én
+    // beginscherm, oud tabblad op de laptop), dan wint het toestel dat het laatst inlogde/verbond (presence `at`,
+    // gelijk → hoogste id). Een toestel waarvan alle bewakers elders "winnen" is een spooktoestel en telt niet mee.
+    const claims = new Map(); // player_id -> { dev, at }
+    const claim = (pid, dev, at) => { const c = claims.get(pid); if (!c || at > c.at || (at === c.at && dev > c.dev)) claims.set(pid, { dev, at }); };
+    for (const [k, d] of presence) for (const pid of d.players || []) claim(pid, k, Date.parse(d.at) || 0);
+    if (s.device.players.length && !presence.get(s.device.id)?.players?.length) // nog niet in presence (net ingelogd)
+      for (const pid of s.device.players) claim(pid, s.device.id, Date.now());
+    const ids = new Set([...claims.values()].map(c => c.dev));
+    for (const p of s.players) if (p.online && p.device_id && !claims.has(p.id)) ids.add(p.device_id);
     return [...ids].sort();
   },
   phones() { return Math.max(1, state.devices().length); }, // aantal toestellen online (1, 2 of 3)

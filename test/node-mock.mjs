@@ -61,7 +61,7 @@ await sync.login('3115');
 ok('twee bewakers op één toestel', state.me().length === 2);
 
 presenceSync();
-ok('phones() uit presence (devA, devB) + dit toestel zelf = 3', state.phones() === 3); // sinds roles.js telt devices() ook dit toestel zodra er hier iemand is ingelogd
+ok('phones() uit presence: devA (p1) en devB (p2) zijn spook, want p1 en p2 staan ook hier = 1', state.phones() === 1); // één toestel per speler, het laatst verbonden toestel wint
 ok('online via presence', state.player('p2')?.online === true);
 
 const ps = await sync.arrive();
