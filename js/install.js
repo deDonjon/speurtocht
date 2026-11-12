@@ -12,7 +12,8 @@
 // Een stop zonder deel (bonusopdracht, chat 7) heeft geen ritueel: start() doet dan niets en geeft false.
 
 export const BADGE_PREFIX = 'monteur-';
-const SHAKE_DELTA = 11, SHAKES_NEEDED = 4, SHAKE_WINDOW = 1600, WAIT_MS = 45_000, BUTTON_AFTER_MS = 12_000;
+// Drempel bewust laag (was 11): rustig wiebelen telt al, zodat het lukt vóórdat iOS zijn eigen schudgebaar (Herstel typen) herkent.
+const SHAKE_DELTA = 6, SHAKES_NEEDED = 4, SHAKE_WINDOW = 2000, WAIT_MS = 45_000, BUTTON_AFTER_MS = 12_000;
 
 export function createInstall(d) {
   const { mon, sync, state, PARTS, TALENTS, audio, buzz, confetti, overlay, closeOverlay, mslot, esc } = d;
@@ -78,7 +79,7 @@ export function createInstall(d) {
       const stop = () => removeEventListener('devicemotion', onMotion);
       addEventListener('devicemotion', onMotion);
       cur.stopMotion = stop;
-      note.textContent = 'Schudden maar! Stevig, vier keer heen en weer.';
+      note.textContent = 'Schudden maar! Rustig heen en weer wiebelen is al genoeg.';
       cur.timers.push(setTimeout(() => { if (cur && !cur.done) { note.textContent = 'Lukt het schudden niet? Dan mag de knop.'; bigButton(); } }, BUTTON_AFTER_MS));
     };
     if (!canMotion) { note.textContent = 'Deze telefoon heeft geen bewegingssensor.'; bigButton(); return; }
