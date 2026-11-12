@@ -101,6 +101,24 @@ t('bonus invoegen: onderweg vóór de doelstop, bij een puzzel direct erna, niet
   assert.ok(st2.includes('hoera') && fin2.hoera.mic === false && !fin2.hoera.scores.length, 'zonder microfoon: wel HOERA in beeld, geen scores'); assert.ok(fin2.done);
   assert.match(hoeraHTML(fin2.hoera), /geen microfoon/);
   n++; console.log('✓ hoera-meter: drie rondes, beste telt, uitslagzin; zonder microfoon gewoon de oude finale');
+  // tien kaarsjes (kern.html: kaarsjes: true): na de hoera-meter, uitblazen via de microfoon; te zacht = Mecha-Pof helpt; zonder microfoon vanzelf
+  const { kaarsHTML, KAARS_N } = await import('../js/finale.js');
+  const run = async (meter, key) => { const said = [], stages = [], uit = []; let fin; fin = createFinale({ mon: { say: async t => { said.push(t); return true; }, setParts() {}, setMood() {} }, state, audio: { play() {} }, confetti() {}, hoera: meter, kaarsjes: true, key, onStage: s => { stages.push(s); if (s === 'kaarsjes') uit.push(fin.kaars.uit); } });
+    globalThis.setTimeout = (f, ms) => realTimeout(f, 0); await fin.start(); globalThis.setTimeout = realTimeout; return { said, stages: stages.filter((x, i) => x !== stages[i - 1]), uit, fin }; };
+  const hard = await run({ ok: false, async open() { this.ok = true; return true; }, async listen(ms, cb) { for (let i = 0; i < 500; i++) if (cb(100, 100) === true) return 100; return 100; }, close() { this.ok = false; } }, 'testk1');
+  assert.deepEqual(hard.stages, ['check', 'mega', 'vers', 'hoera', 'vers', 'kaarsjes', 'vers', 'confetti', 'terugblik', 'taart', 'eind']);
+  assert.equal(hard.fin.kaars.uit, KAARS_N); assert.ok(hard.fin.kaars.klaar && !hard.fin.kaars.hulp); assert.deepEqual([...new Set(hard.uit)], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  const ik = hard.said.findIndex(x => /tien kaarsjes! Hannah/.test(x)); assert.ok(ik > hard.said.findIndex(x => /^Hoera-meter/.test(x))); assert.match(hard.said[ik + 1], /Alle tien uit! Je wens staat/); assert.match(hard.said[ik + 2], /Robotdans/);
+  const zacht = await run({ ok: false, async open() { this.ok = true; return true; }, async listen(ms, cb) { for (let i = 0; i < 50; i++) cb(10, 10); return 10; }, close() { this.ok = false; } }, 'testk2');
+  assert.equal(zacht.fin.kaars.uit, KAARS_N); assert.ok(zacht.fin.kaars.hulp); assert.ok(zacht.said.some(x => /ventilator/.test(x)));
+  const geen = await run({ ok: false, async open() { return false; }, close() {} }, 'testk3');
+  assert.ok(geen.stages.includes('kaarsjes')); assert.equal(geen.fin.kaars.uit, KAARS_N); assert.ok(!geen.fin.kaars.hulp && geen.fin.done);
+  assert.equal((kaarsHTML({ n: 10, uit: 4, luister: true }).match(/class="k uit"/g) || []).length, 4); assert.match(kaarsHTML({ n: 10, uit: 4, luister: true }), /BLAZEN/); assert.match(kaarsHTML(hard.fin.kaars), /Alle tien uit/);
+  for (const k of ['start', 'uit', 'hulp']) assert.ok(LINES.kaars[k][0].length < 400);
+  n++; console.log('✓ kaarsjes: tien uitblazen via de microfoon, hulp als het te zacht is, zonder microfoon vanzelf; daarna de robotdans');
+  // vierde verjaardagswens: papa moet het doen
+  assert.match(LINES.wens.papa[0], /Papa van \{jarige\}/); assert.ok(LINES.wens.papa[0].length < 400); assert.match(LINES.loting.sleutelbewaarder[0], /papa/); assert.match(LINES.uitleg[5], /heeft één verjaardagswens.*papa/);
+  n++; console.log('✓ wens: papa moet het doen staat in de zinnen (wens, loting, uitleg)');
 }
 console.log(`\n${n} tests goed.`);
 process.exit(0); // state.js houdt een interval open

@@ -3,7 +3,8 @@
 //   const meter = createHoeraMeter({ top, floor })   top/floor in dBFS: floor = 0 %, top = 100 % (zie HOERA_TOP / HOERA_FLOOR)
 //   await meter.vraag()      vraagt de microfoon één keer (bij "Kern aanzetten", zodat de vraag niet midden in de finale komt) en laat hem weer los
 //   await meter.open()       microfoon open (begin van de finale); false = geen microfoon of geen toestemming → de finale loopt gewoon door
-//   await meter.listen(ms, onLevel)   luistert ms lang; onLevel(nu, piek) in procenten, ±20× per seconde → piek (0–100), of null zonder microfoon
+//   await meter.listen(ms, onLevel)   luistert ms lang; onLevel(nu, piek) in procenten, ±20× per seconde → piek (0–100), of null zonder microfoon.
+//                            Geeft onLevel true terug, dan stopt het luisteren meteen (de kaarsjes in de finale).
 //   meter.close()            microfoon los
 //   meter.ok                 true zolang de microfoon open is; meter.maxDb = de hardste meting in dBFS (voor het bijstellen)
 //
@@ -54,7 +55,8 @@ export function createHoeraMeter({ top = HOERA_TOP, floor = HOERA_FLOOR } = {}) 
       const p = pct(d, floor, top);
       level = p > level ? level + (p - level) * 0.6 : level + (p - level) * 0.25; // snel omhoog, rustig omlaag; één tik telt niet als kreet
       piek = Math.max(piek, level);
-      try { onLevel(Math.round(level), Math.round(piek)); } catch {}
+      let stop = false; try { stop = onLevel(Math.round(level), Math.round(piek)) === true; } catch {}
+      if (stop) break; // onLevel geeft true terug = genoeg gehoord (kaarsjes uit)
       await new Promise(r => setTimeout(r, 50));
     }
     return Math.round(piek);

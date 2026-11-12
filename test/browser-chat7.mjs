@@ -203,7 +203,8 @@ if (!only || only === 'kern') {
   ok('kern: fase klaar, finale start vanzelf na de hoed', await K.until(() => ['check', 'mega', 'vers', 'confetti', 'taart', 'eind'].includes(window.pkm.finale.stage), 25000));
   ok('kern: check in beeld (zeven onderdelen)', await K.until(() => document.querySelectorAll('#side .fin-check i').length === 7 || window.pkm.finale.stage !== 'check', 8000));
   ok('kern: finale met galm (Mega actief)', await K.until(() => window.pkm.mon.status.mega > 0.5, 15000));
-  ok('kern: terugblik met dia\'s', await K.until(() => !!document.querySelector('#side .fin-slide'), 90000));
+  ok('kern: tien kaarsjes in de echte finale', await K.until(() => window.pkm.finale.stage === 'kaarsjes', 90000));
+  ok('kern: terugblik met dia\'s', await K.until(() => !!document.querySelector('#side .fin-slide'), 120000));
   await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-terugblik.png') }).catch(() => {});
   ok('kern: taart-missie in beeld', await K.until(() => !!document.querySelector('#side .fin-taart'), 90000));
   await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-taart.png') }).catch(() => {});
@@ -233,6 +234,13 @@ if (!only || only === 'proef') {
   ok('proef: drie rondes gemeten en een uitslag van Mecha-Pof', await K.until(() => window.pkm.finale.hoera?.scores.length === 3 && __said.some(t => /^Hoera-meter: /.test(t)), 40000), JSON.stringify(await K.page.evaluate(() => window.pkm.finale.hoera)));
   await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-hoera-uitslag.png') }).catch(() => {});
   console.log('  hoera-scores (nep-microfoon):', JSON.stringify(await K.page.evaluate(() => window.pkm.finale.hoera)));
+  ok('proef: tien kaarsjes in beeld na de hoera-meter', await K.until(() => window.pkm.finale.stage === 'kaarsjes' && document.querySelectorAll('#side .fin-kaars .k').length === 10, 30000));
+  ok('proef: Mecha-Pof vraagt de jarige te blazen', await K.until(() => __said.some(t => /tien kaarsjes! Hannah/.test(t)), 5000));
+  ok('proef: BLAZEN in beeld', await K.until(() => !!document.querySelector('#side .fin-kaars.luister'), 15000));
+  await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-kaarsjes.png') }).catch(() => {});
+  ok('proef: alle tien uit (zelf of met de ventilator) en een slotzin', await K.until(() => window.pkm.finale.kaars?.klaar && document.querySelectorAll('#side .fin-kaars .k.uit').length === 10 && __said.some(t => /^Alle tien uit!/.test(t)), 25000), JSON.stringify(await K.page.evaluate(() => window.pkm.finale.kaars)));
+  await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-kaarsjes-uit.png') }).catch(() => {});
+  ok('proef: daarna de robotdans', await K.until(() => __said.some(t => /Robotdans! Doe mij/.test(t)), 20000));
   ok('proef: terugblik met voorbeeldtijden', await K.until(() => /Snelste klus/.test(document.querySelector('#side')?.textContent || '') || /1 uur en 35 min/.test(document.querySelector('#side')?.textContent || ''), 90000));
   ok('proef: taart en eindscherm', await K.until(() => !!document.querySelector('#side .fin-taart') && window.pkm.finale.stage === 'eind', 90000));
   ok('proef: meldt zich niet als kernscherm, spel blijft in de lobby', await K.page.evaluate(() => !window.pkm.state.get().game.settings?.kern_at && window.pkm.state.get().game.phase === 'lobby'));

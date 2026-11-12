@@ -3,7 +3,7 @@
 // Geheimen (codes, missies, stop-geheimen) komen uit regie_state en staan alleen in `R`.
 import { state, PARTS, TALENTS } from './state.js';
 import { sync, IS_TEST } from './sync.js';
-import { LINES } from './monster-lines.js?v=21'; // wekzin (chat 7)
+import { LINES } from './monster-lines.js?v=22'; // wekzin (chat 7)
 import * as tk from './tekening.js?v=3'; // tab 📸 Tekeningen (12 nov)
 import { stand, seintjes, lagText, TANKSTATION } from './planning.js?v=1'; // blok Stand: schema, verwachte eindtijd, seintjes (12 nov avond)
 
@@ -572,7 +572,7 @@ function tabVerras() {
     </div>
     <div class="page"><span class="tab">🎂 Verjaardagswens</span>
       <p class="note">Alleen ${esc(birthday?.name || 'de jarige')} mag hem één keer inzetten vanaf haar telefoon. ${g?.wish_used ? '<b>Al gebruikt.</b>' : 'Nog niet gebruikt.'} Vanuit de regie kun je hem namens haar inzetten; dan is hij ook op haar telefoon gebruikt.</p>
-      <div class="row"><label class="grow">Waarvoor<select data-ui="wish">${['puzzel overslaan', 'gratis hint', 'dansje van Mecha-Pof'].map(w => `<option ${ui.wish === w ? 'selected' : ''}>${w}</option>`).join('')}</select></label><button class="plain" data-a="wish" style="align-self:end">🎂 Inzetten namens ${esc(birthday?.name || 'jarige')}</button></div>
+      <div class="row"><label class="grow">Waarvoor<select data-ui="wish">${['puzzel overslaan', 'gratis hint', 'dansje van Mecha-Pof', 'papa moet het doen'].map(w => `<option ${ui.wish === w ? 'selected' : ''}>${w}</option>`).join('')}</select></label><button class="plain" data-a="wish" style="align-self:end">🎂 Inzetten namens ${esc(birthday?.name || 'jarige')}</button></div>
     </div>`;
 }
 function tabSpelers() {

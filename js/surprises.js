@@ -6,7 +6,7 @@
 //   pan            Poffertjespan (12 nov avond): schuifpuzzel in een poffertjespan, op elke telefoon dezelfde husseling. Geen eigen events:
 //                  de regie zet game.surprise = { kind:'pan', started_at, data:{ seed, mode:'wissel'|'makkelijk'|'gewoon', image?, nums } } (patchGame) en haalt hem weer weg.
 //                  image = Mecha-Pof (leeg) of een goedgekeurde tekening (ondertekende link uit de regie).
-//   wish.used      Verjaardagswens: alleen de jarige, één keer (puzzel overslaan, gratis hint of een dansje)
+//   wish.used      Verjaardagswens: alleen de jarige, één keer (puzzel overslaan, gratis hint, een dansje of papa moet het doen)
 // De regie (regie.html) stuurt de events; de telefoons tonen ze. De lopende verrassing staat ook in game.surprise,
 // zodat een telefoon die net inlogt hem meteen ziet. Zinnen: monster-lines.js (kruimelaar, kortsluiting, dubbelSignaal,
 // oververhit, wens) via lineText(); badges via sync.badge() → award_badge → badge.awarded.
@@ -124,8 +124,11 @@ function haversine(a, b) { const R = 6371000, r = x => x * Math.PI / 180, dLat =
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(s)); }
 // zelfde regel als js/map.js: vanaf 16:30 (of ?avond=1) de donkere avondkaart; de Kruimelaar-kaart gebruikt de spelkaartstijl (.wmap)
 const isAvond = () => { const q = new URLSearchParams(location.search).get('avond'); if (q != null) return q !== '0'; const d = new Date(); return d.getHours() + d.getMinutes() / 60 >= 16.5; };
-const WISHES = { overslaan: 'puzzel overslaan', hint: 'gratis hint', dansje: 'dansje van Mecha-Pof' };
-const wishKind = f => /dans/i.test(f) ? 'dansje' : /hint/i.test(f) ? 'hint' : 'overslaan';
+const WISHES = { overslaan: 'puzzel overslaan', hint: 'gratis hint', dansje: 'dansje van Mecha-Pof', papa: 'papa moet het doen' };
+const WISH_ICON = { overslaan: '⏭️', hint: '💡', dansje: '🕺', papa: '👨' };
+const wishKind = f => /papa/i.test(f) ? 'papa' : /dans/i.test(f) ? 'dansje' : /hint/i.test(f) ? 'hint' : 'overslaan';
+// De opdracht voor papa in beeld; dezelfde als de gesproken zin LINES.wens.papa (js/monster-lines.js).
+const PAPA_OPDRACHT = 'Doe de robotdans en zeg erbij: “bliep, bloep, ik ben een pannenkoek”. Iedereen telt hardop tot tien!';
 
 const CSS = `
 #sp-banner{max-width:540px;margin:10px auto 0;padding:0 16px}
@@ -584,13 +587,14 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
       ${kind === 'hint' ? (cfg?.hint ? `<div class="sp-hint">💡 ${esc(cfg.hint)}</div>` : '<p class="sp-note">De begeleider fluistert de hint.</p>') : ''}
       ${kind === 'overslaan' ? '<p class="sp-note">De begeleider keurt deze stop goed; het deel komt vanzelf.</p>' : ''}
       ${kind === 'dansje' ? '<p class="sp-note">Spatel omhoog, garde rondjes. Doe maar mee!</p>' : ''}
+      ${kind === 'papa' ? `<div class="sp-hint">👨 Opdracht voor papa: ${esc(PAPA_OPDRACHT)}</div>` : ''}
       <button class="sp-ok" data-a="close">Hoera!</button>`);
     // Zelf ingezet: haar telefoon geeft de badge. Namens haar via de regie (chat 7): de telefoon waar zij is ingelogd geeft hem.
     if (jarige && (ev?.actor === 'player' || !ev || (ev.actor === 'regie' && me().some(x => x.id === jarige.id)))) award('wens', [jarige.id]);
     await speak('wens', 'gebruikt', { interrupt: true });
-    if (kind === 'dansje') { confetti(); for (let k = 0; k < 4; k++) later(() => mon?.react?.('goed'), 400 + k * 900); }
+    if (kind === 'dansje' || kind === 'papa') { confetti(); for (let k = 0; k < 4; k++) later(() => mon?.react?.('goed'), 400 + k * 900); }
     await speak('wens', kind, { interrupt: true });
-    later(() => { if (modal === 'wens') { modal = null; closeOverlay(); refresh(); } }, 2500);
+    later(() => { if (modal === 'wens') { modal = null; closeOverlay(); refresh(); } }, kind === 'papa' ? 15000 : 2500); // papa: de opdracht blijft in beeld tot hij klaar is
   }
   // Knop voor de jarige: alleen op haar telefoon, zolang de wens nog niet gebruikt is, tijdens het spel.
   let wishBtn = null;
@@ -604,9 +608,9 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
   // Herinneringen (12 nov): een gouden ballonnetje naast de 🎂-knop, alleen op de telefoon van de jarige en zolang de wens vrij is.
   // Drie momenten, elk één keer per spel: bij de start, als een puzzel al 4 minuten duurt, en bij de voorlaatste plek.
   const TIPS = {
-    start: ['🎂 Cadeautje van Mecha-Pof: jij hebt één verjaardagswens!', 'Tik op de taart als je hem nodig hebt: puzzel overslaan, gratis hint of robotdans.'],
+    start: ['🎂 Cadeautje van Mecha-Pof: jij hebt één verjaardagswens!', 'Tik op de taart: puzzel overslaan, gratis hint, robotdans of een opdracht voor papa.'],
     vast: ['Zitten jullie vast? Je verjaardagswens kan helpen!', 'Tik op de taart: puzzel overslaan of een gratis hint. Of bewaar hem nog even.'],
-    laatste: ['Nog maar twee plekken! Je verjaardagswens is nog niet gebruikt.', 'Bewaren mag, maar vergeet hem niet. Een robotdans kan altijd!'],
+    laatste: ['Nog maar twee plekken! Je verjaardagswens is nog niet gebruikt.', 'Bewaren mag, maar vergeet hem niet. Een robotdans of een opdracht voor papa kan altijd!'],
   };
   let tipEl = null, tipTimer = null, puzzelSince = null;
   const tipKey = k => `pkm2_wenstip:${S().game?.started_at || '-'}:${k}`;
@@ -644,7 +648,7 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
     hideTip(); modal = 'wenskeuze';
     openOverlay(`<span class="sp-eye">🎂 Verjaardagswens</span><h2>${esc(jarige.name)}, wat wens je?</h2>
       <p class="sp-note">Dit mag maar één keer. Kies goed!</p>
-      <div class="sp-wishes">${Object.entries(WISHES).map(([k, l]) => `<button type="button" data-w="${k}">${{ overslaan: '⏭️', hint: '💡', dansje: '🕺' }[k]} ${esc(l[0].toUpperCase() + l.slice(1))}</button>`).join('')}</div>
+      <div class="sp-wishes">${Object.entries(WISHES).map(([k, l]) => `<button type="button" data-w="${k}">${WISH_ICON[k]} ${esc(l[0].toUpperCase() + l.slice(1))}</button>`).join('')}</div>
       <button class="sp-close" data-a="close">Toch nog even bewaren</button>`);
   }
   async function wishPick(kind) {

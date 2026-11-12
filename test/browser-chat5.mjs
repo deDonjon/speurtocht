@@ -220,6 +220,8 @@ await page.screenshot({ path: path.join(ROOT, 'test/out/wens-tip.png') }).catch(
 if (tipOk) await page.evaluate(() => document.getElementById('sp-wish-tip').click()); // tik op het ballonnetje = keuzeblad
 else await page.evaluate(() => document.getElementById('sp-wish').click()); // de knop wiebelt (animatie), dus niet via de muis
 await W('#sp-ov [data-w=hint]', 3000).catch(() => {});
+ok('keuzeblad: vier wensen, ook "Papa moet het doen"', (await page.$$('#sp-ov [data-w]')).length === 4 && /Papa moet het doen/.test(await txt('#sp-ov [data-w=papa]')));
+await page.screenshot({ path: path.join(ROOT, 'test/out/wens-keuze.png') }).catch(() => {});
 await page.click('#sp-ov [data-w=hint]');
 await sleep(500);
 const wishEv = await fake(f => f.db.event.find(e => e.type === 'wish.used')?.payload);
@@ -228,6 +230,11 @@ ok('wens-overlay toont de hint uit de puzzelconfig', (await txt('#sp-ov')).inclu
 ok('🎂-knop weg na gebruik', !(await page.$('#sp-wish')));
 ok('…en het ballonnetje ook', !(await page.$('#sp-wish-tip')));
 ok('badge wensvervuller', await fake(f => f.rpcLog.some(x => x.name === 'award_badge' && x.args.p_badge === 'wensvervuller')));
+// vierde wens: papa moet het doen (hier namens de jarige via de regie; zelfde overlay als wanneer zij hem zelf kiest)
+await sleep(4000); await fake(f => f.patchGame({ wish_used: false }));
+await fake(f => f.rpc('regie_event', { p_key: 'job', p_type: 'wish.used', p_payload: { for: 'papa moet het doen' } }));
+ok('wens papa: opdracht voor papa in beeld', await page.waitForFunction(() => /Opdracht voor papa: Doe de robotdans/.test(document.getElementById('sp-ov')?.textContent || ''), null, { timeout: 6000 }).then(() => true).catch(() => false), await txt('#sp-ov').catch(() => ''));
+await page.screenshot({ path: path.join(ROOT, 'test/out/wens-papa.png') }).catch(() => {});
 
 ok('geen JavaScript-fouten', errors.length === 0, errors.join(' | '));
 await page.screenshot({ path: '/tmp/claude-0/-home-claude/67c7fc26-2e4d-56b2-9e21-baafd7d0c527/scratchpad/chat5-wens.png' }).catch(() => {});

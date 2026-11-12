@@ -87,7 +87,7 @@ export const LINES = {
     codekraker: ['{naam}... Codekraker! Geheime codes zijn voor jou een makkie. Jij zet straks mijn mond terug, het luidsprekerrooster.'],
     rekenmeester: ['{naam}... Rekenmeester! Jij rekent bijna net zo snel als mijn processor. Mijn armen zijn straks voor jou, de spatel en de garde.'],
     tijdbewaker: ['{naam}... Tijdbewaker! Jij houdt de klok in de gaten. En jij zet straks mijn benen eronder.'],
-    sleutelbewaarder: ['{naam}... Sleutelbewaarder! Jij drukt straks thuis op mijn boterknop, het allerlaatste onderdeel. En omdat je jarig bent, krijg je van mij een cadeautje: één verjaardagswens. Tik daarvoor op de taart linksonder op je telefoon. Je mag een puzzel overslaan, een gratis hint vragen of iedereen een robotdans laten doen. Het kan maar één keer, dus kies goed!'],
+    sleutelbewaarder: ['{naam}... Sleutelbewaarder! Jij drukt straks thuis op mijn boterknop, het allerlaatste onderdeel. En omdat je jarig bent, krijg je van mij een cadeautje: één verjaardagswens. Tik daarvoor op de taart linksonder op je telefoon. Je mag een puzzel overslaan, een gratis hint vragen, iedereen een robotdans laten doen of je papa een gekke opdracht geven. Het kan maar één keer, dus kies goed!'],
     klaar: [
       'Zo, iedereen heeft een talent. Zes monteurs en één robot in stukken. Dit komt helemaal goed. Denk ik. Bliep.',
     ],
@@ -100,7 +100,7 @@ export const LINES = {
     'De kaart wijst de weg en telt de meters af. Op de radio bel ik jullie op. En op de werkbank los je de puzzel op. Bij elke plek schuiven de taken een telefoon door. Bovenaan je scherm staat wat jouw telefoon op dat moment is.',
     'Zijn jullie op een plek aangekomen, dan bel ik de radio. Luister tot ik klaar ben. Daarna zeggen jullie samen wat er groot in beeld staat. Heb je mij niet verstaan? Tik dan op herhaal.',
     'Dan de puzzel. Die staat op de werkbank, maar jullie lossen hem samen op. Meedenken en hardop roepen mag dus. Is hij goed, dan dient de Sleutelbewaarder hem in en schudt de monteur het onderdeel vast. Komen jullie er echt niet uit? Tik dan op de hintknop onder de puzzel. Die kost wel een paar stroopdruppels.',
-    'Dan nog iets speciaals voor de jarige. {jarige} heeft één verjaardagswens. Die zit achter de taart linksonder op haar telefoon. Ze mag een puzzel overslaan, een gratis hint vragen of iedereen een robotdans laten doen. Het kan maar één keer, dus bewaar hem voor een lastig moment.',
+    'Dan nog iets speciaals voor de jarige. {jarige} heeft één verjaardagswens. Die zit achter de taart linksonder op haar telefoon. Ze mag een puzzel overslaan, een gratis hint vragen, iedereen een robotdans laten doen of haar papa een gekke opdracht geven. Het kan maar één keer, dus bewaar hem voor een goed moment.',
     'En het allerbelangrijkste. Blijf bij elkaar, en steek alleen over samen met de papa van {jarige}. Dat was het! Zijn jullie er klaar voor? Dan gaan we zo beginnen.',
   ],
   // Het spel start; de kern blijft thuis op tafel.
@@ -150,6 +150,13 @@ export const LINES = {
     mega: ['Hoera-meter: MEGA! Mijn schroeven trillen ervan!'],
     hard: ['Hoera-meter: keihard! Mijn oren piepen ervan!'],
     zacht: ['Hoera-meter: lekker hard! Mijn lampjes knipperen ervan.'],
+  },
+  // Tien kaarsjes (alleen op het kernscherm, na de hoera-meter): de jarige blaast ze uit via de microfoon van de laptop.
+  // start: vóór het blazen · uit: zelf alle tien uitgeblazen · hulp: de tijd was om, Mecha-Pof blies de rest uit.
+  kaars: {
+    start: ['Tien jaar, dus tien kaarsjes! {jarige}, kom dicht bij het scherm en doe een wens. Klaar? Blazen maar!'],
+    uit: ['Alle tien uit! Je wens staat in mijn logboek. Geheim, natuurlijk.'],
+    hulp: ['Alle tien uit! Mijn ventilator blies stiekem een beetje mee. Je wens telt gewoon.'],
   },
   dans: [
     'Robotdans! Doe mij maar na. Bliep, bloep, stap!',
@@ -266,6 +273,10 @@ export const LINES = {
     ],
     dansje: [
       'Wens vervuld: een dansje! Spatel omhoog, garde rondjes, zuigers op en neer. Robotdans! Doe maar mee!',
+    ],
+    // "Papa moet het doen" (12 nov avond): de opdracht staat ook in beeld (js/surprises.js → PAPA_OPDRACHT), houd ze gelijk.
+    papa: [
+      'Wens vervuld: papa moet het doen! Papa van {jarige}, dit is je opdracht. Doe de robotdans en zeg erbij: bliep, bloep, ik ben een pannenkoek. Iedereen telt hardop tot tien!',
     ],
   },
 

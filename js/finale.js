@@ -3,7 +3,9 @@
 //   const fin = createFinale({ mon, state, audio, confetti, voice: () => true|false|undefined, onStage, key })
 //   fin.start()        speel de finale (kort, afwisselend zin / beeld / muziek): check → mega (onthulling) → rapje op dansmuziek
 //                      (dj, vers, hiep, dans) → dansstuk met confetti → taart (volgende missie) → eind. music() = speelt dit toestel de muziek
-//   fin.stage          'idle' | 'check' | 'mega' | 'vers' | 'hoera' | 'confetti' | 'terugblik' | 'taart' | 'eind'
+//   fin.stage          'idle' | 'check' | 'mega' | 'vers' | 'hoera' | 'kaarsjes' | 'confetti' | 'terugblik' | 'taart' | 'eind'
+//   kaarsjes           optioneel (kern.html, true): na de hoera-meter stap 'kaarsjes': tien kaarsjes in beeld die de jarige uitblaast via dezelfde
+//                      microfoon (fin.kaars = { n, uit, luister, klaar, hulp }). Na KAARS_MS blaast Mecha-Pof de rest uit; zonder microfoon gaan ze vanzelf uit.
 //   hoera              optioneel (kern.html): de hoera-meter uit js/hoera.js. Met microfoon: na elk "hiep hiep" stap 'hoera' met de meter
 //                      in beeld (fin.hoera = { ronde, n, scores, luister, best, mic }); onHoera(nu, piek) voor de naald. Lukt de microfoon
 //                      niet (mic:false): wel groot HOERA!!! in beeld, zonder balk en zonder uitslag. Zonder de optie (telefoons): zoals het was.
@@ -17,8 +19,8 @@
 // Start: monster.js roept globalThis.pkm.finale.start() aan zodra het zevende deel (de hoed) na het installatieritueel geland is
 // en de installatiezin klaar is. Kern.html heeft ook een knop. Speelt per toestel één keer per spel.
 import { PARTS, TALENTS } from './state.js';
-import { LINES, NAAM_JARIGE } from './monster-lines.js?v=21';
-import { hoeraLabel, hoeraTier } from './hoera.js?v=1';
+import { LINES, NAAM_JARIGE } from './monster-lines.js?v=22';
+import { hoeraLabel, hoeraTier } from './hoera.js?v=2';
 
 const PART_KEYS = Object.keys(PARTS);
 const WOORDEN = ['nul', 'één', 'twee', 'drie', 'vier', 'vijf', 'zes', 'zeven', 'acht', 'negen', 'tien', 'elf', 'twaalf'];
@@ -108,6 +110,19 @@ export const END_CSS = `.fin-cards{display:grid;grid-template-columns:repeat(aut
 .fin-hrondes{display:flex;gap:clamp(6px,1vw,14px);justify-content:center;flex-wrap:wrap}
 .fin-hrondes i{font-style:normal;font-weight:900;background:#0E1B2E;border:2px solid #3C4A66;border-radius:12px;padding:4px 12px;color:#93A0B8;font-size:clamp(.85rem,1.3vw,1.2rem)}
 .fin-hrondes i.klaar{border-color:#7FE8FF;color:#7FE8FF}.fin-hrondes i.nu{border-color:#FFE98A;color:#FFE98A}.fin-hrondes i.top{border-color:#F2BE62;color:#F2BE62;box-shadow:0 0 12px rgba(242,190,98,.5)}
+.fin-kaars{display:flex;flex-direction:column;align-items:center;gap:clamp(4px,1vh,10px);text-align:center}
+.fin-kaars .roep{font-weight:900;font-size:clamp(1.5rem,4vw,3.6rem);color:#fff;line-height:1.05;letter-spacing:.04em}
+.fin-kaars.luister .roep{color:#FFE98A;animation:finRoep .45s ease-in-out infinite alternate}
+.fin-kaars .rij{display:flex;justify-content:center;align-items:flex-end;gap:clamp(8px,1.6vw,22px);padding-top:clamp(30px,5vh,54px)}
+.fin-kaars .k{position:relative;width:clamp(10px,1.3vw,18px);height:clamp(46px,9vh,96px);border-radius:4px 4px 0 0;background:repeating-linear-gradient(135deg,#FF7FB0 0 7px,#FFF3F8 7px 13px)}
+.fin-kaars .k:nth-child(even){background:repeating-linear-gradient(135deg,#7FE8FF 0 7px,#F2FCFF 7px 13px);height:clamp(40px,8vh,84px)}
+.fin-kaars .k b{position:absolute;left:50%;bottom:calc(100% + 3px);width:clamp(14px,1.9vw,26px);height:clamp(22px,3.6vh,40px);margin-left:calc(clamp(14px,1.9vw,26px) / -2);border-radius:50% 50% 50% 50%/65% 65% 35% 35%;background:radial-gradient(circle at 50% 72%,#FFFBD6 0 22%,#FFD24A 46%,#FF7A1A 78%);box-shadow:0 0 16px #FFB52E,0 0 34px rgba(255,150,40,.55);transform-origin:50% 100%;animation:finVlam .28s ease-in-out infinite alternate}
+.fin-kaars .k.uit b{animation:finRook 1.2s ease-out forwards;background:linear-gradient(transparent,#93A0B8);box-shadow:none;width:4px;margin-left:-2px;border-radius:2px}
+.fin-kaars .stapel{width:min(100%,560px);height:clamp(34px,6vh,62px);border-radius:16px;border-top:clamp(8px,1.4vh,14px) solid #7A3E12;background:repeating-linear-gradient(#EDB25A 0 11px,#B9762A 11px 15px);box-shadow:0 6px 0 #10141C}
+.fin-kaars .tel{font-weight:900;color:#F2BE62;font-size:clamp(1rem,1.8vw,1.6rem)}
+@keyframes finVlam{from{transform:scale(.92,1.06) rotate(-3deg)}to{transform:scale(1.06,.94) rotate(3deg)}}
+@keyframes finRook{from{opacity:.8;transform:translateY(0)}to{opacity:0;transform:translateY(-18px)}}
+@media (prefers-reduced-motion:reduce){.fin-kaars .k b,.fin-kaars.luister .roep{animation:none}.fin-kaars .k.uit b{opacity:0}}
 @keyframes finSlide{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}`;
 // Beeld van de volgende missie (finale-stap 'taart' en het eindscherm): eerst taart versieren, dan pannenkoeken.
 export const TAART_HTML = `<div class="fin-taart"><div><small>Eerst</small><em>🎂</em><b>Taart versieren</b></div><span class="pijl">➜</span><div class="na"><small>Daarna</small><em style="animation-delay:.4s">🥞</em><b>Pannenkoeken</b></div></div>`;
@@ -152,10 +167,18 @@ export function hoeraHTML(h) {
     <div class="fin-hbar ${toon >= 90 ? 'mega' : ''}"><b id="hoera-b" style="width:${toon}%"></b><u id="hoera-p" style="left:${Math.min(99, toon)}%"></u><span id="hoera-t">${toon} %</span></div>
     <div class="fin-hrondes">${Array.from({ length: h.n }, (_, i) => `<i class="${h.scores[i] != null ? (klaar && h.scores[i] === h.best ? 'top' : 'klaar') : i === h.ronde ? 'nu' : ''}">${i + 1}: ${h.scores[i] != null ? h.scores[i] + ' %' : '…'}</i>`).join('')}</div></div>`;
 }
+// Tien kaarsjes (kern.html). k = fin.kaars: { n, uit, luister, klaar, hulp }. Elke keer dat er een kaarsje dooft tekent de kern opnieuw.
+export function kaarsHTML(k) {
+  if (!k) return '';
+  return `<div class="fin-kaars ${k.luister ? 'luister' : ''}"><div class="roep">${k.klaar ? 'Alle tien uit! 🎉' : k.luister ? 'BLAZEN!!!' : 'Tien kaarsjes…'}</div>
+    <div class="rij">${Array.from({ length: k.n }, (_, i) => `<i class="k ${i < k.uit ? 'uit' : ''}"><b></b></i>`).join('')}</div><div class="stapel"></div>
+    <div class="tel" id="kaars-t">${k.klaar ? 'Wens gedaan!' : `${k.uit} van ${k.n} uit`}</div></div>`;
+}
 // Beeld per finale-stap voor het kernscherm (groot). check en taart; mega = stroopmeter; vers/confetti = equalizer.
 export function stageHTML(stage, fin) {
   if (stage === 'terugblik') return slideHTML(fin?.slide?.item, fin?.slide?.i, fin?.slide?.n);
   if (stage === 'hoera') return hoeraHTML(fin?.hoera);
+  if (stage === 'kaarsjes') return kaarsHTML(fin?.kaars);
   if (stage === 'check') return `<div class="fin-check">${Object.values(PARTS).map((p, i) => `<i style="animation-delay:${(i * CHECK_MS / 1000).toFixed(2)}s">${p.icon}</i>`).join('')}</div>`;
   if (stage === 'mega') return `<div class="fin-meter"><b></b><span>STROOPMETER · MEGA</span></div>`;
   if (stage === 'vers' || stage === 'confetti') return `<div class="fin-eq">${Array.from({ length: 12 }, (_, i) => `<i style="animation-delay:${(i * 0.07 % 0.5).toFixed(2)}s;animation-duration:${(0.35 + (i * 37 % 30) / 100).toFixed(2)}s"></i>`).join('')}</div>`;
@@ -166,9 +189,13 @@ export function stageHTML(stage, fin) {
 // Dansnummer voor de finale (ElevenLabs Music, gemaakt met de functie monster-music). Laadt het niet, dan het eigen deuntje.
 export const CHECK_MS = 420; // per onderdeel in de check (kern.html en index.html animeren op dezelfde maat)
 export const HOERA_MS = 2600; // zo lang luistert de hoera-meter na elk "hiep hiep"
+export const KAARS_N = 10;         // tien jaar, tien kaarsjes
+export const KAARS_MS = 12000;     // zo lang mag de jarige blazen; daarna blaast Mecha-Pof de rest uit (het kan dus niet mislukken)
+export const KAARS_BLAAS = 2500;   // zo lang voluit blazen (meter op 100 %) dooft alle tien; zachter blazen duurt langer
+export const KAARS_DREMPEL = 30;   // onder dit volume (in %, zelfde schaal als de hoera-meter) telt het niet als blazen
 export const DANS_URL = 'https://lnhliamckstuwiwyzxyl.supabase.co/storage/v1/object/public/monster/music/dans-a.mp3';
-export function createFinale({ mon, state, audio, confetti, voice = () => undefined, music = () => true, track = DANS_URL, onStage = () => {}, key = 'pkm2_finale', highlights = null, hoera = null, onHoera = () => {} } = {}) {
-  let stage = 'idle', running = false, runId = 0, slide = null, hoeraStand = null;
+export function createFinale({ mon, state, audio, confetti, voice = () => undefined, music = () => true, track = DANS_URL, onStage = () => {}, key = 'pkm2_finale', highlights = null, hoera = null, onHoera = () => {}, kaarsjes = false } = {}) {
+  let stage = 'idle', running = false, runId = 0, slide = null, hoeraStand = null, kaarsStand = null;
   const gameKey = () => key + ':' + (state.get().game?.started_at || 'x');
   const set = s => { stage = s; try { onStage(s); } catch (e) { console.error('[finale]', e); } };
   const jarige = () => state.get().players.find(p => p.is_birthday)?.name || NAAM_JARIGE;
@@ -211,6 +238,7 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
         await talk(w(pick(LINES.hoera?.[hoeraTier(hoeraStand.best)]) || ''), 5000); if (!alive()) return;
       }
       if (toon) set('vers');
+      if (kaarsjes && LINES.kaars) { await kaarsen(alive, talk, w); if (!alive()) return; set('vers'); }
       await talk(w(pick(LINES.dans) || ''), 5000); if (!alive()) return;
       set('confetti');
       dance?.drop(); confetti?.(); audio?.play?.('badge'); setTimeout(() => confetti?.(), 1800); setTimeout(() => confetti?.(), 6000);
@@ -218,6 +246,27 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
       await terugblik(alive); // muziek loopt zachter door onder de dia's
     } finally { dance?.stop(1.8); dance = null; slide = null; hoera?.close?.(); }
     await sleep(1200);
+  }
+  // Tien kaarsjes: de jarige blaast in de microfoon van de laptop. Elke tik boven de drempel telt mee; hoe harder, hoe sneller ze doven.
+  // Is de tijd om (of is er geen microfoon), dan gaan de laatste vanzelf uit: het lukt altijd.
+  async function kaarsen(alive, talk, w) {
+    kaarsStand = { n: KAARS_N, uit: 0, luister: false, klaar: false, hulp: false };
+    set('kaarsjes');
+    await talk(w(pick(LINES.kaars.start) || ''), 7000); if (!alive()) return;
+    kaarsStand.luister = true; set('kaarsjes');
+    const doof = k => { k = Math.min(KAARS_N, k); if (k > kaarsStand.uit) { kaarsStand.uit = k; audio?.play?.('plop'); set('kaarsjes'); } };
+    const metMic = !!hoera?.ok;
+    if (metMic) {
+      dance?.duck(true); let p = 0; // muziek zacht: de microfoon moet het blazen horen
+      try { await hoera.listen(KAARS_MS, nu => { if (nu >= KAARS_DREMPEL) p += (nu / 100) * KAARS_N / (KAARS_BLAAS / 50); doof(Math.floor(p)); return kaarsStand.uit >= KAARS_N; }); } catch (e) { console.warn('[finale] kaarsjes', e); }
+      dance?.duck(false);
+    } else await sleep(2200); // geen microfoon: even de tijd om te blazen
+    if (!alive()) return;
+    kaarsStand.hulp = metMic && kaarsStand.uit < KAARS_N;
+    while (kaarsStand.uit < KAARS_N) { doof(kaarsStand.uit + 1); await sleep(220); if (!alive()) return; }
+    kaarsStand.luister = false; kaarsStand.klaar = true; set('kaarsjes');
+    confetti?.(); audio?.play?.('badge');
+    await talk(w(pick(LINES.kaars[kaarsStand.hulp ? 'hulp' : 'uit']) || ''), 6000);
   }
   // Terugblik: korte zin, dan de hoogtepunten als dia's met muziek eronder (geen gepraat).
   async function terugblik(alive) {
@@ -244,7 +293,7 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
     const J = () => ({ jarige: jarige() });
     try {
       trackP = music() ? audio?.loadTrack?.(track) : null; // alvast laden
-      hoeraStand = null; micP = hoera?.open?.(); micP?.catch?.(() => {}); // microfoon alvast open voor de hoera-meter; lukt het niet, dan gewoon zonder
+      hoeraStand = null; kaarsStand = null; micP = hoera?.open?.(); micP?.catch?.(() => {}); // microfoon alvast open voor de hoera-meter; lukt het niet, dan gewoon zonder
       if (intro) { await say(intro); if (!alive()) return; }
       mon.setParts(PART_KEYS); mon.setMood('wakker');
       // 1. beeld: zeven onderdelen klikken één voor één aan, dan één korte zin
@@ -277,9 +326,10 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
     get stage() { return stage; },
     get slide() { return slide; },
     get hoera() { return hoeraStand; },
+    get kaars() { return kaarsStand; },
     get running() { return running; },
     get done() { return store.get(gameKey()) === '1'; },
-    reset() { runId++; running = false; dance?.stop(0.5); dance = null; hoera?.close?.(); hoeraStand = null; store.del(gameKey()); set('idle'); },
+    reset() { runId++; running = false; dance?.stop(0.5); dance = null; hoera?.close?.(); hoeraStand = null; kaarsStand = null; store.del(gameKey()); set('idle'); },
     voice,
   };
 }
