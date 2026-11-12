@@ -276,6 +276,7 @@ const radiusOf = st => st.radius || S().game?.settings?.radius || 20;
 const keyHolder = () => S().players.find(p => p.talent === 'sleutelbewaarder');
 const canSubmit = () => state.hasTalent('sleutelbewaarder') || !!S().game?.settings?.any_can_submit;
 const birthday = () => S().players.find(p => p.is_birthday);
+const naAfloop = () => { const g = S().game, t = Date.parse(g?.finished_at || ''); return g?.phase === 'klaar' && !!t && Date.now() - t > 2 * 3600_000; }; // feest voorbij: alleen nog de score
 
 /* ================================================================ geluid, trilling, toast, ballon
    Geluid: js/audio.js (audio.play('naam'); ontgrendelt zelf bij de eerste tik en volgt de dempknop pkm2_muted).
@@ -424,7 +425,7 @@ function walkieTools() {
   };
 }
 function startWalkie() {
-  if (walkie?.open) return;
+  if (walkie?.open || naAfloop()) return;
   ring?.close();
   const afscheid = S().game?.phase === 'klaar'; // na de finale: korte eigen begroeting, en "Over en sluiten" groot in beeld
   walkie = openWalkie({ mon, context: walkieContext, tools: walkieTools(), sub: afscheid ? 'Afscheid van het Reparatieteam' : S().game?.phase === 'lobby' ? 'Kern · thuisbasis' : state.activeStop()?.name ? 'Plek: ' + state.activeStop().name : '', ...(afscheid ? { greeting: lineText('walkie', { sub: 'afscheid' }), zeg: 'Over en sluiten' } : {}), onClose: () => { walkie = null; placeMonster(); } });
@@ -680,7 +681,7 @@ function renderBar() {
     <div class="chips">${me.map(p => { const x = guard(p); return `<span class="chip" style="--acc:${x.color}"><i>${x.icon}</i>${esc(p.name)}</span>`; }).join('') || '<span class="eyebrow">Mecha-Pof</span>'}</div>
     ${g && g.phase !== 'lobby' ? `<span class="drops" title="stroopdruppels">💧${g.drops || 0}</span>` : ''}
     ${conn(S().conn)}${sync.outboxSize() ? `<span class="note">${sync.outboxSize()}</span>` : ''}
-    ${me.length && g ? (hasRole('radio') ? '<button class="iconbtn" data-b="walkie" aria-label="Walkietalkie met het monster">📻</button>' : `<span class="note" title="De walkietalkie zit op de radiotelefoon">📻 bij ${esc(speakerNames() || 'een ander')}</span>`) : ''}
+    ${me.length && g && !naAfloop() ? (hasRole('radio') ? '<button class="iconbtn" data-b="walkie" aria-label="Walkietalkie met het monster">📻</button>' : `<span class="note" title="De walkietalkie zit op de radiotelefoon">📻 bij ${esc(speakerNames() || 'een ander')}</span>`) : ''}
     <button class="iconbtn" data-b="mute" aria-label="Geluid">${muted ? '🔇' : '🔊'}</button>
     <button class="iconbtn" data-b="tray" aria-label="Begeleider">⚙︎</button></div>
     ${g && g.phase !== 'lobby' ? `<div class="parts">${Object.keys(PARTS).map(k => `<span class="part ${got.includes(k) ? 'got' : ''}" title="${esc(PARTS[k].label)}">${got.includes(k) ? PARTS[k].icon : ''}</span>`).join('')}</div>` : ''}
@@ -895,7 +896,7 @@ screens.klaar = el => {
   const update = () => {
     const g = S().game, stops = state.route().filter(x => x.part).length || 7, b = birthday(), stg = finale.stage;
     const showEnd = stg === 'eind' || finale.done || (stg === 'idle' && !install.busy);
-    const sig = showEnd ? 'end:' + S().players.map(p => p.id + (p.badges || []).join()).join('|') + (g.drops || 0) : 'fin:' + stg + (finale.slide ? ':' + finale.slide.i : '');
+    const sig = showEnd ? 'end:' + naAfloop() + S().players.map(p => p.id + (p.badges || []).join()).join('|') + (g.drops || 0) : 'fin:' + stg + (finale.slide ? ':' + finale.slide.i : '');
     if (el.dataset.sig === sig) return; el.dataset.sig = sig;
     if (!showEnd) {
       const [h, p] = FIN_TEXT[stg] || ['Mecha-Pof start op…', 'De boterknop is ingedrukt. Even geduld…'];
@@ -907,8 +908,8 @@ screens.klaar = el => {
       ${mslot('lg')}
       <div class="page center"><span class="tab">Het Reparatieteam</span>
         <div class="fin-cards">${endCards(state)}</div>
-        <div class="row" style="justify-content:center">${hasRole('radio') ? '<button class="berry" data-k="walkie">📻 Afscheid: over en sluiten</button>' : ''}<button class="plain" data-k="foto">📸 Teamfoto</button></div>
-        <p class="note">Allemaal tegelijk in de walkietalkie: <b>over en sluiten</b>!</p></div>
+        ${naAfloop() ? '<p class="note">Operatie geslaagd op vrijdag 13 november. Dit is jullie eindstand. Bliep!</p>' : `<div class="row" style="justify-content:center">${hasRole('radio') ? '<button class="berry" data-k="walkie">📻 Afscheid: over en sluiten</button>' : ''}<button class="plain" data-k="foto">📸 Teamfoto</button></div>
+        <p class="note">Allemaal tegelijk in de walkietalkie: <b>over en sluiten</b>!</p>`}</div>
       <div class="page center"><span class="tab">Eindcijfer</span>
         <div class="stack">${Array.from({ length: stack }, (_, i) => `<i style="width:${150 - i * 6}px;animation-delay:${i * .12}s"></i>`).join('')}</div>
         <h2>${stack} van de 10 pannenkoeken hoog</h2>
@@ -930,14 +931,25 @@ function teamFoto() {
 
 /* ================================================================ start */
 state.on('change', () => refresh());
+// QR op de monteurspas: …/speurtocht/#m=1234 logt die monteur meteen in op deze telefoon (de code staat in de hash, die gaat
+// niet mee naar de server). De hash verdwijnt daarna uit de adresbalk. Na het feest toont dezelfde link het eindscherm met de score.
+let pasCode = (location.hash.match(/[#&]m=(\d{4})(?!\d)/) || [])[1] || null;
+if (pasCode) { try { history.replaceState(null, '', location.pathname + location.search); } catch {} }
+async function pasLogin() {
+  const code = pasCode; pasCode = null; if (!code) return;
+  try { const res = await sync.login(code); wantLogin = false; toast(`🪪 Monteurspas herkend: welkom, ${res.player?.name || 'monteur'}!`, 4200); if (res.mission) showMission(res.mission, res.player.name); }
+  catch (err) { toast(err.code === 'offline' ? 'Geen verbinding. Scan je pas zo nog eens.' : 'Deze pas herkennen we niet. Tik je code met de hand in.', 5000); }
+}
 async function boot() {
   try {
     await sync.connect();
     for (const e of S().events) seen.add(e.id);
     primed = true; booted = true; bootError = '';
+    await pasLogin();
   } catch (e) { bootError = e.message || 'Geen verbinding'; }
   refresh('remount');
 }
+addEventListener('hashchange', () => { const m = (location.hash.match(/[#&]m=(\d{4})(?!\d)/) || [])[1]; if (!m || !booted) return; pasCode = m; try { history.replaceState(null, '', location.pathname + location.search); } catch {} pasLogin().then(() => refresh()); });
 window.pkm = { state, sync, router, finale, PARTS, TALENTS, mon, monsterUrl, monsterImage, audio, toast, say, bubble, chime: audio.chime, buzz, refresh, roles: { myRoles, hasRole, whoHas, deviceWithRole }, install, surprises, nav, callRinging, ringCall, walkieTools, get walkie() { return walkie; } };
 renderBar(); refresh('remount'); boot();
 </script>
