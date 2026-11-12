@@ -5,7 +5,8 @@
 //                      (dj, vers, hiep, dans) → dansstuk met confetti → taart (volgende missie) → eind. music() = speelt dit toestel de muziek
 //   fin.stage          'idle' | 'check' | 'mega' | 'vers' | 'hoera' | 'confetti' | 'terugblik' | 'taart' | 'eind'
 //   hoera              optioneel (kern.html): de hoera-meter uit js/hoera.js. Met microfoon: na elk "hiep hiep" stap 'hoera' met de meter
-//                      in beeld (fin.hoera = { ronde, n, scores, luister, best }); onHoera(nu, piek) voor de naald. Zonder: zoals het was.
+//                      in beeld (fin.hoera = { ronde, n, scores, luister, best, mic }); onHoera(nu, piek) voor de naald. Lukt de microfoon
+//                      niet (mic:false): wel groot HOERA!!! in beeld, zonder balk en zonder uitslag. Zonder de optie (telefoons): zoals het was.
 //   fin.slide          tijdens 'terugblik': { i, n, item:{icon,title,sub} } of item:{img,title,sub,ms} (de groepstekening, kern.html)
 //   highlights()       optioneel: (async) lijst dia's; anders buildHighlights(state.get())
 //   fin.done           true als de finale (op dit toestel) al gespeeld is; blijft bewaard per spel (localStorage)
@@ -145,6 +146,7 @@ export function slideHTML(sl, i = 0, n = 1) {
 // (#hoera-p) en het getal (#hoera-t) worden tijdens het luisteren rechtstreeks bijgewerkt (kern.html → onHoera).
 export function hoeraHTML(h) {
   if (!h) return '';
+  if (h.mic === false) return `<div class="fin-hoera ${h.luister ? 'luister' : ''}"><div class="roep">${h.luister ? 'HOERA!!!' : 'Hiep hiep…'}</div><div class="fin-hrondes"><i>🎤 geen microfoon: de meter doet niet mee</i></div></div>`;
   const klaar = !h.luister && h.scores.length >= h.n, toon = h.luister ? 0 : (klaar ? h.best : h.scores.at(-1) ?? 0);
   return `<div class="fin-hoera ${h.luister ? 'luister' : ''}"><div class="roep">${h.luister ? 'HOERA!!!' : klaar ? esc(hoeraLabel(h.best)) : 'Hiep hiep…'}</div>
     <div class="fin-hbar ${toon >= 90 ? 'mega' : ''}"><b id="hoera-b" style="width:${toon}%"></b><u id="hoera-p" style="left:${Math.min(99, toon)}%"></u><span id="hoera-t">${toon} %</span></div>
@@ -177,7 +179,7 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
     if (!(await mon.say(text, opts))) await mon.say(text, opts);
   }
   // Het verjaardagsrapje op het dansmuziekje. Muziek alleen op het toestel dat praat (music()), anders gewoon de zinnen.
-  let dance = null, trackP = null;
+  let dance = null, trackP = null, micP = null;
   async function rapje(alive) {
     const J = { jarige: jarige() }, w = l => fillLine(l, J);
     let buffer = null;
@@ -189,12 +191,14 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
       await sleep(dance ? dance.beat * 4 * 1000 : 300); if (!alive()) return; // één maat alleen muziek
       const vers = pick(LINES.vers), regels = Array.isArray(vers) ? vers : [vers];
       for (const r of regels) { await talk(w(r), 6000); if (!alive()) return; await sleep(dance ? dance.beat * 2 * 1000 : 200); } // halve maat muziek tussen de regels
-      const hiep = LINES.hiep || [], meet = !!hoera?.ok; // hoera-meter: alleen met een open microfoon (kern.html), anders de gewone pauze
-      if (meet) hoeraStand = { ronde: 0, n: hiep.length, scores: [], luister: false, best: 0 };
+      if (hoera && !hoera.ok) await Promise.race([Promise.resolve(micP).catch(() => {}), sleep(1500)]); // de microfoon nog even de tijd geven
+      const hiep = LINES.hiep || [], toon = !!hoera, meet = !!hoera?.ok; // hoera-meter: alleen op het kernscherm; meten alleen met een open microfoon
+      if (toon) hoeraStand = { ronde: 0, n: hiep.length, scores: [], luister: false, best: 0, mic: meet };
       for (let i = 0; i < hiep.length; i++) {
-        if (meet) { hoeraStand.ronde = i; hoeraStand.luister = false; set('hoera'); }
+        if (toon) { hoeraStand.ronde = i; hoeraStand.luister = false; set('hoera'); }
         await talk(w(hiep[i]), 3000); if (!alive()) return;
-        if (!meet) { await sleep(1300); if (!alive()) return; continue; } // HOERA!
+        if (!toon) { await sleep(1300); if (!alive()) return; continue; } // HOERA! (telefoons)
+        if (!meet) { hoeraStand.luister = true; set('hoera'); await sleep(2000); if (!alive()) return; continue; } // geen microfoon: wel HOERA!!! in beeld
         hoeraStand.luister = true; set('hoera'); dance?.duck(true); // muziek zacht: de microfoon moet de meiden horen, niet de luidspreker
         let piek = null;
         try { piek = await hoera.listen(HOERA_MS, (nu, p) => { try { onHoera(nu, p); } catch {} }); } catch (e) { console.warn('[finale] hoera', e); }
@@ -205,8 +209,8 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
       if (meet) { // de uitslag: de beste van de drie telt
         if (hoeraStand.best >= 90) confetti?.();
         await talk(w(pick(LINES.hoera?.[hoeraTier(hoeraStand.best)]) || ''), 5000); if (!alive()) return;
-        set('vers');
       }
+      if (toon) set('vers');
       await talk(w(pick(LINES.dans) || ''), 5000); if (!alive()) return;
       set('confetti');
       dance?.drop(); confetti?.(); audio?.play?.('badge'); setTimeout(() => confetti?.(), 1800); setTimeout(() => confetti?.(), 6000);
@@ -232,7 +236,7 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
   /** intro: zin die eerst gezegd moet worden (de installatiezin van de hoed, als die niet aan bod kwam).
    *  Kort en afwisselend (Job, 9 nov): steeds één korte zin, dan beeld of muziek. ±1,5 min tot de walkie.
    *  check (7 onderdelen klikken in beeld) → mega (stroopmeter vult, Mega groeit, onthulling + laken eraf) → vers (DJ, 2 regels,
-   *  hiep hiep) → confetti (dansstuk) → taart (volgende missie: taart versieren, dan pannenkoeken) → eind (walkie: over en sluiten). */
+   *  hiep hiep) → confetti (dansstuk) → taart (volgende missie: taart versieren, dan pannenkoeken) → eind (eindscherm). */
   async function start({ intro } = {}) {
     if (running) return;
     running = true; const id = ++runId;
@@ -240,7 +244,7 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
     const J = () => ({ jarige: jarige() });
     try {
       trackP = music() ? audio?.loadTrack?.(track) : null; // alvast laden
-      hoeraStand = null; hoera?.open?.().catch?.(() => {}); // microfoon alvast open voor de hoera-meter; lukt het niet, dan gewoon zonder
+      hoeraStand = null; micP = hoera?.open?.(); micP?.catch?.(() => {}); // microfoon alvast open voor de hoera-meter; lukt het niet, dan gewoon zonder
       if (intro) { await say(intro); if (!alive()) return; }
       mon.setParts(PART_KEYS); mon.setMood('wakker');
       // 1. beeld: zeven onderdelen klikken één voor één aan, dan één korte zin
@@ -265,8 +269,7 @@ export function createFinale({ mon, state, audio, confetti, voice = () => undefi
       await sleep(1200); if (!alive()) return;
       store.set(gameKey(), '1');
       set('eind');
-      await sleep(600);
-      await say(fillLine(pick(LINES.afscheid), J()));
+      // (13 nov) geen "over en sluiten" via de walkie meer aan het eind: de finale stopt bij de taart-missie en het eindscherm
     } finally { if (id === runId) running = false; }
   }
   return {

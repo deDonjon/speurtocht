@@ -120,7 +120,7 @@ if (!only || only === 'finale') {
   ok('eindscherm: zes speurders', (await page.$$('.fin-card')).length === 6, (await page.$$('.fin-card')).length);
   ok('eindscherm: Hannah eerst met Sleutelbewaarder, Wensvervuller en Monteur boterknop', /^.{0,4}Hannah/.test(cards.trim()) && cards.includes('Wensvervuller') && /Monteur boterknop/.test(cards), cards.slice(0, 200));
   ok('eindscherm: Elin met Vonkenvanger en zin over de LED-ogen', cards.includes('Vonkenvanger') && /Elin vond mijn LED-ogen/.test(cards));
-  ok('eindscherm: knop afscheid (radio) en teamfoto', !!(await page.$('[data-k=walkie]')) && !!(await page.$('[data-k=foto]')));
+  ok('eindscherm: teamfoto, geen walkie-afscheid meer', !(await page.$('[data-k=walkie]')) && !!(await page.$('[data-k=foto]')));
   await page.click('[data-k=foto]');
   ok('teamfoto: aftellen', await until(() => document.querySelector('#tf')?.textContent === '4', 3000));
   await page.evaluate(() => sessionStorage.setItem('__fakedb', JSON.stringify({ ...window.__fake.db, codes: window.__fake.codes })));
@@ -220,6 +220,11 @@ if (!only || only === 'proef') {
   const K = await open('kern.html?proef', world({ phase: 'lobby' }), { width: 1280, height: 800 });
   await K.W('#key'); await K.page.fill('#key', 'job'); await K.page.click('#gateform button');
   ok('proef: stand klaar terwijl het spel in de lobby staat', await K.until(() => document.body.classList.contains('klaar') && /PROEF/.test(document.querySelector('#eyebrow').textContent), 4000));
+  ok('proef: knop hoera-meter meldt dat de microfoon klaar is', await K.until(() => /✓/.test(document.querySelector('#hoeraknop').textContent), 6000));
+  await K.page.click('#hoeraknop');
+  ok('proef: losse hoera-proef meet en toont de hardste meting', await K.until(() => /Hardste meting: -?\d+ dB/.test(document.querySelector('.groot')?.textContent || ''), 12000), await K.txt('.groot'));
+  await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-hoera-proef.png') }).catch(() => {});
+  ok('proef: hoera-proef sluit vanzelf', await K.until(() => !document.querySelector('.groot'), 12000));
   await K.page.click('#side [data-t=finale]');
   ok('proef: finale loopt', await K.until(() => window.pkm.finale.stage === 'check', 6000));
   ok('proef: hoera-meter in beeld na het eerste hiep hiep', await K.until(() => window.pkm.finale.stage === 'hoera' && !!document.querySelector('#side #hoera-b'), 60000));

@@ -314,7 +314,7 @@ import { createNavVoice } from './js/navvoice.js?v=1'; // gesproken navigatie zo
 import { createSurprises } from './js/surprises.js?v=8'; // Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens
 import { audio } from './js/audio.js?v=12'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
 import { teaserActive, mountTeaser } from './js/teaser.js?v=2'; // voorpret vóór het feest (game.settings.teaser)
-import { createFinale, endCards, END_CSS, CHECK_MS, TAART_HTML, slideHTML } from './js/finale.js?v=18'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
+import { createFinale, endCards, END_CSS, CHECK_MS, TAART_HTML, slideHTML } from './js/finale.js?v=19'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
 import { stackOf, nextAt, loadDropLog, dropsByPlayer } from './js/stroop.js?v=1'; // stroopmeter: uitleg en stapel (teamstand); per monteur alleen op haar eigen eindkaart
 
 /* ================================================================ hulpjes */
@@ -1064,8 +1064,7 @@ screens.klaar = el => {
       ${mslot('lg')}
       <div class="page center"><span class="tab">Het Reparatieteam</span>
         <div class="fin-cards">${endCards(state, { mijn, portret: mijnPortret, druppels: mijnDruppels })}</div>
-        ${naAfloop() ? '<p class="note">Operatie geslaagd op vrijdag 13 november. Dit is jullie eindstand. Bliep!</p>' : `<div class="row" style="justify-content:center">${hasRole('radio') ? '<button class="berry" data-k="walkie">📻 Afscheid: over en sluiten</button>' : ''}<button class="plain" data-k="foto">📸 Teamfoto</button></div>
-        <p class="note">Allemaal tegelijk in de walkietalkie: <b>over en sluiten</b>!</p>`}</div>
+        ${naAfloop() ? '<p class="note">Operatie geslaagd op vrijdag 13 november. Dit is jullie eindstand. Bliep!</p>' : `<div class="row" style="justify-content:center"><button class="plain" data-k="foto">📸 Teamfoto</button></div>`}</div>
       <div class="page center"><span class="tab">Eindcijfer</span>
         <div class="stack syr">${Array.from({ length: stack }, (_, i) => `<i style="width:${150 - i * 6}px;animation-delay:${i * .12}s"></i>`).join('')}</div>
         <h2>${stack} van de 10 pannenkoeken hoog</h2>

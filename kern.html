@@ -192,7 +192,7 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:75}
 <div id="gate"><div class="panel"><h2>Kern van Mecha-Pof</h2><p class="sub" id="gatemsg">Regiesleutel (één keer op deze laptop).</p>
   <form id="gateform" class="row" style="justify-content:center"><input type="password" id="key" placeholder="sleutel" aria-label="Regiesleutel" style="width:12em"><button type="submit">Aan</button></form>
   <p class="muted" id="gateerr"></p></div></div>
-<div id="tools"><button class="plain" data-t="wake">⏻ Wakker</button><button class="plain" data-t="rad">🎡 Rad</button><button class="plain" data-t="uitleg">📋 Uitleg</button><button class="plain" data-t="finale">▶ Finale</button><button class="plain" data-t="full">⛶ Volledig scherm</button></div>
+<div id="tools"><button class="plain" data-t="wake">⏻ Wakker</button><button class="plain" data-t="rad">🎡 Rad</button><button class="plain" data-t="uitleg">📋 Uitleg</button><button class="plain" data-t="finale">▶ Finale</button><button class="plain" data-t="hoera" id="hoeraknop">🎤 Hoera-meter</button><button class="plain" data-t="full">⛶ Volledig scherm</button></div>
 <div id="conn"></div>
 <div id="flits"></div>
 <canvas id="confetti" hidden></canvas>
@@ -203,7 +203,7 @@ import { createMonster, lineText, monsterImage } from './js/monster.js?v=32';
 import { audio } from './js/audio.js?v=12';
 import { voice } from './js/voice.js?v=9';
 import { LINES } from './js/monster-lines.js?v=21';
-import { createFinale, endCards, END_CSS, fillLine, stageHTML, TAART_HTML, buildHighlights } from './js/finale.js?v=18';
+import { createFinale, endCards, END_CSS, fillLine, stageHTML, TAART_HTML, buildHighlights, hoeraHTML } from './js/finale.js?v=19';
 import { createHoeraMeter, HOERA_TOP } from './js/hoera.js?v=1'; // hoera-meter in de finale (microfoon van de laptop)
 import { kernTekeningen } from './js/tekening.js?v=3'; // goedgekeurde tekeningen (regie → 📸 Tekeningen), 12 nov
 
@@ -538,9 +538,29 @@ document.addEventListener('click', async e => {
   if (t === 'wake') wake();
   if (t === 'rad') router.dispatch({ type: 'roles.shuffle', payload: { loting: true } }); // proef: het talentenrad met de talenten zoals ze nu staan, alleen op dit scherm
   if (t === 'uitleg') speelUitleg();
+  if (t === 'hoera') hoeraProef();
   if (t === 'finale') { finale.reset(); mon.setParts(Object.keys(PARTS)); finale.start(); }
   if (t === 'foto') { await say(pick(LINES.teamfoto)); confetti(); audio.play('klik'); }
 });
+
+/* ---------- hoera-meter: stand van de microfoon op de knop rechtsonder, en een losse proef van 5 s (knop 🎤 Hoera-meter) */
+function micStand(ok) { const b = $('#hoeraknop'); if (b) { b.textContent = ok ? '🎤 Hoera-meter ✓' : '🎤 Hoera-meter ✗ (microfoon toestaan)'; b.style.color = ok ? '' : '#FF5A4E'; } }
+let hoeraBezig = false;
+async function hoeraProef() {
+  if (hoeraBezig || finale.running) return; hoeraBezig = true;
+  const o = document.createElement('div'); o.className = 'groot'; o.style.cursor = 'default';
+  const toon = (h, sub) => { o.innerHTML = `<div class="panel" style="width:min(720px,92vw)"><h2>Hoera-meter · proef</h2>${hoeraHTML(h)}<p class="sub">${sub}</p></div>`; };
+  document.body.appendChild(o);
+  try {
+    const ok = await hoera.open(); micStand(ok);
+    if (!ok) { toon({ mic: false, luister: false }, 'De microfoon doet het niet. Klik op het slotje of het camera-icoon in de adresbalk, zet Microfoon op Toestaan en herlaad de pagina.'); await sleep(7000); return; }
+    toon({ ronde: 0, n: 1, scores: [], luister: true, best: 0, mic: true }, 'Roep nu zo hard als je kunt: HOERA!');
+    const piek = await hoera.listen(5000, onHoera);
+    toon({ ronde: 0, n: 1, scores: [piek], luister: false, best: piek, mic: true }, `Hardste meting: ${hoera.maxDb} dB · 100 % ligt nu bij ${hoera.top} dB. ${piek >= 90 ? 'Zo staat hij goed.' : `Was dit keihard? Open dan één keer kern.html?hoeratop=${Math.max(-40, Math.min(-3, Math.round(hoera.floor + piek / 100 * (hoera.top - hoera.floor)) + 1))} (dan is deze kreet bijna 100 %).`}`);
+    audio.play(piek >= 90 ? 'badge' : 'plop'); if (piek >= 90) confetti();
+    await sleep(7000);
+  } finally { hoera.close(); o.remove(); hoeraBezig = false; }
+}
 
 /* ---------- kern meldt zich (telefoons zwijgen dan in de finale) */
 async function heartbeat() { if (PROEF) return; try { await sync.regie.patchGame({ settings: { kern_at: new Date().toISOString() } }); } catch (e) { console.warn('[kern] melden', e.message); } }
@@ -552,7 +572,7 @@ async function gateOk() {
   tek.start().then(() => { delete $('#side').dataset.sig; render(); });
   render(); setInterval(render, 30_000);
   if (!PROEF) prewarmThuis();
-  hoera.vraag(); // de browser vraagt nu één keer om de microfoon (voor de hoera-meter), niet midden in de finale
+  hoera.vraag().then(micStand); // de browser vraagt nu één keer om de microfoon (voor de hoera-meter), niet midden in de finale
 }
 $('#gateform').onsubmit = async e => {
   e.preventDefault();

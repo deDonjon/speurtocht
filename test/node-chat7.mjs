@@ -58,7 +58,7 @@ t('terugblik: hoogtepunten uit spelstand en puzzeltijden', () => {
   const zin = said.filter(x => !x.startsWith('mood:'));
   assert.equal(zin[0], 'Boterknop ingedrukt.'); assert.ok(said.indexOf('mood:compleet') > said.findIndex(x => /Systeemcontrole/.test(x)));
   assert.match(zin[1], /Systeemcontrole/); assert.match(zin[2], /MEGA-MECHA-POF/); assert.match(zin[3], /DJ Mecha-Pof/); assert.match(zin[4], /Hannah is vandaag tien/); assert.ok(said.some(x => /Hiep hiep/.test(x)) && said.some(x => /Robotdans/.test(x)));
-  assert.ok(zin.findIndex(x => /taart/.test(x)) > zin.findIndex(x => /Robotdans/.test(x))); assert.match(zin.at(-1), /over en sluiten/i);
+  assert.ok(zin.findIndex(x => /taart/.test(x)) > zin.findIndex(x => /Robotdans/.test(x))); assert.match(zin.at(-1), /taart/i); assert.ok(!zin.some(x => /over en sluiten/i.test(x)), 'geen walkie-afscheid meer');
   assert.ok(zin.every(x => x.split(/\s+/).length <= 18), 'elke zin kort (max 18 woorden)');
   assert.ok(confetti >= 1); assert.ok(fin.done);
   n++; console.log('✓ finale: volgorde intro → check → Mega → DJ → rapje → hiep → dans → confetti → taart → afscheid; korte zinnen; daarna done');
@@ -98,7 +98,8 @@ t('bonus invoegen: onderweg vóór de doelstop, bij een puzzel direct erna, niet
   // microfoon geweigerd: geen stap 'hoera', de finale loopt zoals altijd
   const st2 = []; const fin2 = createFinale({ mon, state, audio: { play() {} }, confetti() {}, hoera: { ok: false, async open() { return false; }, close() {} }, key: 'testh2', onStage: s => st2.push(s) });
   globalThis.setTimeout = (f, ms) => realTimeout(f, 0); await fin2.start(); globalThis.setTimeout = realTimeout;
-  assert.ok(!st2.includes('hoera')); assert.ok(fin2.done);
+  assert.ok(st2.includes('hoera') && fin2.hoera.mic === false && !fin2.hoera.scores.length, 'zonder microfoon: wel HOERA in beeld, geen scores'); assert.ok(fin2.done);
+  assert.match(hoeraHTML(fin2.hoera), /geen microfoon/);
   n++; console.log('✓ hoera-meter: drie rondes, beste telt, uitslagzin; zonder microfoon gewoon de oude finale');
 }
 console.log(`\n${n} tests goed.`);
