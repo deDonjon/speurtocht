@@ -2,7 +2,7 @@
 // De goede code staat in stop_secret.geheim.qr (tekst of lijst) en is dus niet zichtbaar voor de telefoons.
 // De server (puzzle_move) controleert elke zet { t:'scan', v } en zet er ok:true|false bij; bij een goede scan haalt hij v weg.
 // Staat er geen geheim, dan zet de server ok:null en valt de puzzel terug op config.answer (als die er is).
-// Werkt op 1 telefoon; met meer telefoons mag iedereen scannen. Config: { type:'qr', question?, image?, answer? (reserve), hint? }
+// Werkt op 1 telefoon; met meer telefoons mag iedereen scannen. Config: { type:'qr', question?, image?, note? (regel onder het typvak; '' = weg), answer? (reserve), hint? }
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 /** Zelfde normalisatie als de server: kleine letters, alleen a-z en 0-9. */
@@ -50,7 +50,7 @@ export default {
             <input class="big grow" type="text" placeholder="of typ de code" aria-label="Code onder de QR" autocapitalize="characters" autocorrect="off" spellcheck="false">
             <button class="ok" type="submit">Check</button>
           </form>
-          <p class="note qr-note">Lukt scannen niet? Onder de QR staat de code in letters. Typ die hierboven.</p>
+          ${c.note === '' ? '' : `<p class="note qr-note">${esc(c.note || 'Lukt scannen niet? Onder de QR staat de code in letters. Typ die hierboven.')}</p>`}
         </div>
         <p class="feedback" aria-live="polite"></p><ul class="tries"></ul>`;
       el.querySelector('[data-a=scan]').onclick = () => startCam(el, v => api.move({ t: 'scan', v }));

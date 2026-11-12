@@ -811,7 +811,7 @@ screens.nav = (el, id) => {
    Puzzels met `multi: true` (splits, slot, sync) worden op elke telefoon getekend: ieder toestel heeft daar zijn eigen stuk;
    via api.roles weet de puzzel of dit de werkbank is. */
 const modCache = {};
-const PUZZLE_V = 8; // ophogen bij wijzigingen in js/puzzles/
+const PUZZLE_V = 9; // ophogen bij wijzigingen in js/puzzles/
 const loadPuzzle = type => modCache[type] ||= import(`./js/puzzles/${type}.js?v=${PUZZLE_V}`).then(m => m.default);
 screens.puz = (el, id) => {
   const st = state.stop(id), { n, total } = stopNo(st);

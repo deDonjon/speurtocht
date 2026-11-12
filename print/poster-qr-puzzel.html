@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QR-puzzel groene kastje</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style id="base"></style>
+<style>
+/* QR-puzzel voor stop 5 (groene kastje), bij poster-qr.html. Eén vel 90 × 120 cm op de rol:
+   A. overplakvel (41,2 × 42,1 cm) over het QR-vak van de poster: leeg raster 3 × 3 met in elk vak een uitkomst;
+   B. strook (78 × 18 cm) over "Lukt scannen niet? + code in letters";
+   C. 9 stukken van 7 × 7 blokjes (QR versie 1 = 21 × 21, foutcorrectie Q; de drie hoekstukken dragen elk een oog).
+      Elk stuk = voorkant | achterkant naast elkaar: uitknippen als strook van 21 × 10,5 cm, dubbelvouwen over de stippellijn,
+      magneet ertussen, dichtlijmen. Achterkant = som; de uitkomst staat in het vak waar het stuk hoort. Blauw pijltje = boven.
+   Zelfde code als de poster (standaard POF-GARDE-35 = stop_secret.geheim.qr); ?code=… voor een andere. */
+@page{size:90cm 120cm;margin:0}
+:root{--m:1.5cm;--p:calc(var(--m) * 7)}
+.sheet{width:90cm;height:120cm;position:relative;overflow:hidden;background:#fff;color:#2B1606;font-family:'Nunito',sans-serif}
+.crop{position:absolute;outline:.04cm dashed #B9B2A6;outline-offset:.5cm}
+.lab{position:absolute;font-family:'Chakra Petch',monospace;font-weight:700;font-size:.9cm;letter-spacing:.15em;color:#9A8F80}
+/* A. overplakvel */
+.over{left:4cm;top:4cm;width:41.2cm;height:42.1cm}
+.over .box{position:absolute;inset:0 0 .9cm 0;background:#fff;border:.6cm solid #141A26;border-radius:2.4cm;box-shadow:0 .9cm 0 #141A26}
+.grid{position:absolute;left:calc((41.2cm - var(--p) * 3) / 2);top:calc((41.2cm - var(--p) * 3) / 2);width:calc(var(--p) * 3);height:calc(var(--p) * 3);display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr)}
+.grid i{font-style:normal;border:.06cm dashed #CFC8BC;display:flex;align-items:center;justify-content:center;font-family:'Lilita One',sans-serif;font-size:4.2cm;color:#E6E0D6}
+/* uitleg voor Job */
+.job{position:absolute;left:50cm;top:3.2cm;width:36cm;font-size:.95cm;line-height:1.32;color:#3E3328}
+.job h2{margin:0 0 .5cm;font-family:'Lilita One',sans-serif;font-weight:400;font-size:2cm;color:#9A5419}
+.job ol{margin:0;padding-left:1.2cm}.job li{margin:0 0 .35cm}
+.job .warn{margin-top:.6cm;padding:.5cm .7cm;border:.08cm solid #9A5419;border-radius:.6cm;font-size:.85cm}
+/* B. strook over de code */
+.strip{left:6cm;top:51cm;width:78cm;height:18cm;background:#141A26;border-radius:1.6cm;color:#EAF2FF;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.strip .t{font-family:'Chakra Petch',monospace;font-weight:700;font-size:1.6cm;letter-spacing:.25em;color:#FF6B5E}
+.strip .h{font-family:'Lilita One',sans-serif;font-size:3.6cm;line-height:1;margin:.3cm 0 .4cm;color:#F2BE62}
+.strip .s{font-size:1.45cm;font-weight:800;line-height:1.25;max-width:72cm}
+.strip .s b{color:#7FE8FF}
+/* C. stukken */
+.pieces{position:absolute;left:4.4cm;top:74.5cm;display:grid;grid-template-columns:repeat(3,calc(var(--p) * 2));column-gap:4.5cm;row-gap:3.2cm}
+.pair{position:relative;display:flex;width:calc(var(--p) * 2);height:var(--p);outline:.04cm dashed #B9B2A6;outline-offset:.5cm}
+.front,.back{width:var(--p);height:var(--p);position:relative}
+.front svg{width:100%;height:100%;display:block;shape-rendering:crispEdges}
+.back{background:#FFF4DF;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border-left:.05cm dashed #9A5419}
+.back .sum{font-family:'Lilita One',sans-serif;font-size:2.7cm;line-height:1;color:#2B1606;white-space:nowrap}
+.back .q{font-family:'Chakra Petch',monospace;font-weight:700;font-size:.62cm;letter-spacing:.12em;color:#9A5419;margin-top:.45cm}
+.back .up{position:absolute;top:.35cm;left:50%;transform:translateX(-50%);font-size:.55cm;font-weight:800;color:#15A4C8;letter-spacing:.1em}
+.back .gear{position:absolute;bottom:.35cm;font-size:.5cm;color:#B9A88E;font-weight:700}
+.fold{position:absolute;left:var(--p);top:-1.3cm;transform:translateX(-50%);font-size:.55cm;font-weight:800;color:#9A5419;white-space:nowrap}
+.pnr{position:absolute;left:-1.6cm;top:0;font-family:'Chakra Petch',monospace;font-weight:700;font-size:.6cm;color:#B9B2A6;writing-mode:vertical-rl}
+.foot{position:absolute;left:4cm;right:4cm;bottom:2.2cm;font-size:.85cm;color:#7A6E60;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="sheet" id="sheet">
+  <div class="lab" style="left:4cm;top:1.6cm">A · OVERPLAKVEL OVER HET QR-VAK VAN DE POSTER</div>
+  <div class="crop over" id="over"><div class="box"></div><div class="grid" id="grid"></div></div>
+
+  <div class="job">
+    <h2>QR-puzzel · stop 5</h2>
+    <ol>
+      <li><b>Knippen:</b> A (overplakvel), B (strook) en de 9 stroken C langs de stippellijnen.</li>
+      <li><b>A</b> precies over het QR-vak van de poster plakken (de rand valt over de zwarte rand; "SCAN MIJ" blijft erboven zichtbaar). <b>B</b> over "Lukt scannen niet?" en de code in letters.</li>
+      <li><b>Stukken:</b> elke strook dubbelvouwen over de stippellijn in het midden, met de QR naar buiten. Magneet ertussen, dichtlijmen (of dubbelzijdig tape). Daarna nog eens recht bijknippen langs de QR.</li>
+      <li><b>Ophangen:</b> de 9 stukken los op het kastje, <b>met de som naar voren</b>, verspreid over de zijkanten.</li>
+      <li><b>Spel:</b> Rekenmeester rekent elke som uit, het stuk gaat met de QR naar voren in het vak met die uitkomst. Het blauwe pijltje wijst naar boven. Als alles ligt: scannen.</li>
+    </ol>
+    <div class="warn"><b>Code voor de begeleider:</b> <span id="codeJob" style="font-family:'Chakra Petch',monospace;font-weight:700"></span> (staat niet meer op de poster). Lukt scannen niet: zeg de code, of ontgrendel met de pincode. <b>Kastje niet magnetisch?</b> Dan Blu-Tack of tape.</div>
+  </div>
+
+  <div class="lab" style="left:6cm;top:49cm">B · STROOK OVER DE CODE IN LETTERS</div>
+  <div class="crop strip">
+    <div class="t">⚠ STORING · STORING · STORING</div>
+    <div class="h">BLIEP! Mijn QR is in 9 stukken gevlogen!</div>
+    <div class="s">Ik zwaaide iets te hard met mijn garde. <b>Rekenmeester</b>: reken de som achter op elk stuk uit. Het stuk hoort in het vak met dat antwoord, de QR naar voren en het <b>blauwe pijltje naar boven</b>. Alles op zijn plek? Dan scannen!</div>
+  </div>
+
+  <div class="lab" style="left:4cm;top:71.4cm">C · 9 STUKKEN · UITKNIPPEN, DUBBELVOUWEN, MAGNEET ERTUSSEN</div>
+  <div class="pieces" id="pieces"></div>
+  <div class="foot">Afdrukken op 100 % (90 cm rol). Een blokje is 1,5 × 1,5 cm; een stuk is 10,5 × 10,5 cm. Nameten: de QR van alle stukken samen is 31,5 cm breed.</div>
+</div></div>
+<script src="vendor/qrcode.js"></script>
+<script type="module">
+import { BASE_CSS, preview } from './print.js';
+document.getElementById('base').textContent = BASE_CSS;
+const code = (new URLSearchParams(location.search).get('code') || 'POF-GARDE-35').toUpperCase();
+document.getElementById('codeJob').textContent = code;
+
+// QR versie 1 (21 × 21) in alfanumerieke modus. Foutcorrectie Q (getest 12 nov met jsQR, zoals de app op de iPhone):
+// alle 9 stukken goed → scant; een hoekstuk weg → scant nooit (oog weg); per stuk ±3 mm scheef → scant nog; een middenstuk
+// verkeerd gedraaid → scant meestal toch (vergevingsgezind). L/M waren strenger bij draaien maar niet ruimer bij scheef leggen.
+const EC = (new URLSearchParams(location.search).get('ec') || 'Q').toUpperCase();
+const q = qrcode(1, EC); q.addData(code, /^[0-9A-Z $%*+\-./:]+$/.test(code) ? 'Alphanumeric' : 'Byte'); q.make();
+const N = q.getModuleCount(); if (N !== 21) throw new Error('QR is geen 21 × 21 maar ' + N);
+const dark = (r, c) => q.isDark(r, c);
+
+// Sommen voor de Rekenmeester (rij voor rij, links → rechts). Alle uitkomsten verschillen.
+const SUMS = [['6 × 7', 42], ['50 − 13', 37], ['3 × 9', 27], ['100 : 4', 25], ['19 + 19', 38], ['8 × 8', 64], ['4 × 9', 36], ['90 − 45', 45], ['11 × 5', 55]];
+if (new Set(SUMS.map(s => s[1])).size !== 9) throw new Error('dubbele uitkomst');
+
+document.getElementById('grid').innerHTML = SUMS.map(s => `<i>${s[1]}</i>`).join('');
+
+// Pijltje "boven" in een licht blokje zo hoog en zo midden mogelijk in elk stuk (licht blauw: scanners zien het als wit).
+function arrowSpot(r0, c0) {
+  for (let r = 0; r < 7; r++) {
+    const cols = [3, 2, 4, 1, 5, 0, 6].filter(c => !dark(r0 + r, c0 + c));
+    if (cols.length) return [r, cols[0]];
+  }
+  return null;
+}
+function pieceSvg(r0, c0) {
+  let p = '';
+  for (let r = 0; r < 7; r++) for (let c = 0; c < 7; c++) if (dark(r0 + r, c0 + c)) p += `M${c} ${r}h1v1h-1z`;
+  const a = arrowSpot(r0, c0);
+  const arrow = a ? `<path d="M${a[1] + .5} ${a[0] + .16}L${a[1] + .8} ${a[0] + .62}H${a[1] + .62}V${a[0] + .84}H${a[1] + .38}V${a[0] + .62}H${a[1] + .2}Z" fill="#8FE6FF"/>` : '';
+  return `<svg viewBox="0 0 7 7"><rect width="7" height="7" fill="#fff"/><path d="${p}" fill="#000"/>${arrow}</svg>`;
+}
+const pieces = [];
+for (let pr = 0; pr < 3; pr++) for (let pc = 0; pc < 3; pc++) pieces.push({ i: pr * 3 + pc, r0: pr * 7, c0: pc * 7 });
+// Op het vel door elkaar, zodat de volgorde op de rol niets verklapt.
+const ORDER = [4, 8, 0, 6, 1, 3, 7, 2, 5];
+document.getElementById('pieces').innerHTML = ORDER.map((k, n) => { const p = pieces[k];
+  return `<div class="pair" data-k="${k}"><span class="pnr">${n + 1}</span><span class="fold">vouwlijn ↓</span><div class="front">${pieceSvg(p.r0, p.c0)}</div>
+    <div class="back"><span class="up">▲ BOVEN</span><div class="sum">${SUMS[k][0]}</div><div class="q">IN WELK VAK HOOR IK?</div><span class="gear">⚙ Mecha-Pof</span></div></div>`; }).join('');
+window.__pieces = pieces.map(p => ({ ...p, sum: SUMS[p.i][0], uitkomst: SUMS[p.i][1] }));
+
+const fit = preview(document.getElementById('sheet'), { title: 'QR-puzzel groene kastje', size: '90 × 120 cm', hint: `code ${code} · 9 stukken + overplakvel + strook` });
+window.__ready = true; fit();
+</script>
+</body>
+</html>
