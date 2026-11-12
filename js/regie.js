@@ -3,7 +3,7 @@
 // Geheimen (codes, missies, stop-geheimen) komen uit regie_state en staan alleen in `R`.
 import { state, PARTS, TALENTS } from './state.js';
 import { sync, IS_TEST } from './sync.js';
-import { LINES } from './monster-lines.js?v=12'; // wekzin (chat 7)
+import { LINES } from './monster-lines.js?v=13'; // wekzin (chat 7)
 import * as tk from './tekening.js?v=1'; // tab 📸 Tekeningen (12 nov)
 
 /* ================================================================ hulpjes */
@@ -348,7 +348,7 @@ function kernPanel() {
   return `<div class="page"><span class="tab">Thuis · kern en loting</span>
     <p class="note">Kernscherm: ${on ? `<b style="color:var(--ok)">aan</b> (${ago(at)} geleden gemeld)` : '<b style="color:var(--straw)">niet gezien</b> — open <a href="./kern.html" target="_blank">kern.html</a> op de laptop'}. ${woke ? 'Mecha-Pof is wakker.' : 'Mecha-Pof slaapt nog.'}</p>
     <div class="grid2"><button class="${woke ? 'plain' : 'ok'}" data-a="wake">⏻ Wek Mecha-Pof</button><button class="${woke ? 'ok' : 'plain'}" data-a="loting">🎰 Loting starten${bday ? ` (${esc(bday.name)} vast)` : ''}</button></div>
-    <button class="plain wide" data-a="uitleg" style="margin-top:8px">📋 Speluitleg op het kernscherm (5 regels, ±1 min)</button>
+    <button class="plain wide" data-a="uitleg" style="margin-top:8px">📋 Speluitleg op het kernscherm (6 regels, ±1¼ min)</button>
     <p class="note">Wekken = de wekzin op de laptop. Loting = de vijf anderen krijgen een willekeurig talent, ${esc(bday?.name || 'de jarige')} wordt Sleutelbewaarder; de kern laat de namen draaien en Mecha-Pof kondigt elk talent aan. Volgorde: wekken → loting → passen uitdelen → voorstelronde via de walkie → speluitleg → inloggen → start. Monteurspassen (<a href="./print/monteurspas.html?namen=1" target="_blank">met namen en codes</a>).</p>
   </div>`;
 }

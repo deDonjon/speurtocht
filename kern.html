@@ -53,7 +53,7 @@ body.slaap #mon::after{background:radial-gradient(closest-side,rgba(127,232,255,
 .slot.lock .t{border-color:var(--acc,var(--led));color:#fff;animation:klik .35s}
 @keyframes klik{0%{transform:scale(1.15)}100%{transform:none}}
 .slot.vast::after{content:'🎂 vast';grid-column:2;justify-self:end;font-size:.75rem;color:var(--gold);font-family:var(--hud);margin-top:-6px}
-/* speluitleg: vijf kaarten, de actieve licht op */
+/* speluitleg: zes kaarten, de actieve licht op */
 .uitleg{display:grid;gap:10px}
 .ucard{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:14px;background:var(--visor);border:2px solid var(--line);border-radius:14px;padding:10px 16px;opacity:.38;transition:opacity .3s,transform .3s,border-color .3s,box-shadow .3s}
 .ucard em{font-style:normal;font-size:clamp(1.6rem,3vw,2.8rem);line-height:1}
@@ -92,11 +92,11 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:75}
 <script type="module">
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync, IS_TEST } from './js/sync.js';
-import { createMonster, lineText } from './js/monster.js?v=21';
+import { createMonster, lineText } from './js/monster.js?v=22';
 import { audio } from './js/audio.js?v=11';
 import { voice } from './js/voice.js?v=7';
-import { LINES } from './js/monster-lines.js?v=12';
-import { createFinale, endCards, END_CSS, fillLine, stageHTML, TAART_HTML, buildHighlights } from './js/finale.js?v=7';
+import { LINES } from './js/monster-lines.js?v=13';
+import { createFinale, endCards, END_CSS, fillLine, stageHTML, TAART_HTML, buildHighlights } from './js/finale.js?v=8';
 import { kernTekeningen } from './js/tekening.js?v=1'; // goedgekeurde tekeningen (regie → 📸 Tekeningen), 12 nov
 
 const $ = s => document.querySelector(s);
@@ -142,6 +142,7 @@ const UITLEG = [ // kaarten bij LINES.uitleg (zelfde volgorde)
   ['📻 🗺️ 🔧', 'Drie telefoons, drie taken', 'Radio · kaart · werkbank. Ze wisselen bij elke plek.'],
   ['📞', 'Mecha-Pof belt de radio', 'Luister tot het eind. Zeg samen wat groot in beeld staat. Niet verstaan? ↻ Herhaal.'],
   ['🔑', 'Opgelost? Indienen en schudden', 'De Sleutelbewaarder dient in, de monteur schudt het onderdeel vast. Hints kosten druppels.'],
+  ['🎂', 'Cadeautje voor de jarige', 'Eén verjaardagswens: de taart op haar telefoon. Puzzel overslaan, gratis hint of robotdans. Maar één keer!'],
   ['🚸', 'Blijf bij elkaar', 'Oversteken alleen samen met de begeleider.'],
 ];
 let loting = null;  // { order:[{p, talent}], i, spinning }
@@ -243,7 +244,8 @@ async function wake(text) {
 }
 function prewarmLoting() { // namen × talenten vooraf laten opnemen, zodat de loting niet hapert
   const ps = S().players, texts = [...(LINES.loting?.intro || []), ...(LINES.loting?.klaar || [])];
-  texts.push(...(LINES.uitleg || []));
+  const jarige = ps.find(p => p.is_birthday)?.name;
+  texts.push(...(LINES.uitleg || []).map(l => fillLine(l, { jarige })));
   for (const p of ps) for (const t of (p.is_birthday ? ['sleutelbewaarder'] : Object.keys(TALENTS).filter(x => x !== 'sleutelbewaarder'))) for (const l of LINES.loting?.[t] || []) texts.push(fillLine(l, { naam: p.name }));
   voice.prewarm?.(texts).catch?.(() => {});
 }
@@ -251,7 +253,7 @@ async function speelUitleg() { // regie: knop "Speluitleg". Eén kaart per zin; 
   if (uitleg || loting) return;
   woke = true; uitleg = { i: 0 }; render();
   const zinnen = LINES.uitleg || [];
-  for (let i = 0; i < UITLEG.length && uitleg; i++) { uitleg.i = i; render(); audio.play('plop'); await say(zinnen[i] || UITLEG[i][1], { ms: 15000 }); await sleep(350); }
+  for (let i = 0; i < UITLEG.length && uitleg; i++) { uitleg.i = i; render(); audio.play('plop'); await say(zinnen[i] ? fillLine(zinnen[i], { jarige: S().players.find(p => p.is_birthday)?.name }) : UITLEG[i][1], { ms: 15000 }); await sleep(350); }
   if (uitleg) { confetti(); audio.play('badge'); }
   uitleg = null; render();
 }

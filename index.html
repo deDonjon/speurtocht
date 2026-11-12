@@ -244,15 +244,15 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:35}
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync } from './js/sync.js';
 import { createMap } from './js/map.js?v=5'; // ?v ophogen bij elke wijziging: GitHub Pages en Safari bewaren oude bestanden
-import { createMonster, monsterImage, lineText } from './js/monster.js?v=21'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
+import { createMonster, monsterImage, lineText } from './js/monster.js?v=22'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
 import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole } from './js/roles.js?v=1'; // radio / kaart / werkbank, roterend per stop
 import { createInstall } from './js/install.js?v=3'; // installatieritueel: monteur schudt, deel klikt vast
-import { openWalkie, incomingCall, callGreeting, arrivalCall } from './js/walkie.js?v=23'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
+import { openWalkie, incomingCall, callGreeting, arrivalCall } from './js/walkie.js?v=24'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
 import { createNavVoice } from './js/navvoice.js?v=1'; // gesproken navigatie zodra de LED-ogen terug zijn (radiotelefoon)
-import { createSurprises } from './js/surprises.js?v=2'; // Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens
+import { createSurprises } from './js/surprises.js?v=3'; // Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens
 import { audio } from './js/audio.js?v=11'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
 import { teaserActive, mountTeaser } from './js/teaser.js?v=2'; // voorpret vóór het feest (game.settings.teaser)
-import { createFinale, endCards, END_CSS, CHECK_MS, TAART_HTML, slideHTML } from './js/finale.js?v=6'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
+import { createFinale, endCards, END_CSS, CHECK_MS, TAART_HTML, slideHTML } from './js/finale.js?v=8'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -752,6 +752,7 @@ screens.lobby = el => {
           <li><b>Volg het signaal.</b> De kaart-telefoon wijst de weg naar de volgende plek.</li>
           <li><b>Mecha-Pof belt de radio.</b> Luister tot het eind en zeg samen wat groot in beeld staat. Niet verstaan? Tik op <b>↻ Herhaal</b>.</li>
           <li><b>Los de puzzel op.</b> De Sleutelbewaarder dient hem in, de monteur schudt het onderdeel vast.</li>
+          ${birthday() ? `<li><b>🎂 Cadeautje voor ${esc(birthday().name)}.</b> Zij heeft één verjaardagswens: de taart linksonder op haar telefoon. Puzzel overslaan, een gratis hint of een robotdans. Maar één keer!</li>` : ''}
           <li><b>Blijf bij elkaar.</b> Oversteken doe je alleen samen met de begeleider.</li></ol></div>` : '');
     $('#guards', el).innerHTML = ps.map(p => { const x = guard(p); return `<div class="guard ${mine.has(p.id) ? 'mine' : ''}" style="--acc:${x.color}"><span class="ic">${x.icon}</span>
       <div><b>${esc(p.name)}<span class="dot ${p.online ? 'on' : ''}"></span></b><small>${esc(x.talent || 'nog geen talent')}</small></div></div>`; }).join('');

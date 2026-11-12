@@ -166,11 +166,11 @@ if (!only || only === 'kern') {
   ok('kern: Hannah als laatste: Sleutelbewaarder', await K.until(() => __said.some(t => /Hannah\.\.\. Sleutelbewaarder/.test(t)), 70000));
   ok('kern: loting klaar, talenten in beeld', await K.until(() => !document.querySelector('#reel') && document.querySelectorAll('#side .slot.lock').length === 6, 35000));
   ok('kern: voorstelronde-uitleg', (await K.txt('#side')).includes('Voorstelronde'));
-  // speluitleg (12 nov): vijf kaarten, één zin per kaart, daarna terug naar het wachtscherm
+  // speluitleg (12 nov): zes kaarten, één zin per kaart, daarna terug naar het wachtscherm
   await fake(K.page, f => f.rpc('regie_event', { p_key: 'job', p_type: 'monster.say', p_payload: { text: 'Speluitleg!', kern: true, uitleg: true } }));
-  ok('kern: speluitleg toont vijf kaarten', await K.until(() => document.querySelectorAll('#side .ucard').length === 5 && !!document.querySelector('#side .ucard.on'), 6000));
+  ok('kern: speluitleg toont zes kaarten', await K.until(() => document.querySelectorAll('#side .ucard').length === 6 && !!document.querySelector('#side .ucard.on'), 6000));
   await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-uitleg.png') }).catch(() => {});
-  ok('kern: speluitleg zegt regel vijf en sluit af', await K.until(() => __said.some(t => /Regel vijf/.test(t)) && !document.querySelector('#side .ucard'), 90000));
+  ok('kern: speluitleg zegt de wensregel en regel zes en sluit af', await K.until(() => __said.some(t => /Hannah heeft één verjaardagswens/.test(t)) && __said.some(t => /Regel zes/.test(t)) && !document.querySelector('#side .ucard'), 130000));
   await fake(K.page, f => f.rpc('regie_start', { p_key: 'job' }));
   ok('kern: onderweg-scherm', await K.until(() => /0 van 7/.test(document.querySelector('#caption').textContent), 4000));
   ok('kern: zegt dat hij thuis wacht', await K.until(() => __said.some(t => /Ik wacht hier/.test(t)), 8000));

@@ -159,7 +159,11 @@ await sleep(6500);
 await fake(f => f.patchGame({ phase: 'puzzel', active_index: 0, wish_used: false }));
 await sleep(300);
 ok('🎂-knop zichtbaar voor de jarige', !!(await page.$('#sp-wish')));
-await page.evaluate(() => document.getElementById('sp-wish').click()); // de knop wiebelt (animatie), dus niet via de muis
+const tipOk = await page.waitForFunction(() => document.getElementById('sp-wish-tip')?.textContent.includes('verjaardagswens'), null, { timeout: 8000 }).then(() => true).catch(() => false);
+ok('herinnering: ballonnetje naast de 🎂-knop', tipOk);
+await page.screenshot({ path: path.join(ROOT, 'test/out/wens-tip.png') }).catch(() => {});
+if (tipOk) await page.evaluate(() => document.getElementById('sp-wish-tip').click()); // tik op het ballonnetje = keuzeblad
+else await page.evaluate(() => document.getElementById('sp-wish').click()); // de knop wiebelt (animatie), dus niet via de muis
 await W('#sp-ov [data-w=hint]', 3000).catch(() => {});
 await page.click('#sp-ov [data-w=hint]');
 await sleep(500);
@@ -167,6 +171,7 @@ const wishEv = await fake(f => f.db.event.find(e => e.type === 'wish.used')?.pay
 ok('wish.used verstuurd (gratis hint)', wishEv?.for === 'gratis hint', JSON.stringify(wishEv));
 ok('wens-overlay toont de hint uit de puzzelconfig', (await txt('#sp-ov')).includes('plakkerig'));
 ok('🎂-knop weg na gebruik', !(await page.$('#sp-wish')));
+ok('…en het ballonnetje ook', !(await page.$('#sp-wish-tip')));
 ok('badge wensvervuller', await fake(f => f.rpcLog.some(x => x.name === 'award_badge' && x.args.p_badge === 'wensvervuller')));
 
 ok('geen JavaScript-fouten', errors.length === 0, errors.join(' | '));

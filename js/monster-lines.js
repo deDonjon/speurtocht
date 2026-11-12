@@ -77,19 +77,20 @@ export const LINES = {
     codekraker: ['{naam}... Codekraker! Jij haalt mijn luidsprekerrooster op.'],
     rekenmeester: ['{naam}... Rekenmeester! Jij zet mijn spatel en mijn garde erop.'],
     tijdbewaker: ['{naam}... Tijdbewaker! Jij monteert mijn zuigerbenen. En je let op de klok.'],
-    sleutelbewaarder: ['{naam}... Sleutelbewaarder! Jij drukt op mijn boterknop. En omdat je jarig bent, mag jij één wens doen.'],
+    sleutelbewaarder: ['{naam}... Sleutelbewaarder! Jij drukt op mijn boterknop. En omdat je jarig bent, krijg je een cadeautje van mij: één verjaardagswens. Tik op de taart linksonder op je telefoon: puzzel overslaan, een gratis hint of een robotdans. Maar één keer, dus kies goed!'],
     klaar: [
       'Talenten verdeeld. Zes monteurs, één robot. Dit gaat helemaal goed komen. Denk ik. Bliep.',
     ],
   },
   // Speluitleg op het kernscherm (regie: knop "Speluitleg"). Eén korte zin per kaart; de kaart zelf staat in kern.html (UITLEG).
-  // Zelfde volgorde als de kaarten: signaal volgen · drie telefoons · de radio · indienen en schudden · veiligheid.
+  // Zelfde volgorde als de kaarten: signaal volgen · drie telefoons · de radio · indienen en schudden · verjaardagswens · veiligheid. {jarige} = naam van de jarige.
   uitleg: [
-    'Speluitleg! Vijf regels, dan mogen jullie los. Regel één: volg mijn signaal. De kaart-telefoon wijst de weg naar de volgende plek.',
+    'Speluitleg! Zes regels, dan mogen jullie los. Regel één: volg mijn signaal. De kaart-telefoon wijst de weg naar de volgende plek.',
     'Regel twee: drie telefoons, drie taken. De radio, de kaart en de werkbank. Bij elke plek wisselen ze. Kijk dus steeds wat jouw telefoon is.',
     'Regel drie: bij elke plek bel ik de radio. Luister tot het eind, en zeg dan samen wat groot in beeld staat. Niet verstaan? Druk op herhaal.',
     'Regel vier: puzzel opgelost? Dan dient de Sleutelbewaarder hem in, en de monteur schudt het onderdeel vast. Een hint kost stroopdruppels.',
-    'Regel vijf, de belangrijkste: blijf bij elkaar, en oversteken doe je alleen samen met de begeleider. Klaar? Reparatieteam, starten maar!',
+    'Regel vijf is een cadeautje voor de jarige. {jarige} heeft één verjaardagswens: de taart linksonder op haar telefoon. Puzzel overslaan, een gratis hint of een robotdans. Maar één keer, dus bewaar hem voor een lastig moment.',
+    'Regel zes, de belangrijkste: blijf bij elkaar, en oversteken doe je alleen samen met de begeleider. Klaar? Reparatieteam, starten maar!',
   ],
   // Het spel start; de kern blijft thuis op tafel.
   kern: {

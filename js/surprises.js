@@ -96,6 +96,10 @@ const CSS = `
 /* verjaardagswens-knop (alleen de jarige) */
 #sp-wish{position:fixed;left:max(14px,env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:26;width:58px;height:58px;border-radius:50%;border:2px solid #F2BE62;padding:0;font-size:28px;
   background:radial-gradient(circle at 40% 35%,#5A4A2C,#2C2240);box-shadow:0 4px 0 #10141C,0 0 18px rgba(242,190,98,.4);animation:sp-hop 2.4s ease-in-out infinite}
+#sp-wish-tip{position:fixed;left:calc(max(14px,env(safe-area-inset-left,0px)) + 70px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);z-index:26;max-width:min(calc(100vw - 100px),300px);
+  background:linear-gradient(180deg,#FFE3A3,#F2BE62);color:#2A1A05;border:0;border-radius:14px;padding:10px 14px;text-align:left;font:800 .95rem/1.25 Nunito,system-ui,sans-serif;box-shadow:0 4px 0 #A9782A,0 6px 22px rgba(0,0,0,.45);animation:sp-pop .35s ease-out}
+#sp-wish-tip::before{content:'';position:absolute;left:-8px;bottom:16px;border:8px solid transparent;border-left:0;border-right-color:#F6CB77}
+#sp-wish-tip small{display:block;margin-top:4px;font-weight:700;color:#5A3D0E;font-size:.8rem}
 #sp-ov .sp-wishes{display:flex;flex-direction:column;gap:10px;width:100%}
 #sp-ov .sp-wishes button{min-height:64px;border-radius:14px;border:2px solid #4E5D7E;background:linear-gradient(180deg,#3A4356,#2A3142);color:#EAF2FF;font:800 1.05rem Nunito,system-ui,sans-serif;box-shadow:0 4px 0 #10141C}
 @keyframes sp-led{0%,55%{opacity:1}56%,100%{opacity:.3}}
@@ -335,13 +339,51 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
   function wishButton() {
     const g = S().game, jarige = me().find(x => x.is_birthday);
     const show = !!g && !!jarige && !g.wish_used && ['onderweg', 'puzzel', 'finale'].includes(g.phase);
-    if (!show) { wishBtn?.remove(); wishBtn = null; return; }
+    if (!show) { wishBtn?.remove(); wishBtn = null; hideTip(); return; }
     if (!wishBtn) { wishBtn = document.createElement('button'); wishBtn.id = 'sp-wish'; wishBtn.type = 'button'; wishBtn.textContent = '🎂'; wishBtn.setAttribute('aria-label', 'Verjaardagswens'); wishBtn.onclick = wishSheet; }
     if (!wishBtn.isConnected) document.body.appendChild(wishBtn);
   }
+  // Herinneringen (12 nov): een gouden ballonnetje naast de 🎂-knop, alleen op de telefoon van de jarige en zolang de wens vrij is.
+  // Drie momenten, elk één keer per spel: bij de start, als een puzzel al 4 minuten duurt, en bij de voorlaatste plek.
+  const TIPS = {
+    start: ['🎂 Cadeautje van Mecha-Pof: jij hebt één verjaardagswens!', 'Tik op de taart als je hem nodig hebt: puzzel overslaan, gratis hint of robotdans.'],
+    vast: ['Zitten jullie vast? Je verjaardagswens kan helpen!', 'Tik op de taart: puzzel overslaan of een gratis hint. Of bewaar hem nog even.'],
+    laatste: ['Nog maar twee plekken! Je verjaardagswens is nog niet gebruikt.', 'Bewaren mag, maar vergeet hem niet. Een robotdans kan altijd!'],
+  };
+  let tipEl = null, tipTimer = null, puzzelSince = null;
+  const tipKey = k => `pkm2_wenstip:${S().game?.started_at || '-'}:${k}`;
+  const tipDone = k => { try { return localStorage.getItem(tipKey(k)) === '1'; } catch { return false; } };
+  const tipMark = k => { try { localStorage.setItem(tipKey(k), '1'); } catch {} };
+  function hideTip() { clearTimeout(tipTimer); tipEl?.remove(); tipEl = null; }
+  function showTip(k) {
+    if (!wishBtn?.isConnected || tipDone(k) || tipEl) return false;
+    if (ov || isBusy()) return false; // straks opnieuw proberen (zie tipTick)
+    tipMark(k);
+    tipEl = document.createElement('button'); tipEl.type = 'button'; tipEl.id = 'sp-wish-tip';
+    tipEl.innerHTML = `${esc(TIPS[k][0])}<small>${esc(TIPS[k][1])}</small>`;
+    tipEl.onclick = () => { hideTip(); wishSheet(); };
+    document.body.appendChild(tipEl);
+    audio?.play('plop'); buzz([40, 30, 40]);
+    tipTimer = setTimeout(hideTip, 15000);
+    return true;
+  }
+  function tipTick() {
+    const g = S().game;
+    if (!wishBtn?.isConnected || !g) { hideTip(); return; }
+    const total = g.stop_order?.length || S().stops?.length || 0, i = g.active_index ?? 0;
+    if (!tipDone('start')) { showTip('start'); return; }
+    if (g.phase === 'puzzel') {
+      const key = `${g.started_at}:${i}`;
+      if (puzzelSince?.key !== key) puzzelSince = { key, t: now() };
+      if (now() - puzzelSince.t > 4 * 60_000 && !tipDone('vast')) { showTip('vast'); return; }
+    } else puzzelSince = null;
+    if (total >= 3 && i >= total - 2 && ['onderweg', 'puzzel'].includes(g.phase) && !tipDone('laatste')) showTip('laatste');
+  }
+  const tipIv = setInterval(tipTick, 5000); timers.add(tipIv);
+
   function wishSheet() {
     const jarige = me().find(x => x.is_birthday); if (!jarige) return;
-    modal = 'wenskeuze';
+    hideTip(); modal = 'wenskeuze';
     openOverlay(`<span class="sp-eye">🎂 Verjaardagswens</span><h2>${esc(jarige.name)}, wat wens je?</h2>
       <p class="sp-note">Dit mag maar één keer. Kies goed!</p>
       <div class="sp-wishes">${Object.entries(WISHES).map(([k, l]) => `<button type="button" data-w="${k}">${{ overslaan: '⏭️', hint: '💡', dansje: '🕺' }[k]} ${esc(l[0].toUpperCase() + l.slice(1))}</button>`).join('')}</div>
@@ -421,7 +463,7 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
     get modal() { return modal; },
     openOverlay: () => openOverlay(),
     badgeLabel,
-    destroy() { offs.forEach(f => f?.()); timers.forEach(t => { clearTimeout(t); clearInterval(t); }); cur = null; closeOverlay(); hideBanner(); wishBtn?.remove(); },
+    destroy() { offs.forEach(f => f?.()); timers.forEach(t => { clearTimeout(t); clearInterval(t); }); cur = null; closeOverlay(); hideBanner(); wishBtn?.remove(); hideTip(); },
   };
 }
 export default createSurprises;
