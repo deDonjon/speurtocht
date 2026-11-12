@@ -13,13 +13,14 @@
 .sheet{width:90cm;height:180cm;position:relative;overflow:hidden;background:#FFF4DF;color:#3A1C06;display:flex;flex-direction:column;align-items:center}
 .sheet::before{content:'';position:absolute;inset:0;background:linear-gradient(rgba(154,84,25,.09) .25cm,transparent .25cm) 0 0/7.5cm 7.5cm,linear-gradient(90deg,rgba(154,84,25,.09) .25cm,transparent .25cm) 0 0/7.5cm 7.5cm}
 .sheet>*{position:relative}
-.top{margin-top:7cm;text-align:center}
+.top{margin-top:7cm;text-align:center;z-index:2}
 .eyebrow{font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.6cm;letter-spacing:.35em;color:#15A4C8}
 h1{margin:.6cm 0 0;font-family:'Lilita One',sans-serif;font-weight:400;font-size:12.5cm;line-height:.92;color:#F2BE62;-webkit-text-stroke:.28cm #9A5419;paint-order:stroke fill;text-shadow:0 .7cm 0 #9A5419}
 .sub{margin-top:1.8cm;font-family:'Lilita One',sans-serif;font-size:5.2cm;color:#3A1C06}
 .sub b{color:#E0352B;font-weight:400}
 .mon{width:82cm;height:82cm;margin-top:1cm;position:relative}
 .mon svg{width:100%;height:100%;display:block}
+#spoor{position:absolute;inset:-13cm -3.5cm -11cm -3.5cm}#mon{position:relative}
 .glow{position:absolute;left:8cm;right:8cm;bottom:3cm;height:9cm;border-radius:50%;background:radial-gradient(closest-side,rgba(242,190,98,.55),transparent)}
 .meter{display:flex;align-items:center;gap:1.4cm;margin-top:-2cm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.6cm;letter-spacing:.25em;color:#9A5419}
 .meter .bar{width:44cm;height:3cm;border-radius:2cm;border:.35cm solid #3A1C06;background:linear-gradient(90deg,#15A4C8,#7FE8FF 30%,#F59E2E 65%,#E0352B 88%,#FF2E9A);position:relative;overflow:hidden}
@@ -37,7 +38,7 @@ h1{margin:.6cm 0 0;font-family:'Lilita One',sans-serif;font-weight:400;font-size
 <body>
 <div class="wrap"><div class="sheet" id="sheet">
   <div class="top"><div class="eyebrow">SYSTEEM COMPLEET</div><h1>OPERATIE<br>MECHA-POF</h1><div class="sub">Reparatieteam <b>Hannah 10</b></div></div>
-  <div class="mon"><div class="glow"></div><div id="mon"></div></div>
+  <div class="mon"><div id="spoor"></div><div class="glow"></div><div id="mon"></div></div>
   <div class="meter">STROOPMETER <div class="bar"></div> <b>MEGA</b></div>
   <div class="teamwrap"><div class="teamtitle">HET REPARATIETEAM</div><div class="team" id="team"></div></div>
 </div></div>
@@ -58,6 +59,22 @@ if (qs.has('talenten')) { // na de loting: talenten uit het spel
     const r = await sync.regie.state(); team(Object.fromEntries(r.players.filter(p => p.talent).map(p => [p.name, LABEL[p.talent]])));
   } catch (e) { console.warn('talenten', e.message); }
 }
+// Vage herinnering aan de route: de zeven plekken als soldeerpunten op een printplaat-spoor. Gespiegeld en gedraaid, zonder
+// namen of nummers, zodat het geen plattegrond is die je kunt nalopen.
+{ const { STOPS } = await import('./kaart.js');
+  const pl = [STOPS[6], ...STOPS.slice(0, 6)].map(s => [-(s.lng - 5.5630) * 69160, -(s.lat - 51.6150) * 111320]); // meters, gespiegeld
+  const rot = 38 * Math.PI / 180, r = pl.map(([x, y]) => [x * Math.cos(rot) - y * Math.sin(rot), x * Math.sin(rot) + y * Math.cos(rot)]);
+  const xs = r.map(p => p[0]), ys = r.map(p => p[1]), kx = 76 / (Math.max(...xs) - Math.min(...xs)), ky = 94 / (Math.max(...ys) - Math.min(...ys)); // uitgerekt over het hele vlak: nog minder een plattegrond
+  const P = r.map(([x, y]) => [44.5 + (x - (Math.max(...xs) + Math.min(...xs)) / 2) * kx, 53 + (y - (Math.max(...ys) + Math.min(...ys)) / 2) * ky]);
+  const n = P.length, g = i => P[(i + n) % n]; let d = `M${g(0)[0].toFixed(1)} ${g(0)[1].toFixed(1)}`; // vloeiende gesloten lus (Catmull-Rom)
+  for (let i = 0; i < n; i++) { const [p0, p1, p2, p3] = [g(i - 1), g(i), g(i + 1), g(i + 2)];
+    d += `C${(p1[0] + (p2[0] - p0[0]) / 5).toFixed(1)} ${(p1[1] + (p2[1] - p0[1]) / 5).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 5).toFixed(1)} ${(p2[1] - (p3[1] - p1[1]) / 5).toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`; }
+  const tak = P.map(([x, y], i) => { const a = Math.atan2(y - 53, x - 44.5) + (i % 2 ? .5 : -.4), l = 7 + (i * 5) % 6; return `<path d="M${x.toFixed(1)} ${y.toFixed(1)}l${(Math.cos(a) * l).toFixed(1)} ${(Math.sin(a) * l).toFixed(1)}h${i % 2 ? 5 : -5}"/>`; }).join('');
+  const c = document.documentElement.classList.contains('dark') ? '#7FE8FF' : '#C9792C';
+  document.getElementById('spoor').innerHTML = `<svg viewBox="0 0 89 106" preserveAspectRatio="none" style="width:100%;height:100%"><g fill="none" stroke="${c}" stroke-linecap="round" stroke-linejoin="round">
+    <path d="${d}" stroke-width="3.4" opacity=".1"/><path d="${d}" stroke-width="1.1" opacity=".22"/><path d="${d}" stroke-width=".35" stroke-dasharray=".2 2.2" stroke="#fff" opacity=".7"/>
+    <g stroke-width=".55" opacity=".2">${tak}</g></g>
+    ${P.map(([x, y], i) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${i ? 2.5 : 3.4}" fill="#FFF4DF" stroke="${c}" stroke-width=".9" opacity=".5"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${i ? .9 : 1.4}" fill="${i ? c : '#E0352B'}" opacity=".5"/>`).join('')}</svg>`; }
 document.getElementById('mon').innerHTML = await monsterSvg('mega');
 const fit = preview(document.getElementById('sheet'), { title: 'Mega-Mecha-Pof', size: '90 × 180 cm', hint: 'thuis, onder een laken tot de finale · de lege strook onder elke naam is voor het talent (stift) of ?talenten=1' });
 window.__ready = true; fit();
