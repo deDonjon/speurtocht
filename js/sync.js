@@ -221,6 +221,14 @@ export const sync = {
     if (r.error) throw new SyncError(r.error.message, r.error.code, r.error);
     return r.data || [];
   },
+  /** Goedgekeurde portrettekening van de monteur(s) op deze telefoon: { [player_id]: tijdelijke link } (functie monster-portret; bewijs = eigen code). */
+  async myPortraits() {
+    const codes = Object.values(session.codes).slice(0, 2); if (!codes.length) return {};
+    const r = await fetch(SUPABASE_URL + '/functions/v1/monster-portret', { method: 'POST', body: JSON.stringify({ spel: GAME_CODE, codes }),
+      headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'content-type': 'application/json' } });
+    const j = await r.json().catch(() => null);
+    return j?.ok ? j.portret || {} : {};
+  },
   async badge(playerId, badge) { return rpc('award_badge', { p_code: actorCode(), p_player: playerId, p_badge: badge }, { buffer: true }); },
   async log(type, payload = {}) { return rpc('log_event', { p_code: actorCode(), p_type: type, p_payload: payload }, { buffer: true }); },
   /** Zelfde als log(), maar namens een bepaalde bewaker op dit toestel (bijv. fork.vote per speelster). Valt terug op log(). */

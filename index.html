@@ -290,8 +290,8 @@ import { createNavVoice } from './js/navvoice.js?v=1'; // gesproken navigatie zo
 import { createSurprises } from './js/surprises.js?v=3'; // Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens
 import { audio } from './js/audio.js?v=11'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
 import { teaserActive, mountTeaser } from './js/teaser.js?v=2'; // voorpret vóór het feest (game.settings.teaser)
-import { createFinale, endCards, END_CSS, CHECK_MS, TAART_HTML, slideHTML } from './js/finale.js?v=10'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
-import { stackOf, nextAt, loadDropLog, dropRows, dropsByPlayer } from './js/stroop.js?v=1'; // stroopmeter: uitleg, stapel, druppels per onderdeel
+import { createFinale, endCards, END_CSS, CHECK_MS, TAART_HTML, slideHTML } from './js/finale.js?v=11'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
+import { stackOf, nextAt, loadDropLog, dropsByPlayer } from './js/stroop.js?v=1'; // stroopmeter: uitleg en stapel (teamstand); per monteur alleen op haar eigen eindkaart
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -551,10 +551,9 @@ function verdict(kind, html, ms = 3400) {
   const d = document.createElement('div'); d.id = 'verdict'; d.className = kind; d.setAttribute('role', 'alert'); d.innerHTML = html;
   document.body.appendChild(d); verdictT = setTimeout(() => d.remove(), ms);
 }
-/* Stroopmeter: tik op 💧 in de balk. Uitleg, de pannenkoekenstapel tot nu toe en de druppels per onderdeel (met haar monteur). */
+/* Stroopmeter: tik op 💧 in de balk. Uitleg en de pannenkoekenstapel tot nu toe: de teamstand. Druppels per monteur staan alleen op haar eigen eindkaart. */
 let dropLog = new Map(); // stop_id → { part, drops }
 const partStops = () => state.route().filter(x => x.part).length || 7;
-const dropRowsHtml = () => dropRows(dropLog, state).map(r => `<div class="droprow ${r.drops == null ? 'todo' : ''}"><i>${r.icon}</i><span><b>${esc(r.who)}</b><small>${esc(r.label)}</small></span><em>${r.drops == null ? 'nog te halen' : '💧 ' + r.drops}</em></div>`).join('');
 const stackHtml = n => `<div class="stack">${Array.from({ length: n }, (_, i) => `<i style="width:${150 - i * 6}px;animation-delay:${i * .08}s"></i>`).join('')}</div>`;
 function openStroop() {
   if (busy()) return;
@@ -569,12 +568,9 @@ function openStroop() {
       <li>⚡ Binnen 4 minuten opgelost <em>+3 extra</em></li>
       <li>💡 Hint gevraagd <em>3 minder</em></li>
       <li>✗ Fout antwoord <em>kost niks</em></li></ul>
-    <h3>Per onderdeel</h3>
-    <div class="droplist">${dropRowsHtml()}</div>
-    <p class="note">Elke monteur heeft haar eigen onderdeel. De druppels verdienen jullie met z'n allen.</p>
+    <p class="note">De druppels verdienen jullie met z'n allen.</p>
     <button class="ok wide" data-x="close">Verder ▶</button></div>`);
   $('#ov [data-x=close]')?.addEventListener('click', closeOverlay);
-  loadDropLog(sync, state).then(l => { if (l.size >= dropLog.size) dropLog = l; const el = $('#ov .droplist'); if (el) el.innerHTML = dropRowsHtml(); }).catch(() => {});
 }
 function showMission(m, name) {
   const text = typeof m === 'string' ? m : (m?.text || m?.mission || JSON.stringify(m));
@@ -997,11 +993,14 @@ const FIN_TEXT = { check: ['Systeemcontrole…', 'Alle zeven onderdelen klikken 
 const finVisual = stg => stg === 'check' ? `<div class="fin-check">${Object.values(PARTS).map((p, i) => `<i style="animation-delay:${(i * CHECK_MS / 1000).toFixed(2)}s">${p.icon}</i>`).join('')}</div>`
   : stg === 'taart' ? TAART_HTML : stg === 'terugblik' ? slideHTML(finale.slide?.item, finale.slide?.i, finale.slide?.n) : '';
 screens.klaar = el => {
-  loadDropLog(sync, state).then(l => { if (l.size >= dropLog.size) dropLog = l; update(); }).catch(() => {}); // druppels per onderdeel voor de eindkaarten
+  // Eigen eindkaart: de druppels van haar onderdeel en haar portrettekening (als de regie die heeft goedgekeurd). Alleen voor de monteur(s) op deze telefoon.
+  let mijnPortret = {};
+  loadDropLog(sync, state).then(l => { if (l.size >= dropLog.size) dropLog = l; update(); }).catch(() => {});
+  Promise.resolve(sync.myPortraits?.()).then(p => { mijnPortret = p || {}; update(); }).catch(() => {});
   const update = () => {
     const g = S().game, stops = state.route().filter(x => x.part).length || 7, b = birthday(), stg = finale.stage;
     const showEnd = stg === 'eind' || finale.done || (stg === 'idle' && !install.busy);
-    const sig = showEnd ? 'end:' + naAfloop() + S().players.map(p => p.id + (p.badges || []).join()).join('|') + (g.drops || 0) + ':' + dropLog.size : 'fin:' + stg + (finale.slide ? ':' + finale.slide.i : '');
+    const sig = showEnd ? 'end:' + naAfloop() + S().players.map(p => p.id + (p.badges || []).join()).join('|') + (g.drops || 0) + ':' + dropLog.size + ':' + Object.keys(mijnPortret).length + state.me().map(p => p.id).join() : 'fin:' + stg + (finale.slide ? ':' + finale.slide.i : '');
     if (el.dataset.sig === sig) return; el.dataset.sig = sig;
     if (!showEnd) {
       const [h, p] = FIN_TEXT[stg] || ['Mecha-Pof start op…', 'De boterknop is ingedrukt. Even geduld…'];
@@ -1009,23 +1008,24 @@ screens.klaar = el => {
       return;
     }
     const stack = stackOf(g.drops || 0, stops);
+    const mijn = state.me().map(p => p.id), alle = dropLog.size ? dropsByPlayer(dropLog, S().players) : {}, mijnDruppels = Object.fromEntries(mijn.filter(id => alle[id] != null).map(id => [id, alle[id]]));
     el.innerHTML = `<div class="center"><span class="eyebrow">Dossier gesloten</span><h1>MEGA-MECHA-POF!</h1></div>
       ${mslot('lg')}
       <div class="page center"><span class="tab">Het Reparatieteam</span>
-        <div class="fin-cards">${endCards(state, { druppels: dropLog.size ? dropsByPlayer(dropLog, S().players) : null })}</div>
+        <div class="fin-cards">${endCards(state, { mijn, portret: mijnPortret, druppels: mijnDruppels })}</div>
         ${naAfloop() ? '<p class="note">Operatie geslaagd op vrijdag 13 november. Dit is jullie eindstand. Bliep!</p>' : `<div class="row" style="justify-content:center">${hasRole('radio') ? '<button class="berry" data-k="walkie">📻 Afscheid: over en sluiten</button>' : ''}<button class="plain" data-k="foto">📸 Teamfoto</button></div>
         <p class="note">Allemaal tegelijk in de walkietalkie: <b>over en sluiten</b>!</p>`}</div>
       <div class="page center"><span class="tab">Eindcijfer</span>
         <div class="stack">${Array.from({ length: stack }, (_, i) => `<i style="width:${150 - i * 6}px;animation-delay:${i * .12}s"></i>`).join('')}</div>
         <h2>${stack} van de 10 pannenkoeken hoog</h2>
         <p>${g.drops || 0} stroopdruppels · ${g.hints || 0} hint${g.hints === 1 ? '' : 's'}</p>
-        ${dropLog.size ? `<div class="droplist" style="width:100%">${dropRowsHtml()}</div>` : ''}
         ${b ? `<p class="clue">${esc(b.name)}, jij hebt de boterknop aangezet. Gefeliciteerd, jarige!</p>` : ''}
       </div>
       <div class="page center"><span class="tab">Volgende missie</span>${TAART_HTML}</div>`;
     placeMonster();
   };
-  el.addEventListener('click', e => { const k = e.target.closest('[data-k]')?.dataset.k; if (k === 'walkie') startWalkie(); if (k === 'foto') teamFoto(); });
+  el.addEventListener('click', e => { const k = e.target.closest('[data-k]')?.dataset.k; if (k === 'walkie') startWalkie(); if (k === 'foto') teamFoto();
+    const img = e.target.closest('img[data-groot]'); if (img) { const o = overlay(`<img src="${esc(img.src)}" alt="" style="margin:auto;max-width:100%;max-height:100%;border-radius:14px">`); o.onclick = closeOverlay; } });
   update(); return { update };
 };
 function teamFoto() {

@@ -1,7 +1,7 @@
 // stroop.js — de stroopmeter: wat stroopdruppels zijn, wat ze waard zijn en bij welk onderdeel (en welke monteur) ze horen.
 // Regels (ongewijzigd, zie index.html dropsFor): per onderdeel 10 druppels, 3 minder per hint (minimaal 2),
 // 3 extra als de puzzel binnen 4 minuten na aankomst is ingediend. Een fout antwoord kost niets.
-// De druppels zijn van het hele team; per onderdeel laten we zien bij welke monteur ze horen (het talent van dat deel).
+// De druppels zijn van het hele team (teamstand). Alleen op haar eigen eindkaart ziet een monteur de druppels van haar onderdeel.
 //   stackOf(drops, stops)            → hoogte van de pannenkoekenstapel (1..10), zelfde formule als het eindscherm
 //   nextAt(drops, stops)             → druppels die nog nodig zijn voor de volgende pannenkoek (0 = stapel is vol)
 //   loadDropLog(sync, state)         → Map(stop_id → { part, drops }) uit alle stop.solved van dit spel
@@ -24,7 +24,7 @@ export async function loadDropLog(sync, state) {
   try { rows = await sync.solvedLog?.(); } catch {}
   if (!Array.isArray(rows)) rows = (s.events || []).filter(e => e.type === 'stop.solved');
   const log = new Map();
-  rows.filter(e => (Date.parse(e.at) || Infinity) >= t0).sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+  rows.filter(e => e.type === 'stop.solved' && (Date.parse(e.at) || Infinity) >= t0).sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
     .forEach(e => { const p = e.payload || {}; if (p.stop_id) log.set(p.stop_id, { part: p.part || null, drops: +p.drops || 0 }); });
   return log;
 }
