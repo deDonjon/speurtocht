@@ -24,8 +24,8 @@ export function teaserLines(game, now = new Date()) {
 }
 export function revealedParts(game, now) { return [...new Set(teaserLines(game, now).map(l => l.part).filter(Boolean))]; }
 export function countdown(until, now = Date.now()) {
-  const ms = Math.max(0, Date.parse(until) - now), d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
-  return { d, h, m, ms };
+  const ms = Math.max(0, Date.parse(until) - now), d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4), s = Math.floor(ms % 6e4 / 1e3);
+  return { d, h, m, s, ms };
 }
 /** Aantal keer slapen = aantal kalenderdagen tot de dag van het feest (niet 24-uurs blokken). */
 export function slapen(until, now = Date.now()) {
@@ -65,6 +65,13 @@ const CSS = `
 .teaser .me b{color:var(--led,#7FE8FF)}
 .teaser .help{display:none;border:1px dashed var(--line,#3C4A66);border-radius:10px;padding:10px;text-align:left}
 .teaser .help.open{display:block}
+.teaser .who{text-align:left}
+.teaser .who p{margin:0;line-height:1.45}
+.teaser .who .parts{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0}
+.teaser .who .parts span{background:var(--visor,#0E1B2E);border:1px solid var(--line,#3C4A66);border-radius:999px;padding:3px 10px;font-size:.82rem;font-weight:700}
+.teaser .mission{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;background:var(--visor,#0E1B2E);border:2px dashed var(--led-dark,#2B7A8C);border-radius:12px;padding:10px 12px;margin-top:2px}
+.teaser .mission dt{font-family:var(--hud,inherit);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--led,#7FE8FF);font-weight:700;align-self:center}
+.teaser .mission dd{margin:0;font-weight:700}
 @keyframes tpulse{50%{box-shadow:0 0 0 8px rgba(127,232,255,.12)}}
 @media (prefers-reduced-motion:reduce){.teaser .hear{animation:none}}`;
 function injectCss() { if (document.getElementById('teaser-css')) return; const s = document.createElement('style'); s.id = 'teaser-css'; s.textContent = CSS; document.head.appendChild(s); }
@@ -91,6 +98,17 @@ export function mountTeaser(el, ctx) {
       <div class="cd" id="cd"></div>
       <p class="note">Het geheime dossier opent ${esc(until ? fmtMoment(until) : 'op het feest')}. Tot die tijd kan niemand inloggen, zelfs Mecha-Pof niet.</p>
       ${newest && me ? `<button class="wide hear" id="hear">🔊 Tik om Mecha-Pof te horen</button>` : ''}
+    </div>
+    <div class="page who"><span class="tab">Wie is Mecha-Pof?</span>
+      <p>Mecha-Pof is een keukenrobot. Geen gewone, maar de allerbeste pannenkoekenbakker van Veghel.</p>
+      <div class="parts"><span>🍳 koekenpan als helm</span><span>💡 LED-ogen</span><span>🥞 pantser van pannenkoeken</span><span>🥄 spatel-arm</span><span>🌀 garde-arm</span><span>🍯 stroop-jetpack</span></div>
+      <p>Maar er is iets misgegaan. Iets met stroop. Héél veel stroop. Nu liggen zijn onderdelen verspreid door de buurt, en zonder benen kan hij ze moeilijk zelf gaan halen.</p>
+      <p>Daarom zoekt hij een <b>reparatieteam</b>: zes slimme speurders (met de jarige voorop) en drie telefoons. Wat er precies gebeurd is, vertelt hij jullie op het feest zelf.</p>
+      <dl class="mission">
+        <dt>Wanneer</dt><dd>${esc(until ? fmtMoment(until) : 'op het feest')}</dd>
+        <dt>Waar</dt><dd>Bij ${esc(ctx.birthday || 'de jarige')} thuis</dd>
+        <dt>Kleding</dt><dd>Een warme jas en schoenen waar je goed op kunt lopen, want we gaan naar buiten</dd>
+      </dl>
     </div>
     ${me ? `<div class="page"><span class="tab">Signaal herkend</span>
         <div class="me"><span>Ingelogd als speurder <b>${esc(me.name)}</b>${me.is_birthday ? ' 🎂' : ''}</span><button class="ghost" id="notme">Dit ben ik niet</button></div>
@@ -127,11 +145,16 @@ export function mountTeaser(el, ctx) {
   let timer = null;
   const tick = () => {
     const cd = el.querySelector('#cd'), title = el.querySelector('#cdtitle'); if (!cd || !until) return;
-    const c = countdown(until), n = slapen(until);
-    cd.innerHTML = `<div><b>${c.d}</b><small>${c.d === 1 ? 'dag' : 'dagen'}</small></div><div><b>${c.h}</b><small>uur</small></div><div><b>${c.m}</b><small>${c.m === 1 ? 'minuut' : 'minuten'}</small></div>`;
+    const c = countdown(until), n = slapen(until), pad = v => String(v).padStart(2, '0');
+    const cel = (v, een, meer, p) => `<div><b>${p ? pad(v) : v}</b><small>${v === 1 ? een : meer}</small></div>`;
+    // Meer dan een dag: dagen/uur/minuten. Laatste dag: uur/minuten/seconden, dan zie je hem echt lopen.
+    cd.innerHTML = c.d >= 1 ? cel(c.d, 'dag', 'dagen') + cel(c.h, 'uur', 'uur') + cel(c.m, 'minuut', 'minuten')
+      : cel(c.h, 'uur', 'uur') + cel(c.m, 'minuut', 'minuten', true) + cel(c.s, 'seconde', 'seconden', true);
     title.textContent = c.ms === 0 ? 'Het is zover!' : n <= 0 ? 'Vandaag!' : n === 1 ? 'Nog één keer slapen' : `Nog ${n} keer slapen`;
+    if (c.ms === 0 && !opened) { opened = true; clearInterval(timer); setTimeout(() => location.reload(), 2500); } // dossier open: inlogscherm laden
   };
-  draw(); tick(); timer = setInterval(tick, 30_000);
+  let opened = false;
+  draw(); tick(); timer = setInterval(tick, 1000);
   if (me) hello(me.name, ctx.deviceId).then(r => { if (r.player) { me = r.player; saveMe(me); } }).catch(() => {}); // bezoek tellen
   return { update: tick, destroy() { clearInterval(timer); } };
 }
