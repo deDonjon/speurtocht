@@ -748,11 +748,14 @@ function updateMap(st, seesTarget) {
     players: S().players.map(p => ({ ...p, color: guard(p).color })) });
 }
 const fitMap = () => wmap?.fit();
-/* ---------- 3D-speelbord (js/board.js) als tweede kaartweergave; de keuze onthoudt de telefoon. Pas geladen als iemand hem aanzet. */
-let board = null, boardP = null, bordOn = store.get('pkm2_bord', true); // standaard het 3D-bord; 'Kaart' wisselt naar Leaflet
+/* ---------- 3D-speelbord (js/board.js): de standaardweergave van de kaart. 'Kaart' wisselt naar Leaflet, maar die keuze
+   wordt niet meer onthouden: bij elke nieuwe stop (en na herladen) begint de kaarttelefoon weer op het speelbord.
+   Alleen als het bord op dit toestel echt niet laadt, blijft het (tot herladen) de gewone kaart. */
+let board = null, boardP = null, bordOn = true, bordKapot = false, bordStop = null;
+try { localStorage.removeItem('pkm2_bord'); } catch {} // oude onthouden keuze opruimen
 async function ensureBoard(slot) {
   if (board) { if (board.el.parentNode !== slot) slot.appendChild(board.el); return board; }
-  if (!boardP) boardP = import('./js/board.js?v=3').then(m => m.createBoard(slot, { mode: 'spel' })).then(b => (board = b)).catch(e => { console.warn('[bord]', e); boardP = null; bordOn = false; store.set('pkm2_bord', false); toast('Het 3D-bord laadt niet op deze telefoon; de gewone kaart blijft.', 3600); return null; });
+  if (!boardP) boardP = import('./js/board.js?v=3').then(m => m.createBoard(slot, { mode: 'spel' })).then(b => (board = b)).catch(e => { console.warn('[bord]', e); boardP = null; bordOn = false; bordKapot = true; toast('Het 3D-bord laadt niet op deze telefoon; de gewone kaart blijft.', 3600); return null; });
   return boardP;
 }
 function updateBoard() {
@@ -912,13 +915,14 @@ screens.nav = (el, id) => {
       <div id="navbtns" class="row"></div>
     </div>`;
   if (kaart && hasL) {
+    if (id !== bordStop) { bordStop = id; bordOn = !bordKapot; } // nieuwe stop: weer op het speelbord beginnen
     $('#mapslot', el).appendChild(wmap.el);
     const showView = async () => {
       $('#mapslot', el).hidden = bordOn; $('#bordslot', el).hidden = !bordOn; $('#b3d', el).textContent = bordOn ? 'Kaart' : '3D';
       if (bordOn) { await ensureBoard($('#bordslot', el)); updateBoard(); if (!board) showView(); } else wmap.invalidate();
     };
     $('#fit', el).onclick = () => bordOn ? board?.recenter() : fitMap();
-    $('#b3d', el).onclick = () => { bordOn = !bordOn; store.set('pkm2_bord', bordOn); showView(); };
+    $('#b3d', el).onclick = () => { bordOn = !bordOn; showView(); };
     showView();
   }
   el.addEventListener('click', e => { const b = e.target.closest('[data-n]')?.dataset.n;

@@ -125,6 +125,10 @@ if (LEAFLET) { const w = world({ active: 1, parts: ['lijf'] }); w.player.forEach
   await page.screenshot({ path: path.join(OUT, 'bord-app.png') });
   await page.evaluate(() => document.querySelector('#b3d').click()); await sleep(500);
   ok('terug naar de gewone kaart', await page.evaluate(() => !document.querySelector('#mapslot').hidden && document.querySelector('#bordslot').hidden));
+  // keuze wordt niet onthouden: ook met een oude opgeslagen 'Kaart' begint hij na herladen weer op het bord
+  await page.evaluate(() => localStorage.setItem('pkm2_bord', 'false')); await page.reload();
+  ok('na herladen weer standaard het speelbord', await until(() => !!document.querySelector('#bordslot:not([hidden]) .pkb canvas'), 15000));
+  ok('oude kaartkeuze opgeruimd', await page.evaluate(() => localStorage.getItem('pkm2_bord') === null));
   ok('geen JS-fouten', !errors.length, errors.join(' | '));
   await page.close(); } else console.log('(overgeslagen: zet LEAFLET_DIR)');
 
