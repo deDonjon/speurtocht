@@ -600,6 +600,7 @@ function poedersuiker(ms = 3000) {
       ctx.globalAlpha = p.o * fade; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.3); ctx.fill(); }
     if (t < ms) requestAnimationFrame(step); else c.remove(); };
   requestAnimationFrame(step); audio.play('giggle');
+  [0, 650, 1300, 1950].forEach(t => setTimeout(() => buzz([25, 45, 25, 45, 25, 45, 25, 45]), t)); // poedersuiker ritselt: korte tikjes zolang het sneeuwt
 }
 /* Stroopmeter: tik op 💧 in de balk. Uitleg en de pannenkoekenstapel tot nu toe: de teamstand. Druppels per monteur staan alleen op haar eigen eindkaart. */
 let dropLog = new Map(); // stop_id → { part, drops }
