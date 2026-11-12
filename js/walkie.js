@@ -35,10 +35,10 @@
 //   • Ophangen = "over en sluiten". Het monster zegt gedag en de app hangt daarna zelf op.
 //   • Wie op Ophangen tikt zonder "over en sluiten", wordt meteen teruggebeld (één keer; daarna hangt de knop echt op).
 // De begroeting wisselt: de app kiest een zin uit monster-lines.js (walkie.hallo) en stuurt hem mee als {{begroeting}}.
-import { audio, setRecording } from './audio.js?v=11';
+import { audio, setRecording } from './audio.js?v=12';
 import { SUPABASE_URL, SUPABASE_KEY } from './sync.js';
-import { LINES, NAAM_JARIGE } from './monster-lines.js?v=17';
-import { uitspraak } from './voice.js?v=8';
+import { LINES, NAAM_JARIGE } from './monster-lines.js?v=18';
+import { uitspraak } from './voice.js?v=9';
 
 const SDK = [
   'https://cdn.jsdelivr.net/npm/@elevenlabs/client@1.29.0/dist/lib.iife.js',

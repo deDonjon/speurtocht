@@ -76,10 +76,11 @@ export const LINES = {
     'En daarom ben ik zo blij dat jullie er zijn. Jullie zijn vanmiddag mijn reparatieteam. Zoek mijn zeven onderdelen, los bij elke plek een puzzel op en zet mij weer in elkaar. Lukt dat, dan vieren we het hier thuis. Met taart en met pannenkoeken. Doen jullie mee?',
   ],
   // De talenten op het kernscherm. {naam} is de naam die net vastklikt. intro ervoor, klaar erna.
-  // (De talenten staan vast en zijn vooraf verdeeld; de animatie onthult ze. Laat "{naam}... Talent!" aan het begin staan.)
+  // (De talenten staan vast en zijn vooraf verdeeld, maar Mecha-Pof doet alsof hij ze nu uitdeelt: het rad stopt altijd op het goede vak.
+  //  Laat "{naam}... Talent!" aan het begin staan.)
   loting: {
     intro: [
-      'Dan vertel ik nu wie welk talent heeft. Bij elk talent hoort een onderdeel van mij. Dat onderdeel zet jij straks terug. Daar gaan we!',
+      'Dan gaan we nu de talenten verdelen. Ik draai voor iedereen aan het talentenrad. Waar het rad stopt, dat ben jij. En bij elk talent hoort een onderdeel van mij. Spannend! Daar gaat hij.',
     ],
     speurneus: ['{naam}... Speurneus! Jij ziet alles, ook wat een ander mist. Daarom zet jij straks mijn LED-ogen terug.'],
     kaartlezer: ['{naam}... Kaartlezer! Jij weet altijd de weg. Mijn neus is straks van jou, de aardbei-knop.'],

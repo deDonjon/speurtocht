@@ -123,6 +123,12 @@ export const SOUNDS = {
   hint()     { blip(660, 1320, 0, 0.22, 0.1); bell(1760, 0.12, 0.16, 0.7); },                                                       // lampje gaat aan: bliep-ting
   badge()    { notes([784, 988, 1175, 1568], 0.08, { dur: 0.35, vol: 0.22, type: 'sine' }); bell(2093, 0.34, 0.12, 0.8); },
   giggle()   { [0, 1, 2, 3, 4].forEach(i => blip(1300 - i * 70, 980 - i * 70, i * 0.075, 0.18, 0.06)); },                            // robot-hihihi
+  // POF! Mecha-Pof ontploft (kernscherm, het verhaal): fluitketel loopt op, diepe dreun, geknetter, rondvliegende onderdelen
+  pof()      { tone({ f: [90, 28], type: 'sine', dur: 1.1, vol: 0.95, attack: 0.004 }); tone({ f: [160, 40], type: 'square', dur: 0.5, vol: 0.3, filter: 500 });
+               tone({ f: [60, 24], type: 'sine', at: 0.12, dur: 1.4, vol: 0.7 });
+               hiss({ dur: 1.3, vol: 0.75, from: 5200, to: 90, q: 0.4, type: 'lowpass' }); hiss({ dur: 0.25, vol: 0.5, from: 7000, to: 2500, q: 0.5, type: 'highpass' });
+               ratchet(14, 0.25, 0.06, 0.16); [0.45, 0.62, 0.8, 1.0, 1.25].forEach((at, i) => { blip(1500 - i * 180, 320, at, 0.16, 0.22); bell(900 + i * 240, at + 0.08, 0.1, 0.5); });
+               puff(0.9, 0.14); puff(1.4, 0.1); },
   start()    { whirr(110, 440, 0, 0.45, 0.08); ratchet(5, 0.08, 0.06, 0.08);                                                        // opstarten: zoem, tandwieltjes, piepjes, belletje
                blip(523, 523, 0.45, 0.2, 0.07); blip(659, 659, 0.55, 0.2, 0.07); blip(784, 784, 0.65, 0.2, 0.07); bell(1047, 0.78, 0.22, 1); puff(0.8, 0.06); },
   aankomst() { bell(1319, 0, 0.22, 0.6); bell(1319, 0.32, 0.09, 0.5); blip(784, 1568, 0.18, 0.14, 0.12); },                         // radarping met echo

@@ -163,14 +163,18 @@ if (!only || only === 'kern') {
   ok('kern: daarna het verhaal van Mecha-Pof (plaatje 1)', await K.until(() => __said.some(t => /Ik ben Mecha-Pof, een keukenrobot/.test(t)) && !!document.querySelector('#side .story img.pof'), 20000));
   await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-intro1.png') }).catch(() => {});
   ok('kern: POF: hij vliegt uit elkaar', await K.until(() => !!document.querySelector('#side .svis.boem'), 40000));
-  await sleep(700); await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-intro2.png') }).catch(() => {});
+  ok('kern: POF met flits, schok en rondvliegende onderdelen', await K.until(() => document.querySelector('#flits').classList.contains('aan') && document.body.classList.contains('schok') && document.querySelectorAll('#side .scherf').length >= 20, 2000));
+  await sleep(350); await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-intro2.png') }).catch(() => {});
+  await sleep(500); await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-intro2b.png') }).catch(() => {});
   ok('kern: zeven stukken in beeld', await K.until(() => document.querySelectorAll('#side .stuk').length === 8, 10000));
   await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-intro3.png') }).catch(() => {});
   ok('kern: missie (taart en pannenkoeken), daarna terug naar het wachtscherm', await K.until(() => __said.some(t => /Met taart en met pannenkoeken/.test(t)), 30000) && await K.until(() => !document.querySelector('#side .story'), 30000));
   await fake(K.page, (f, _pkm, pl) => f.rpc('regie_event', { p_key: 'job', p_type: 'roles.shuffle', p_payload: pl }), lot.payload);
-  ok('kern: loting-animatie (draaiende rol)', await K.until(() => !!document.querySelector('.slot.spin'), 20000));
+  ok('kern: talentenrad draait (zes vakken, rad in beweging)', await K.until(() => !!document.querySelector('.slot.spin') && !!document.querySelector('#rad.draai') && document.querySelectorAll('#rad svg path').length === 6, 25000));
+  await sleep(1500); await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-rad1.png') }).catch(() => {});
   ok('kern: eerste naam klikt vast met aankondiging', await K.until(() => __said.some(t => /\.\.\. (Speurneus|Kaartlezer|Codekraker|Rekenmeester|Tijdbewaker)!/.test(t)), 15000));
-  ok('kern: Hannah als laatste: Sleutelbewaarder', await K.until(() => __said.some(t => /Hannah\.\.\. Sleutelbewaarder/.test(t)), 70000));
+  ok('kern: Hannah als laatste: Sleutelbewaarder', await K.until(() => __said.some(t => /Hannah\.\.\. Sleutelbewaarder/.test(t)), 110000));
+  await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-rad2.png') }).catch(() => {});
   ok('kern: loting klaar, talenten in beeld', await K.until(() => !document.querySelector('#reel') && document.querySelectorAll('#side .slot.lock').length === 6, 35000));
   ok('kern: voorstelronde-uitleg', (await K.txt('#side')).includes('Voorstelronde'));
   // speluitleg (12 nov avond): zeven stappen met een voorbeeld in beeld, één zin per stap, daarna terug naar het wachtscherm
