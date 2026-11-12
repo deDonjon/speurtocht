@@ -3,7 +3,7 @@
 // Geheimen (codes, missies, stop-geheimen) komen uit regie_state en staan alleen in `R`.
 import { state, PARTS, TALENTS } from './state.js';
 import { sync, IS_TEST } from './sync.js';
-import { LINES } from './monster-lines.js?v=13'; // wekzin (chat 7)
+import { LINES } from './monster-lines.js?v=14'; // wekzin (chat 7)
 import * as tk from './tekening.js?v=1'; // tab 📸 Tekeningen (12 nov)
 
 /* ================================================================ hulpjes */
@@ -348,8 +348,8 @@ function kernPanel() {
   return `<div class="page"><span class="tab">Thuis · kern en loting</span>
     <p class="note">Kernscherm: ${on ? `<b style="color:var(--ok)">aan</b> (${ago(at)} geleden gemeld)` : '<b style="color:var(--straw)">niet gezien</b> — open <a href="./kern.html" target="_blank">kern.html</a> op de laptop'}. ${woke ? 'Mecha-Pof is wakker.' : 'Mecha-Pof slaapt nog.'}</p>
     <div class="grid2"><button class="${woke ? 'plain' : 'ok'}" data-a="wake">⏻ Wek Mecha-Pof</button><button class="${woke ? 'ok' : 'plain'}" data-a="loting">🎰 Loting starten${bday ? ` (${esc(bday.name)} vast)` : ''}</button></div>
-    <button class="plain wide" data-a="uitleg" style="margin-top:8px">📋 Speluitleg op het kernscherm (6 regels, ±1¼ min)</button>
-    <p class="note">Wekken = de wekzin op de laptop. Loting = de vijf anderen krijgen een willekeurig talent, ${esc(bday?.name || 'de jarige')} wordt Sleutelbewaarder; de kern laat de namen draaien en Mecha-Pof kondigt elk talent aan. Volgorde: wekken → loting → passen uitdelen → voorstelronde via de walkie → speluitleg → inloggen → start. Monteurspassen (<a href="./print/monteurspas.html?namen=1" target="_blank">met namen en codes</a>).</p>
+    <button class="plain wide" data-a="uitleg" style="margin-top:8px">📋 Speluitleg op het kernscherm (7 stappen met voorbeelden, ±2 min)</button>
+    <p class="note">Wekken = Mecha-Pof wordt wakker op de laptop, heet iedereen welkom op het feest en vertelt zijn eigen verhaal (4 plaatjes, ±1½ min). Loting = de vijf anderen krijgen een willekeurig talent, ${esc(bday?.name || 'de jarige')} wordt Sleutelbewaarder; de kern laat de namen draaien en Mecha-Pof kondigt elk talent aan. Volgorde: wekken → loting → passen uitdelen → voorstelronde via de walkie → speluitleg → inloggen → start. Monteurspassen (<a href="./print/monteurspas.html?namen=1" target="_blank">met namen en codes</a>).</p>
   </div>`;
 }
 function lotingVast() { // talenten al vooraf verdeeld (passen zijn gedrukt): zes verschillende, de jarige Sleutelbewaarder
@@ -571,8 +571,8 @@ app.addEventListener('click', async e => {
     case 'bonus-out': return bonusOut(BONUS.find(x => x.id === b.dataset.b));
     case 'bonus-call': { const x = BONUS.find(y => y.id === b.dataset.b), kh = players().find(p => p.talent === 'sleutelbewaarder') || players()[0]; if (!kh) return;
       return busy(() => sync.regie.event('monster.call', { player_id: kh.id, message_id: uid(), text: `Bzzzt! Bonusklus, speurders. ${x.clue} ${x.puzzle.question} Over!` }), `📞 Mecha-Pof belt met ${x.id}; vink af met "Stop goedkeuren" of gewoon doorlopen`); }
-    case 'wake': return busy(() => sync.regie.event('monster.say', { text: WEKZIN, mood: 'wakker', wake: true, kern: true }), '⏻ Mecha-Pof wordt wakker');
-    case 'uitleg': return busy(() => sync.regie.event('monster.say', { text: 'Speluitleg! Volg mijn signaal, luister naar de radio, los samen de puzzel op, en blijf bij elkaar.', kern: true, uitleg: true }), '📋 Speluitleg gestart');
+    case 'wake': return busy(() => sync.regie.event('monster.say', { text: WEKZIN.replace(/\{jarige\}/g, players().find(p => p.is_birthday)?.name || 'de jarige'), mood: 'wakker', wake: true, kern: true }), '⏻ Mecha-Pof wordt wakker');
+    case 'uitleg': return busy(() => sync.regie.event('monster.say', { text: 'Zo werkt het: drie telefoons, elk met een eigen taak. De kaart wijst de weg, op de radio bel ik, en op de werkbank los je de puzzel op. En blijf bij elkaar!', kern: true, uitleg: true }), '📋 Speluitleg gestart');
     case 'loting': return confirmAnd(lotingVast() ? 'Loting starten? De talenten zijn al verdeeld (zoals op de passen); het kernscherm onthult ze met de animatie.' : 'Loting starten? De talenten worden live geloot op het kernscherm (de jarige vast op Sleutelbewaarder).', () => sync.regie.event('roles.shuffle', { talents: lotingTalents(), loting: true }), '🎰 Loting gestart');
     case 'quick': ui.say = b.dataset.s; renderPanel(); return;
     case 'say': { const text = ui.say.trim(); if (!text) return toast('Typ eerst wat hij moet zeggen.'); if (await busy(() => sync.regie.event('monster.say', { text, ...(ui.mood ? { mood: ui.mood } : {}) }), '🗣️ Gestuurd')) { ui.say = ''; renderPanel(); } return; }

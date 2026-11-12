@@ -130,6 +130,7 @@ input.big:focus{border-color:var(--led);box-shadow:inset 0 2px 8px rgba(0,0,0,.5
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#4A5058;margin-left:5px;vertical-align:middle}
 .dot.on{background:var(--ok);box-shadow:0 0 6px var(--ok)}
 .howto{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:8px}.howto li::marker{font-family:var(--hud);color:var(--led);font-weight:700}
+.rolrij{display:grid;gap:6px;margin:8px 0}.rolrij span{display:grid;grid-template-columns:7.2em 1fr;gap:8px;align-items:baseline;background:var(--visor);border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:.92rem;line-height:1.25}.rolrij b{white-space:nowrap}
 .talent{background:var(--visor);border:1px solid var(--line);border-left:4px solid var(--led);border-radius:12px;padding:10px 12px}
 
 /* ---------- onderweg */
@@ -250,15 +251,15 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:35}
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync } from './js/sync.js';
 import { createMap } from './js/map.js?v=5'; // ?v ophogen bij elke wijziging: GitHub Pages en Safari bewaren oude bestanden
-import { createMonster, monsterImage, lineText } from './js/monster.js?v=22'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
-import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole } from './js/roles.js?v=1'; // radio / kaart / werkbank, roterend per stop
+import { createMonster, monsterImage, lineText } from './js/monster.js?v=23'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
+import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole } from './js/roles.js?v=2'; // radio / kaart / werkbank, roterend per stop
 import { createInstall } from './js/install.js?v=3'; // installatieritueel: monteur schudt, deel klikt vast
-import { openWalkie, incomingCall, callGreeting, arrivalCall } from './js/walkie.js?v=24'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
+import { openWalkie, incomingCall, callGreeting, arrivalCall } from './js/walkie.js?v=25'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
 import { createNavVoice } from './js/navvoice.js?v=1'; // gesproken navigatie zodra de LED-ogen terug zijn (radiotelefoon)
 import { createSurprises } from './js/surprises.js?v=3'; // Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens
 import { audio } from './js/audio.js?v=11'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
 import { teaserActive, mountTeaser } from './js/teaser.js?v=2'; // voorpret vóór het feest (game.settings.teaser)
-import { createFinale, endCards, END_CSS, CHECK_MS, TAART_HTML, slideHTML } from './js/finale.js?v=8'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
+import { createFinale, endCards, END_CSS, CHECK_MS, TAART_HTML, slideHTML } from './js/finale.js?v=9'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -738,7 +739,7 @@ screens.login = el => {
 
 /* ---------- lobby: wie is er, wie ben jij */
 screens.lobby = el => {
-  el.innerHTML = `<div class="center"><span class="eyebrow">Reparatieteam van ${esc(birthday()?.name || 'de jarige')}</span><h1>Klaar voor de start</h1></div>
+  el.innerHTML = `<div class="center"><span class="eyebrow">Het verjaardagsfeest van ${esc(birthday()?.name || 'de jarige')}</span><h1>Operatie Mecha-Pof</h1></div>
     ${mslot('md')}<div id="mine"></div>
     <div class="page"><span class="tab">De monteurs</span><div class="guards" id="guards"></div>
       <p class="note center" id="lnote"></p></div>
@@ -752,14 +753,18 @@ screens.lobby = el => {
       <p>${x.part ? 'Monteur van ' + esc(PARTS[x.part].label) : 'Je talent wordt nog geloot…'}</p></div></div>
       ${x.talent ? `<div class="talent">Talent: <b>${esc(x.talent)}</b></div>` : ''}
       <button class="ghost" data-out="${p.id}">Afmelden op deze telefoon</button></div>`; }).join('')
-      + (state.me().length ? `<div class="page"><span class="tab">Deze telefoon</span><p>De rollen wisselen bij elke plek. Bij de eerste plek is deze telefoon: <b>${myRoles().map(r => ROLE_INFO[r].icon + ' ' + ROLE_INFO[r].label).join(', ') || '…'}</b>.</p>
-        <p class="note">📻 Radio: Mecha-Pof praat en belt · 🗺️ Kaart: ziet de kaart en de afstand · 🔧 Werkbank: maakt de puzzel.</p></div>
+      + (state.me().length ? `<div class="page"><span class="tab">Het feest van ${esc(birthday()?.name || 'de jarige')}</span>
+        <p><b>Welkom, monteur!</b> Mecha-Pof, de keukenrobot, wilde voor het feest van ${esc(birthday()?.name || 'de jarige')} de grootste verjaardagspannenkoek ooit bakken. Hij deed er een beetje te veel stroop bij en toen… <b>POF.</b></p>
+        <p>Nu ligt hij in zeven stukken door de buurt. Jullie zijn vanmiddag zijn reparatieteam: zoek zijn onderdelen, los de puzzels op en zet hem weer in elkaar. Daarna vieren we het thuis, met taart en pannenkoeken.</p></div>
+        <div class="page"><span class="tab">Drie telefoons, drie taken</span><p>Jullie lopen met drie telefoons, en elke telefoon kan iets anders. Jullie hebben elkaar dus nodig.</p>
+        <p class="rolrij"><span><b>🗺️ Kaart</b>wijst de weg en telt de meters af</span><span><b>📻 Radio</b>hier belt en praat Mecha-Pof</span><span><b>🔧 Werkbank</b>hier staat de puzzel</span></p>
+        <p>Bij elke plek schuiven de taken een telefoon door. Bovenaan je scherm staat steeds wat jouw telefoon is. Bij de eerste plek is dat: <b>${myRoles().map(r => ROLE_INFO[r].icon + ' ' + ROLE_INFO[r].label).join(', ') || '…'}</b>.</p></div>
         <div class="page"><span class="tab">Zo werkt het</span><ol class="howto">
-          <li><b>Volg het signaal.</b> De kaart-telefoon wijst de weg naar de volgende plek.</li>
-          <li><b>Mecha-Pof belt de radio.</b> Luister tot het eind en zeg samen wat groot in beeld staat. Niet verstaan? Tik op <b>↻ Herhaal</b>.</li>
-          <li><b>Los de puzzel op.</b> De Sleutelbewaarder dient hem in, de monteur schudt het onderdeel vast.</li>
-          ${birthday() ? `<li><b>🎂 Cadeautje voor ${esc(birthday().name)}.</b> Zij heeft één verjaardagswens: de taart linksonder op haar telefoon. Puzzel overslaan, een gratis hint of een robotdans. Maar één keer!</li>` : ''}
-          <li><b>Blijf bij elkaar.</b> Oversteken doe je alleen samen met de begeleider.</li></ol></div>` : '');
+          <li><b>Loop naar de volgende plek.</b> De kaart-telefoon wijst de weg, de rest loopt mee.</li>
+          <li><b>Mecha-Pof belt de radio.</b> Luister tot hij klaar is en zeg dan samen wat groot in beeld staat. Niet verstaan? Tik op <b>↻ Herhaal</b>.</li>
+          <li><b>Los samen de puzzel op.</b> Hij staat op de werkbank, maar iedereen denkt mee. Is hij goed? Dan dient de Sleutelbewaarder hem in en schudt de monteur het onderdeel vast.</li>
+          ${birthday() ? `<li><b>🎂 Cadeautje voor ${esc(birthday().name)}.</b> Zij heeft één verjaardagswens: de taart linksonder op haar telefoon. Een puzzel overslaan, een gratis hint of een robotdans. Het kan maar één keer!</li>` : ''}
+          <li><b>Blijf bij elkaar.</b> Oversteken doen we alleen samen met de begeleider.</li></ol></div>` : '');
     $('#guards', el).innerHTML = ps.map(p => { const x = guard(p); return `<div class="guard ${mine.has(p.id) ? 'mine' : ''}" style="--acc:${x.color}"><span class="ic">${x.icon}</span>
       <div><b>${esc(p.name)}<span class="dot ${p.online ? 'on' : ''}"></span></b><small>${esc(x.talent || 'nog geen talent')}</small></div></div>`; }).join('');
     const on = ps.filter(p => p.online).length;

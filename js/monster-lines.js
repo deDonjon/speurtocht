@@ -24,11 +24,11 @@ export const NAAM_JARIGE = 'Hannah';
 export const LINES = {
   // Het spel begint en het monster wordt wakker.
   start: [
-    'Bzzzt. Systeem opgestart. Processor: aan. Radio: aan. De rest van mij: kwijt. Reparatieteam, aan de slag!',
-    'Piep! Zes monteurs gedetecteerd. Ik had om zeven gevraagd, maar goed. Zoek mijn onderdelen. Alle zeven.',
-    'Hier spreekt Mecha-Pof. Of wat er van mij over is. Een praatdoos met een stroopvlek. Help me, alsjeblieft. Een beetje snel.',
-    '{jarige}, ik wilde voor jou de perfecte verjaardagspannenkoek bakken. Toen ontplofte ik. Lang verhaal. Ga maar zoeken.',
-    'Reparatieteam, luister. Mijn stroopmeter staat in het rood en mijn jetpack is op hol geslagen. Zet mij weer in elkaar, dan bak ik pannenkoeken. Beloofd. Bliep.',
+    'Daar gaan we! Mijn brein doet het en mijn radio ook. De rest van mij ligt ergens buiten. Reparatieteam, succes!',
+    'Piep! Even tellen... één, twee, drie, vier, vijf, zes monteurs. Mooi, iedereen is er. Zoek mijn zeven onderdelen. Ik reken op jullie!',
+    'Hier Mecha-Pof. Of wat er van mij over is: een praatdoos met een stroopvlek. Helpen jullie mij? Graag een beetje snel.',
+    '{jarige}, ik wilde voor jou de mooiste verjaardagspannenkoek bakken. En toen deed ik pof. Ga maar gauw zoeken, dan komt het helemaal goed.',
+    'Reparatieteam, luister. Zetten jullie mij weer in elkaar? Dan bak ik straks pannenkoeken voor iedereen. Beloofd. Bliep.',
   ],
 
   // Een onderdeel is net vastgeklikt (na het installatieritueel). Per deel: welk vermogen hij terugkrijgt.
@@ -65,36 +65,46 @@ export const LINES = {
   // ---------------------------------------------------------------- onboarding thuis (kern.html, chat 7)
   // De kern ligt in slaapstand op de laptop; de begeleider tikt op de wekknop (regie.html).
   wek: [
-    'Bzzzt... wie maakt mij wakker? Zes monteurs? Daar zat ik op te wachten.',
+    'Bzzzt... hé! Wie maakt mij daar wakker? Wacht even. Ik hoor zes stemmen en heel veel gegiechel. Dan is dit het feest van {jarige}! Gefeliciteerd, {jarige}. Tien jaar alweer. En welkom allemaal, fijn dat jullie er zijn.',
   ],
-  // Loting van de talenten op het kernscherm. {naam} is de naam die net vastklikt. intro vóór de loting, klaar erna.
+  // Het verhaal van Mecha-Pof, meteen na de wekzin. Eén zin per plaatje op het kernscherm (INTRO in kern.html, zelfde volgorde):
+  // wie hij is · wat er misging · waar zijn onderdelen zijn · wat het team gaat doen. {jarige} = naam van de jarige.
+  intro: [
+    'Ik zal me even voorstellen. Ik ben Mecha-Pof, een keukenrobot. Mijn helm is een koekenpan, mijn armen zijn een spatel en een garde, en op mijn rug zit een jetpack die op stroop vliegt. En ik bak de lekkerste pannenkoeken van heel Veghel. Dat zeg ik zelf, maar het is ook gewoon zo.',
+    'Voor het feest van {jarige} wilde ik de allergrootste verjaardagspannenkoek ooit bakken. Dus deed ik er een beetje extra stroop bij. En nog een beetje. En toen nog een heleboel. Mijn stroopmeter schoot in het rood, mijn jetpack sloeg op hol, en toen deed ik... POF.',
+    'Nu lig ik in zeven stukken door de buurt. Mijn pantser, mijn ogen, mijn neus, mijn mond, mijn armen, mijn benen en mijn jetpack. Alleen mijn brein en mijn radio zijn hier op tafel geland. Praten kan ik dus nog prima. Maar dat is dan ook alles.',
+    'En daarom ben ik zo blij dat jullie er zijn. Jullie zijn vanmiddag mijn reparatieteam. Zoek mijn zeven onderdelen, los bij elke plek een puzzel op en zet mij weer in elkaar. Lukt dat, dan vieren we het hier thuis. Met taart en met pannenkoeken. Doen jullie mee?',
+  ],
+  // De talenten op het kernscherm. {naam} is de naam die net vastklikt. intro ervoor, klaar erna.
+  // (De talenten staan vast en zijn vooraf verdeeld; de animatie onthult ze. Laat "{naam}... Talent!" aan het begin staan.)
   loting: {
     intro: [
-      'Talentenmachine aan. Ik ga loten. Niet valsspelen, ik zie alles. Nou ja, bijna alles. Mijn ogen liggen nog ergens.',
+      'Dan vertel ik nu wie welk talent heeft. Bij elk talent hoort een onderdeel van mij. Dat onderdeel zet jij straks terug. Daar gaan we!',
     ],
-    speurneus: ['{naam}... Speurneus! Jij vindt mijn LED-ogen.'],
-    kaartlezer: ['{naam}... Kaartlezer! Jij brengt mijn aardbei-knop terug.'],
-    codekraker: ['{naam}... Codekraker! Jij haalt mijn luidsprekerrooster op.'],
-    rekenmeester: ['{naam}... Rekenmeester! Jij zet mijn spatel en mijn garde erop.'],
-    tijdbewaker: ['{naam}... Tijdbewaker! Jij monteert mijn zuigerbenen. En je let op de klok.'],
-    sleutelbewaarder: ['{naam}... Sleutelbewaarder! Jij drukt op mijn boterknop. En omdat je jarig bent, krijg je een cadeautje van mij: één verjaardagswens. Tik op de taart linksonder op je telefoon: puzzel overslaan, een gratis hint of een robotdans. Maar één keer, dus kies goed!'],
+    speurneus: ['{naam}... Speurneus! Jij ziet alles, ook wat een ander mist. Daarom zet jij straks mijn LED-ogen terug.'],
+    kaartlezer: ['{naam}... Kaartlezer! Jij weet altijd de weg. Mijn neus is straks van jou, de aardbei-knop.'],
+    codekraker: ['{naam}... Codekraker! Geheime codes zijn voor jou een makkie. Jij zet straks mijn mond terug, het luidsprekerrooster.'],
+    rekenmeester: ['{naam}... Rekenmeester! Jij rekent bijna net zo snel als mijn processor. Mijn armen zijn straks voor jou, de spatel en de garde.'],
+    tijdbewaker: ['{naam}... Tijdbewaker! Jij houdt de klok in de gaten. En jij zet straks mijn benen eronder.'],
+    sleutelbewaarder: ['{naam}... Sleutelbewaarder! Jij drukt straks thuis op mijn boterknop, het allerlaatste onderdeel. En omdat je jarig bent, krijg je van mij een cadeautje: één verjaardagswens. Tik daarvoor op de taart linksonder op je telefoon. Je mag een puzzel overslaan, een gratis hint vragen of iedereen een robotdans laten doen. Het kan maar één keer, dus kies goed!'],
     klaar: [
-      'Talenten verdeeld. Zes monteurs, één robot. Dit gaat helemaal goed komen. Denk ik. Bliep.',
+      'Zo, iedereen heeft een talent. Zes monteurs en één robot in stukken. Dit komt helemaal goed. Denk ik. Bliep.',
     ],
   },
-  // Speluitleg op het kernscherm (regie: knop "Speluitleg"). Eén korte zin per kaart; de kaart zelf staat in kern.html (UITLEG).
-  // Zelfde volgorde als de kaarten: signaal volgen · drie telefoons · de radio · indienen en schudden · verjaardagswens · veiligheid. {jarige} = naam van de jarige.
+  // Speluitleg op het kernscherm (regie: knop "Speluitleg"). Eén zin per stap; het plaatje bij elke stap staat in kern.html (UITLEG).
+  // Zelfde volgorde: de route · drie telefoons · wat elke telefoon doet en het doorschuiven · de radio · de puzzel · verjaardagswens · veiligheid.
   uitleg: [
-    'Speluitleg! Zes regels, dan mogen jullie los. Regel één: volg mijn signaal. De kaart-telefoon wijst de weg naar de volgende plek.',
-    'Regel twee: drie telefoons, drie taken. De radio, de kaart en de werkbank. Bij elke plek wisselen ze. Kijk dus steeds wat jouw telefoon is.',
-    'Regel drie: bij elke plek bel ik de radio. Luister tot het eind, en zeg dan samen wat groot in beeld staat. Niet verstaan? Druk op herhaal.',
-    'Regel vier: puzzel opgelost? Dan dient de Sleutelbewaarder hem in, en de monteur schudt het onderdeel vast. Een hint kost stroopdruppels.',
-    'Regel vijf is een cadeautje voor de jarige. {jarige} heeft één verjaardagswens: de taart linksonder op haar telefoon. Puzzel overslaan, een gratis hint of een robotdans. Maar één keer, dus bewaar hem voor een lastig moment.',
-    'Regel zes, de belangrijkste: blijf bij elkaar, en oversteken doe je alleen samen met de begeleider. Klaar? Reparatieteam, starten maar!',
+    'Dan leg ik nu uit hoe het werkt. Het is niet moeilijk. Jullie lopen met zijn zessen één route, langs zeven plekken. Op elke plek ligt een onderdeel van mij, en bij elk onderdeel hoort een puzzel.',
+    'Jullie krijgen drie telefoons, twee monteurs per telefoon. En nu komt het: elke telefoon kan iets anders. Eén is de kaart, één is de radio en één is de werkbank. Jullie hebben elkaar dus echt nodig.',
+    'De kaart wijst de weg en telt de meters af. Op de radio bel ik jullie op. En op de werkbank los je de puzzel op. Bij elke plek schuiven de taken een telefoon door. Bovenaan je scherm staat wat jouw telefoon op dat moment is.',
+    'Zijn jullie op een plek aangekomen, dan bel ik de radio. Luister tot ik klaar ben. Daarna zeggen jullie samen wat er groot in beeld staat. Heb je mij niet verstaan? Tik dan op herhaal.',
+    'Dan de puzzel. Die staat op de werkbank, maar jullie lossen hem samen op. Meedenken en hardop roepen mag dus. Is hij goed, dan dient de Sleutelbewaarder hem in en schudt de monteur het onderdeel vast. Komen jullie er echt niet uit? Vraag dan een hint. Die kost wel een paar stroopdruppels.',
+    'Dan nog iets speciaals voor de jarige. {jarige} heeft één verjaardagswens. Die zit achter de taart linksonder op haar telefoon. Ze mag een puzzel overslaan, een gratis hint vragen of iedereen een robotdans laten doen. Het kan maar één keer, dus bewaar hem voor een lastig moment.',
+    'En het allerbelangrijkste. Blijf bij elkaar, en steek alleen over samen met de papa van {jarige}. Dat was het! Zijn jullie er klaar voor? Dan gaan we zo beginnen.',
   ],
   // Het spel start; de kern blijft thuis op tafel.
   kern: {
-    wacht: ['Ik wacht hier op mijn onderdelen. Ik ga nergens heen. Ik kan ook nergens heen. Ik heb geen benen.'],
+    wacht: ['Ik blijf hier op tafel wachten op mijn onderdelen. Weglopen kan ik toch niet, ik heb geen benen. Veel plezier, en tot straks!'],
   },
 
   // Een bonusopdracht (stop zonder onderdeel) is gelukt.

@@ -53,15 +53,82 @@ body.slaap #mon::after{background:radial-gradient(closest-side,rgba(127,232,255,
 .slot.lock .t{border-color:var(--acc,var(--led));color:#fff;animation:klik .35s}
 @keyframes klik{0%{transform:scale(1.15)}100%{transform:none}}
 .slot.vast::after{content:'🎂 vast';grid-column:2;justify-self:end;font-size:.75rem;color:var(--gold);font-family:var(--hud);margin-top:-6px}
-/* speluitleg: zes kaarten, de actieve licht op */
-.uitleg{display:grid;gap:10px}
-.ucard{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:14px;background:var(--visor);border:2px solid var(--line);border-radius:14px;padding:10px 16px;opacity:.38;transition:opacity .3s,transform .3s,border-color .3s,box-shadow .3s}
-.ucard em{font-style:normal;font-size:clamp(1.6rem,3vw,2.8rem);line-height:1}
-.ucard b{display:block;font-size:clamp(1.05rem,1.8vw,1.7rem);font-weight:900;color:#fff;line-height:1.15}
-.ucard small{display:block;color:var(--muted);font-size:clamp(.8rem,1.15vw,1.05rem);font-weight:800;line-height:1.25}
-.ucard.done{opacity:.75;border-color:var(--ok)}
-.ucard.on{opacity:1;border-color:var(--gold);box-shadow:0 0 22px rgba(242,190,98,.45);transform:scale(1.03)}
-.ucard.on small{color:var(--ink)}
+/* verhaal van Mecha-Pof (na de wekzin): één plaatje per zin */
+.story{display:flex;flex-direction:column;gap:1.6vh;text-align:center}
+.story h2{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(1.6rem,3vw,2.9rem);color:var(--gold);line-height:1.08}
+.story .sub{max-width:34ch}
+.sdots{display:flex;gap:8px;justify-content:center}.sdots i{width:12px;height:12px;border-radius:50%;background:var(--line2)}.sdots i.on{background:var(--gold);box-shadow:0 0 10px var(--gold)}
+.svis{position:relative;display:grid;place-items:center;min-height:clamp(180px,36vh,360px)}
+.svis img.pof{height:clamp(180px,36vh,360px);filter:drop-shadow(0 8px 20px rgba(0,0,0,.5))}
+.feest{font-size:clamp(3rem,9vw,7rem);line-height:1}.feest b{display:block;font-family:var(--display);font-weight:400;font-size:clamp(2.2rem,5vw,4.6rem);color:var(--gold);text-shadow:0 4px 0 var(--gold-deep)}
+.stroop{position:absolute;right:6%;top:8%;bottom:8%;width:26px;border-radius:14px;border:3px solid var(--line2);background:#081220;overflow:hidden}
+.stroop i{position:absolute;left:0;right:0;bottom:0;height:8%;background:linear-gradient(180deg,var(--straw),var(--flame));animation:vol 15s ease-in forwards}
+@keyframes vol{to{height:100%}}
+.svis.boem img.pof{animation:boem .9s ease-in forwards}
+@keyframes boem{0%{transform:none}20%{transform:rotate(-5deg) scale(1.06)}40%{transform:rotate(5deg) scale(1.12)}60%{transform:rotate(-7deg) scale(1.2);opacity:1}100%{transform:scale(2.2) rotate(12deg);opacity:0}}
+.pofwoord{position:absolute;inset:0;display:none;place-items:center;font-family:var(--display);font-size:clamp(4rem,12vw,10rem);color:var(--straw);text-shadow:0 6px 0 #7A1B14,0 0 40px rgba(255,90,78,.6);transform:rotate(-8deg)}
+.svis.boem .pofwoord{display:grid;animation:klik .4s .5s both}
+.stukken{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;width:100%}
+.stuk{background:var(--visor);border:2px dashed var(--line2);border-radius:14px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:clamp(.72rem,1vw,.95rem);color:var(--muted);line-height:1.15}
+.stuk em{font-style:normal;font-size:clamp(1.6rem,3vw,2.6rem)}
+.stuk.thuis{border:2px solid var(--ok);color:var(--ink);box-shadow:0 0 14px rgba(74,222,128,.35)}
+.missie{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%}
+.missie div{background:var(--visor);border:2px solid var(--line);border-radius:14px;padding:14px 8px;font-size:clamp(.85rem,1.2vw,1.1rem);line-height:1.2}
+.missie em{display:block;font-style:normal;font-size:clamp(2rem,4vw,3.4rem);margin-bottom:6px}
+.missie div:last-child{border-color:var(--gold);box-shadow:0 0 18px rgba(242,190,98,.35)}
+/* tijdens het verhaal en de speluitleg: geen tekstballon over de plaatjes, maar de zin als ondertitel onder Mecha-Pof */
+body.verhaal .pkmon-bubble{display:none!important}
+body.verhaal #mon .pkmon.lg{width:min(44vh,40vw,460px)}
+body.breed #mon .pkmon.lg{width:min(40vh,30vw,400px)}
+.zin{margin:0;max-width:34em;text-align:center;font-size:clamp(1rem,1.45vw,1.4rem);line-height:1.35;font-weight:800;color:var(--ink);background:rgba(14,27,46,.85);border:2px solid var(--led-dark);border-radius:16px;padding:12px 18px;box-shadow:0 0 18px rgba(127,232,255,.18)}
+/* speluitleg: zeven stappen; bovenaan de stappen, daaronder het voorbeeld bij de actieve stap */
+body.breed #app{grid-template-columns:minmax(0,.7fr) minmax(320px,1.3fr)}
+.uitleg{display:flex;gap:8px;justify-content:center}
+.ucard{display:grid;place-items:center;width:clamp(38px,4.4vw,58px);aspect-ratio:1;border-radius:50%;background:var(--visor);border:2px solid var(--line);opacity:.45;transition:opacity .3s,transform .3s,border-color .3s,box-shadow .3s}
+.ucard em{font-style:normal;font-size:clamp(1.1rem,2vw,1.7rem);line-height:1}
+.ucard.done{opacity:.8;border-color:var(--ok)}
+.ucard.on{opacity:1;border-color:var(--gold);box-shadow:0 0 22px rgba(242,190,98,.45);transform:scale(1.15)}
+.demo{display:flex;flex-direction:column;gap:1.6vh;text-align:center}
+.demo h2{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(1.5rem,2.8vw,2.7rem);color:var(--gold);line-height:1.08}
+.demo .sub{max-width:46ch}
+.dvis{display:grid;place-items:center;min-height:clamp(220px,44vh,430px)}
+.phones{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(8px,1.4vw,20px);width:100%;align-items:start}
+.phw{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:0}
+.phw>b{font-size:clamp(.85rem,1.3vw,1.2rem);color:#fff;white-space:nowrap}
+.ph{width:100%;max-width:230px;aspect-ratio:10/14;border-radius:22px;border:4px solid #55617C;background:#0B1220;box-shadow:0 8px 0 #070910,0 14px 26px rgba(0,0,0,.4);padding:10px 8px;display:flex;flex-direction:column;gap:8px;align-items:stretch;justify-content:flex-start;overflow:hidden;transition:border-color .4s,box-shadow .4s}
+.ph.xl{max-width:300px}
+.ph.rol{justify-content:center;align-items:center}
+.ph.rol em{font-style:normal;font-size:clamp(2.4rem,5vw,4.4rem);line-height:1}
+.ph.rol b{font-family:var(--hud);letter-spacing:.08em;text-transform:uppercase;color:var(--led);font-size:clamp(.9rem,1.5vw,1.4rem)}
+.ph.rol small{color:var(--muted);font-size:clamp(.7rem,1vw,.95rem);line-height:1.2;padding:0 4px}
+.phr{display:flex;gap:5px;justify-content:center;align-items:center;font-family:var(--hud);font-size:clamp(.6rem,.9vw,.85rem);color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:6px;white-space:nowrap}
+.phr span{opacity:.55}.phr span.on{opacity:1;color:var(--led);font-weight:700;border:1px solid var(--led);border-radius:8px;padding:1px 5px;box-shadow:0 0 8px rgba(127,232,255,.4)}
+.phk{font-family:var(--hud);font-size:clamp(.55rem,.8vw,.75rem);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.pht{font-size:clamp(.7rem,1vw,.95rem);line-height:1.25;color:var(--ink)}
+.phbig{font-family:var(--hud);font-size:clamp(1.8rem,3.6vw,3.2rem);color:var(--led);line-height:1;text-shadow:0 0 12px rgba(127,232,255,.5)}.phbig small{font-size:.4em;color:var(--muted)}
+.phmeter{height:10px;border-radius:6px;background:#081220;border:1px solid var(--line2);overflow:hidden}.phmeter i{display:block;height:100%;width:35%;background:linear-gradient(90deg,var(--led-dark),var(--led));animation:warmer 3s ease-in-out infinite alternate}
+@keyframes warmer{to{width:85%}}
+.phbtn{border-radius:10px;padding:7px 6px;font-weight:900;font-size:clamp(.7rem,1vw,.95rem);color:#3A1C06;background:linear-gradient(180deg,#FCE3A6,var(--gold));box-shadow:0 3px 0 var(--gold-deep)}
+.phbtn.ok{background:linear-gradient(180deg,#9AF0B8,var(--ok));box-shadow:0 3px 0 #1B7A3E}
+.phbtn.grijs{background:#2A3142;color:var(--ink);box-shadow:0 3px 0 #10141C}
+.phin{font-family:var(--hud);font-size:clamp(1rem,1.8vw,1.6rem);color:var(--led);background:var(--visor);border:2px solid var(--led-dark);border-radius:10px;padding:4px}
+.phmsg{background:var(--visor);border:1px solid var(--line2);border-radius:10px;padding:6px 8px;text-align:left;font-size:clamp(.65rem,.95vw,.9rem);line-height:1.25}
+.phzeg{border:2px solid var(--gold);border-radius:10px;padding:6px;color:var(--gold);font-size:clamp(.7rem,1vw,.95rem);line-height:1.2;box-shadow:0 0 14px rgba(242,190,98,.35);animation:breathe2 1.6s ease-in-out infinite}
+.phzeg b{display:block;color:#fff;font-size:1.15em}
+@keyframes breathe2{50%{box-shadow:0 0 26px rgba(242,190,98,.7)}}
+.phbel{font-size:clamp(1.6rem,3vw,2.6rem);animation:bel .5s ease-in-out infinite alternate}@keyframes bel{from{transform:rotate(-12deg)}to{transform:rotate(12deg)}}
+.duo{display:grid;grid-template-columns:auto 1fr;gap:clamp(12px,2vw,28px);align-items:center;width:100%}
+.duo .ph{width:clamp(150px,17vw,250px)}
+.tips{display:flex;flex-direction:column;gap:10px;text-align:left}
+.tip{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;background:var(--visor);border:2px solid var(--line);border-radius:14px;padding:10px 14px;font-size:clamp(.85rem,1.25vw,1.15rem);line-height:1.2}
+.tip em{font-style:normal;font-size:clamp(1.5rem,2.6vw,2.3rem)}
+.tip b{display:block;color:#fff}
+.route{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;font-size:clamp(1.4rem,2.6vw,2.4rem)}
+.route span{display:grid;place-items:center;width:clamp(48px,5.4vw,76px);aspect-ratio:1;border-radius:50%;background:var(--visor);border:2px dashed var(--line2)}
+.route span.huis{border:2px solid var(--gold)}
+.route i{font-style:normal;color:var(--muted);font-size:.6em}
+.reuze{font-size:clamp(4rem,11vw,9rem);line-height:1}
+.schuif{font-family:var(--hud);color:var(--gold);font-size:clamp(.8rem,1.2vw,1.1rem);letter-spacing:.08em;margin-top:8px}
 /* onderweg */
 .parts{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
 .part{aspect-ratio:1;border-radius:50%;background:var(--visor);border:2px dashed var(--line2);display:grid;place-items:center;font-size:clamp(1.2rem,2.4vw,2.2rem);opacity:.55}
@@ -92,11 +159,11 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:75}
 <script type="module">
 import { state, PARTS, TALENTS } from './js/state.js';
 import { sync, IS_TEST } from './js/sync.js';
-import { createMonster, lineText } from './js/monster.js?v=22';
+import { createMonster, lineText, monsterImage } from './js/monster.js?v=23';
 import { audio } from './js/audio.js?v=11';
 import { voice } from './js/voice.js?v=7';
-import { LINES } from './js/monster-lines.js?v=13';
-import { createFinale, endCards, END_CSS, fillLine, stageHTML, TAART_HTML, buildHighlights } from './js/finale.js?v=8';
+import { LINES } from './js/monster-lines.js?v=14';
+import { createFinale, endCards, END_CSS, fillLine, stageHTML, TAART_HTML, buildHighlights } from './js/finale.js?v=9';
 import { kernTekeningen } from './js/tekening.js?v=1'; // goedgekeurde tekeningen (regie → 📸 Tekeningen), 12 nov
 
 const $ = s => document.querySelector(s);
@@ -136,15 +203,55 @@ window.pkm = { state, sync, router, mon, finale, audio, callRinging: () => false
 
 /* ---------- stand bepalen */
 let mode = 'slaap'; // slaap | wakker | loting | uitleg | onderweg | klaar
-let uitleg = null; // { i } tijdens de speluitleg
-const UITLEG = [ // kaarten bij LINES.uitleg (zelfde volgorde)
-  ['📍', 'Volg het signaal', 'De kaart-telefoon wijst de weg naar de volgende plek.'],
-  ['📻 🗺️ 🔧', 'Drie telefoons, drie taken', 'Radio · kaart · werkbank. Ze wisselen bij elke plek.'],
-  ['📞', 'Mecha-Pof belt de radio', 'Luister tot het eind. Zeg samen wat groot in beeld staat. Niet verstaan? ↻ Herhaal.'],
-  ['🔑', 'Opgelost? Indienen en schudden', 'De Sleutelbewaarder dient in, de monteur schudt het onderdeel vast. Hints kosten druppels.'],
-  ['🎂', 'Cadeautje voor de jarige', 'Eén verjaardagswens: de taart op haar telefoon. Puzzel overslaan, gratis hint of robotdans. Maar één keer!'],
-  ['🚸', 'Blijf bij elkaar', 'Oversteken alleen samen met de begeleider.'],
+let uitleg = null; // { i, k } tijdens de speluitleg (k = hoe vaak de taken zijn doorgeschoven in het voorbeeld)
+let intro = null;  // { i, boem } tijdens het verhaal na de wekzin (i = -1: welkom)
+const jarigeNaam = () => S().players.find(p => p.is_birthday)?.name || 'de jarige';
+const INTRO = [ // plaatjes bij LINES.intro (zelfde volgorde)
+  ['Dit is Mecha-Pof', 'Keukenrobot. Bakt de lekkerste pannenkoeken van heel Veghel.'],
+  ['Een beetje te veel stroop…', 'Hij wilde de grootste verjaardagspannenkoek ooit bakken.'],
+  ['Zeven stukken, ergens in de buurt', 'Alleen zijn brein en zijn radio liggen hier op tafel.'],
+  ['Jullie zijn het reparatieteam', 'Zeven plekken, zeven puzzels. En daarna feest!'],
 ];
+function introVis(i, boem) {
+  if (i < 0) return `<div class="feest">🎉<b>${esc(jarigeNaam())} 10 jaar!</b></div>`;
+  if (i <= 1) return `<img class="pof" src="${esc(monsterImage(Object.keys(PARTS)))}" alt="">${i === 1 ? '<div class="stroop"><i></i></div><div class="pofwoord">POF!</div>' : ''}`;
+  if (i === 2) return `<div class="stukken">${Object.keys(PARTS).map(k => `<div class="stuk"><em>${PARTS[k].icon}</em>${esc(PARTS[k].label.replace(/^(het|de) /, ''))}</div>`).join('')}<div class="stuk thuis"><em>🧠📻</em>brein en radio: thuis</div></div>`;
+  return `<div class="missie"><div><em>🔍</em>Zoek de zeven onderdelen</div><div><em>🧩</em>Los bij elke plek een puzzel op</div><div><em>🎂🥞</em>Taart en pannenkoeken!</div></div>`;
+}
+const UITLEG = [ // stappen bij LINES.uitleg (zelfde volgorde): pictogram, kop, onderschrift; het voorbeeld tekent uitlegVis()
+  ['📍', 'Eén route, zeven plekken', 'Op elke plek ligt een onderdeel. Bij elk onderdeel hoort een puzzel.'],
+  ['📱', 'Drie telefoons, elk met een eigen taak', 'Twee monteurs per telefoon. Jullie hebben elkaar alle drie nodig.'],
+  ['🔄', 'Bij elke plek schuiven de taken door', 'Bovenaan je scherm staat wat jouw telefoon nu is.'],
+  ['📻', 'Mecha-Pof belt de radio', 'Luister tot hij klaar is. Zeg dan samen wat groot in beeld staat.'],
+  ['🔧', 'De puzzel los je samen op', 'Hij staat op de werkbank, maar iedereen denkt mee.'],
+  ['🎂', 'Cadeautje voor de jarige', 'Eén verjaardagswens. Maar één keer, dus bewaar hem goed!'],
+  ['🚸', 'Blijf bij elkaar', 'Oversteken doen we alleen samen.'],
+];
+const ROL = { kaart: ['🗺️', 'Kaart', 'wijst de weg'], radio: ['📻', 'Radio', 'Mecha-Pof belt hier'], werkbank: ['🔧', 'Werkbank', 'hier staat de puzzel'] };
+const ROLV = ['kaart', 'radio', 'werkbank'];
+function telefoonNamen() { // de vaste koppels (draaiboek): Sleutelbewaarder + Tijdbewaker, Codekraker + Rekenmeester, Kaartlezer + Speurneus
+  const ps = S().players, n = t => ps.find(p => p.talent === t)?.name;
+  const koppels = [['sleutelbewaarder', 'tijdbewaker'], ['codekraker', 'rekenmeester'], ['kaartlezer', 'speurneus']].map(k => k.map(n));
+  return koppels.every(k => k.every(Boolean)) ? koppels.map(k => k.join(' & ')) : ['Telefoon 1', 'Telefoon 2', 'Telefoon 3'];
+}
+const rolbalk = r => `<div class="phr">${ROLV.map(x => `<span class="${x === r ? 'on' : ''}">${x === r ? '✓ ' + ROL[x][0] + ' ' + ROL[x][1] : ROL[x][0]}</span>`).join('')}</div>`;
+const SCHERM = { // het werkscherm per taak, sterk vereenvoudigd
+  kaart: () => `${rolbalk('kaart')}<div class="phk">Naar de volgende plek</div><div class="phbig">144<small> m</small></div><div class="phmeter"><i></i></div><div class="pht">🔥 Warmer!</div>`,
+  radio: () => `${rolbalk('radio')}<div class="phbel">📞</div><div class="pht"><b>Mecha-Pof belt…</b></div><div class="phbtn">📻 Walkie</div>`,
+  werkbank: () => `${rolbalk('werkbank')}<div class="phk">Puzzel</div><div class="pht">Hoeveel pannenkoeken eet ik in een week?</div><div class="phin">21</div><div class="phbtn ok">🔑 Indienen</div>`,
+};
+function uitlegVis(i, k = 0) {
+  const wie = telefoonNamen(), rol = d => ROLV[((d + k) % 3 + 3) % 3];
+  if (i === 0) return `<div class="route"><span class="huis">🏠</span><i>➜</i>${Object.keys(PARTS).map(p => `<span>${PARTS[p].icon}</span>`).join('')}<i>➜</i><span class="huis">🥞</span></div>`;
+  if (i === 1) return `<div class="phones">${wie.map((w, d) => `<div class="phw"><b>${esc(w)}</b><div class="ph rol"><em>${ROL[rol(d)][0]}</em><b>${ROL[rol(d)][1]}</b><small>${ROL[rol(d)][2]}</small></div></div>`).join('')}</div>`;
+  if (i === 2) return `<div><div class="phones">${wie.map((w, d) => `<div class="phw"><b>${esc(w)}</b><div class="ph">${SCHERM[rol(d)]()}</div></div>`).join('')}</div><div class="schuif">↻ ${k ? 'Volgende plek: de taken zijn doorgeschoven' : 'Zo ziet het eruit bij de eerste plek (voorbeeld)'}</div></div>`;
+  if (i === 3) return `<div class="duo"><div class="ph xl">${rolbalk('radio')}<div class="phk">Oproep van · Radio Mecha-Pof</div><div class="phmsg">Krrrk, piep! Signaal sterk. Hier ergens ligt mijn pantser…</div><div class="phzeg">Zeg nu samen:<b>“Begrepen, over en sluiten”</b></div><div class="phbtn grijs">↻ Herhaal</div></div>
+    <div class="tips"><div class="tip"><em>👂</em><div><b>Eerst luisteren</b>tot Mecha-Pof “over” zegt</div></div><div class="tip"><em>🗣️</em><div><b>Dan samen zeggen</b>wat in het gouden vak staat</div></div><div class="tip"><em>↻</em><div><b>Niet verstaan?</b>Tik op Herhaal</div></div></div></div>`;
+  if (i === 4) return `<div class="duo"><div class="ph xl">${SCHERM.werkbank()}</div>
+    <div class="tips"><div class="tip"><em>🔑</em><div><b>Goed? Indienen</b>dat doet de Sleutelbewaarder</div></div><div class="tip"><em>📳</em><div><b>Vastschudden</b>dat doet de monteur van dat onderdeel</div></div><div class="tip"><em>💡</em><div><b>Vastgelopen? Hint</b>kost een paar stroopdruppels 💧</div></div></div></div>`;
+  if (i === 5) return `<div class="duo"><div class="reuze">🎂</div><div class="tips"><div class="tip"><em>⏭️</em><div><b>Een puzzel overslaan</b></div></div><div class="tip"><em>💡</em><div><b>Een gratis hint</b></div></div><div class="tip"><em>🤖</em><div><b>Iedereen doet een robotdans</b></div></div></div></div>`;
+  return `<div class="duo"><div class="reuze">🚸</div><div class="tips"><div class="tip"><em>👭</em><div><b>Bij elkaar blijven</b>niemand loopt vooruit of blijft achter</div></div><div class="tip"><em>🛑</em><div><b>Oversteken</b>alleen samen met de papa van ${esc(jarigeNaam())}</div></div></div></div>`;
+}
 let loting = null;  // { order:[{p, talent}], i, spinning }
 const wokeSinceReset = () => { // wekzin na de laatste reset (events nieuwste eerst)
   for (const e of S().events) { if (e.type === 'game.reset') return false; if (e.type === 'monster.say' && e.payload?.wake) return true; }
@@ -166,6 +273,7 @@ function modeFor() {
   const g = S().game; if (!g) return 'slaap';
   if (g.phase === 'klaar') return 'klaar';
   if (g.phase !== 'lobby') return 'onderweg';
+  if (intro) return 'intro';
   if (loting) return 'loting';
   if (uitleg) return 'uitleg';
   return woke || wokeSinceReset() ? 'wakker' : 'slaap';
@@ -177,19 +285,19 @@ const talentRow = p => { const t = TALENTS[p.talent], part = PARTS[t?.part];
   return `<div class="slot lock" style="--acc:${part?.color || '#7FE8FF'}"><b>${esc(p.name)}${p.is_birthday ? ' 🎂' : ''}</b><div class="t"><span>${part?.icon || '❔'} ${esc(t?.label || 'nog geen talent')}</span></div></div>`; };
 function render() {
   const g = S().game, m = modeFor();
-  if (m !== mode) { mode = m; document.body.classList.toggle('slaap', m === 'slaap'); document.body.classList.toggle('klaar', m === 'klaar'); }
+  if (m !== mode) { mode = m; document.body.classList.toggle('slaap', m === 'slaap'); document.body.classList.toggle('klaar', m === 'klaar'); document.body.classList.toggle('breed', m === 'uitleg'); document.body.classList.toggle('verhaal', m === 'uitleg' || m === 'intro'); }
   const parts = g?.parts || [];
   if (m === 'slaap') { mon.setMood('slaap'); mon.setParts([]); }
-  else if (m === 'wakker' || m === 'loting' || m === 'uitleg') { if (mon.mood === 'slaap') mon.setMood('wakker'); }
+  else if (m === 'wakker' || m === 'intro' || m === 'loting' || m === 'uitleg') { if (mon.mood === 'slaap') mon.setMood('wakker'); }
   else if (m === 'onderweg' && !landing) { mon.setParts(parts); mon.setMood(parts.length <= 2 ? 'wakker' : parts.length <= 4 ? 'nieuwsgierig' : 'brutaal'); }
   const eb = $('#eyebrow'), cap = $('#caption'), side = $('#side');
-  if (m !== 'klaar') delete side.dataset.sig; // de finale tekent het zijpaneel alleen opnieuw als de stap verandert
+  if (!['klaar', 'intro', 'uitleg'].includes(m)) delete side.dataset.sig; // de finale tekent het zijpaneel alleen opnieuw als de stap verandert
   if (m === 'slaap') {
     eb.textContent = 'Hier rust de kern van Mecha-Pof';
     cap.innerHTML = `<div class="standby"><i></i>STAND-BY · PROCESSOR + RADIO</div>`;
     side.innerHTML = `<div class="panel"><h2>Noodsignaal</h2><p class="sub" style="text-align:left">Alleen mijn processor en mijn radio zijn thuis geland. De rest ligt ergens in de buurt…</p><p class="muted">Niet aanraken. Hij slaapt.</p></div>`;
   } else if (m === 'wakker') {
-    eb.textContent = 'Kern van Mecha-Pof · online';
+    eb.textContent = `Het feest van ${jarigeNaam()} · kern van Mecha-Pof online`;
     cap.innerHTML = `<h1 class="title">Reparatieteam gezocht</h1>`;
     const ps = S().players;
     side.innerHTML = `<div class="panel"><h2>Monteurs</h2><div class="reel">${ps.map(p => p.talent ? talentRow(p) : `<div class="slot"><b>${esc(p.name)}${p.is_birthday ? ' 🎂' : ''}</b><div class="t"><span>? ? ?</span></div></div>`).join('')}</div></div>
@@ -199,10 +307,26 @@ function render() {
     cap.innerHTML = `<h1 class="title">De loting</h1>`;
     side.innerHTML = `<div class="panel"><h2>Wie wordt wat?</h2><div class="reel" id="reel">${loting.order.map((o, i) => `<div class="slot ${i < loting.i ? 'lock' : i === loting.i && loting.spinning ? 'spin' : ''} ${o.p.is_birthday ? 'vast' : ''}" style="--acc:${PARTS[TALENTS[o.talent]?.part]?.color || '#7FE8FF'}" data-i="${i}">
       <b>${esc(o.p.name)}${o.p.is_birthday ? ' 🎂' : ''}</b><div class="t"><span>${i < loting.i ? `${PARTS[TALENTS[o.talent].part].icon} ${esc(TALENTS[o.talent].label)}` : i === loting.i && loting.spinning ? `<span class="spinlabel"></span>` : '…'}</span></div></div>`).join('')}</div></div>`;
+  } else if (m === 'intro') {
+    eb.textContent = intro.i < 0 ? `Het feest van ${jarigeNaam()} · Mecha-Pof wordt wakker` : 'Het verhaal van Mecha-Pof';
+    cap.innerHTML = intro.zin ? `<p class="zin">${esc(intro.zin)}</p>` : '';
+    const sig = 'intro:' + intro.i + (intro.boem ? ':b' : '');
+    if (side.dataset.sig !== sig) {
+      if (intro.boem && side.dataset.sig === 'intro:' + intro.i) side.querySelector('.svis')?.classList.add('boem'); // niet opnieuw tekenen: de animatie loopt
+      else { const [t, sub] = intro.i < 0 ? ['Welkom op het feest van ' + jarigeNaam(), 'Hannah is tien geworden, en dat vieren we vandaag.'.replace('Hannah', jarigeNaam())] : INTRO[intro.i];
+        side.innerHTML = `<div class="panel story">${intro.i < 0 ? '' : `<div class="sdots">${INTRO.map((_, n) => `<i class="${n <= intro.i ? 'on' : ''}"></i>`).join('')}</div>`}<h2>${esc(t)}</h2><div class="svis ${intro.boem ? 'boem' : ''}">${introVis(intro.i, intro.boem)}</div><p class="sub">${esc(sub)}</p></div>`; }
+      side.dataset.sig = sig;
+    }
   } else if (m === 'uitleg') {
-    eb.textContent = 'Kern van Mecha-Pof · speluitleg';
-    cap.innerHTML = `<h1 class="title">Zo werkt het</h1>`;
-    side.innerHTML = `<div class="uitleg">${UITLEG.map(([ic, t, sub], i) => `<div class="ucard ${i === uitleg.i ? 'on' : i < uitleg.i ? 'done' : ''}"><em>${ic}</em><div><b>${i + 1}. ${esc(t)}</b><small>${esc(sub)}</small></div></div>`).join('')}</div>`;
+    eb.textContent = `Zo werkt het · stap ${uitleg.i + 1} van ${UITLEG.length}`;
+    cap.innerHTML = uitleg.zin ? `<p class="zin">${esc(uitleg.zin)}</p>` : '';
+    const sig = 'uitleg:' + uitleg.i + ':' + (uitleg.k || 0);
+    if (side.dataset.sig !== sig) {
+      side.dataset.sig = sig;
+      const [, t, sub] = UITLEG[uitleg.i];
+      side.innerHTML = `<div class="uitleg">${UITLEG.map(([ic], i) => `<div class="ucard ${i === uitleg.i ? 'on' : i < uitleg.i ? 'done' : ''}"><em>${ic}</em></div>`).join('')}</div>
+        <div class="panel demo"><h2>${esc(t)}</h2><div class="dvis">${uitlegVis(uitleg.i, uitleg.k || 0)}</div><p class="sub">${esc(sub)}</p></div>`;
+    }
   } else if (m === 'onderweg') {
     const r = state.route(), act = state.activeStop(), done = r.slice(0, g.active_index).filter(s => s.part).length, total = r.filter(s => s.part).length;
     const mins = g.started_at ? Math.max(0, Math.round((Date.now() - Date.parse(g.started_at)) / 60000)) : 0;
@@ -235,25 +359,46 @@ let landing = false;
 
 /* ---------- wakker worden: wekknop in regie.html = monster.say { text: wekzin, wake: true, kern: true } */
 async function wake(text) {
-  woke = true; render();
+  if (intro) return;
+  woke = true; intro = { i: -1 }; render();
   audio.play('start'); mon.setMood('wakker');
   await sleep(900);
-  await say(text || pick(LINES.wek));
-  await say(fillLine(pick(LINES.start), { jarige: S().players.find(p => p.is_birthday)?.name }));
-  prewarmLoting();
+  const J = { jarige: S().players.find(p => p.is_birthday)?.name };
+  const wek = fillLine(text || pick(LINES.wek), J);
+  intro.zin = wek; render();
+  await say(wek);
+  await speelIntro();
+  prewarmThuis();
 }
-function prewarmLoting() { // namen × talenten vooraf laten opnemen, zodat de loting niet hapert
-  const ps = S().players, texts = [...(LINES.loting?.intro || []), ...(LINES.loting?.klaar || [])];
-  const jarige = ps.find(p => p.is_birthday)?.name;
-  texts.push(...(LINES.uitleg || []).map(l => fillLine(l, { jarige })));
-  for (const p of ps) for (const t of (p.is_birthday ? ['sleutelbewaarder'] : Object.keys(TALENTS).filter(x => x !== 'sleutelbewaarder'))) for (const l of LINES.loting?.[t] || []) texts.push(fillLine(l, { naam: p.name }));
+async function speelIntro() { // het verhaal van Mecha-Pof: één plaatje per zin (LINES.intro), bij "POF" vliegt hij uit elkaar
+  const J = { jarige: S().players.find(p => p.is_birthday)?.name }, zinnen = LINES.intro || [];
+  for (let i = 0; i < INTRO.length && intro; i++) {
+    const zin = zinnen[i] ? fillLine(zinnen[i], J) : INTRO[i][0];
+    intro = { i, zin }; render(); audio.play('plop');
+    await say(zin);
+    if (i === 1 && intro) { intro.boem = true; render(); audio.play('spetter'); await sleep(1700); }
+    await sleep(400);
+  }
+  if (intro) { confetti(); audio.play('badge'); await sleep(1500); }
+  intro = null; render();
+}
+function prewarmThuis() { // alle zinnen van thuis vooraf laten opnemen (bij "Kern aanzetten" en na het wekken), zodat niets hapert
+  const ps = S().players, jarige = ps.find(p => p.is_birthday)?.name;
+  const texts = [...(LINES.wek || []), ...(LINES.intro || []), ...(LINES.loting?.intro || []), ...(LINES.loting?.klaar || []), ...(LINES.uitleg || []), ...(LINES.kern?.wacht || [])].map(l => fillLine(l, { jarige }));
+  for (const p of ps) for (const t of (p.talent ? [p.talent] : p.is_birthday ? ['sleutelbewaarder'] : Object.keys(TALENTS).filter(x => x !== 'sleutelbewaarder'))) for (const l of LINES.loting?.[t] || []) texts.push(fillLine(l, { naam: p.name }));
   voice.prewarm?.(texts).catch?.(() => {});
 }
-async function speelUitleg() { // regie: knop "Speluitleg". Eén kaart per zin; daarna terug naar het wachtscherm.
-  if (uitleg || loting) return;
-  woke = true; uitleg = { i: 0 }; render();
-  const zinnen = LINES.uitleg || [];
-  for (let i = 0; i < UITLEG.length && uitleg; i++) { uitleg.i = i; render(); audio.play('plop'); await say(zinnen[i] ? fillLine(zinnen[i], { jarige: S().players.find(p => p.is_birthday)?.name }) : UITLEG[i][1], { ms: 15000 }); await sleep(350); }
+async function speelUitleg() { // regie: knop "Speluitleg". Eén stap per zin, met een voorbeeld in beeld; daarna terug naar het wachtscherm.
+  if (uitleg || loting || intro) return;
+  woke = true; uitleg = { i: 0, k: 0 }; render();
+  const zinnen = LINES.uitleg || [], J = { jarige: S().players.find(p => p.is_birthday)?.name };
+  for (let i = 0; i < UITLEG.length && uitleg; i++) {
+    const zin = zinnen[i] ? fillLine(zinnen[i], J) : UITLEG[i][1];
+    uitleg.i = i; uitleg.k = 0; uitleg.zin = zin; render(); audio.play('plop');
+    const schuif = i === 2 ? setInterval(() => { if (uitleg?.i === 2) { uitleg.k++; render(); audio.play('klik'); } }, 5000) : 0; // het doorschuiven laten zien
+    await say(zin);
+    clearInterval(schuif); await sleep(500);
+  }
   if (uitleg) { confetti(); audio.play('badge'); }
   uitleg = null; render();
 }
@@ -265,7 +410,7 @@ router.on('monster.say', p => {
 
 /* ---------- loting: roles.shuffle met loting:true (regie.html → "Loting starten"); de jarige als laatste, zij staat vast */
 router.on('roles.shuffle', async p => {
-  if (!p.loting || loting) { render(); return; }
+  if (!p.loting || loting || intro) { render(); return; }
   const ps = S().players, tal = p.talents || {};
   const others = ps.filter(x => !x.is_birthday).sort(() => Math.random() - .5), bday = ps.filter(x => x.is_birthday);
   loting = { order: [...others, ...bday].map(x => ({ p: x, talent: tal[x.id] || x.talent })).filter(o => o.talent), i: 0, spinning: false };
@@ -288,8 +433,8 @@ router.on('roles.shuffle', async p => {
 });
 
 /* ---------- start, onderdelen, finale */
-router.on('game.start', async () => { woke = true; uitleg = null; render(); await sleep(1200); say(pick(LINES.kern?.wacht)); });
-router.on('game.reset', () => { woke = false; loting = null; uitleg = null; finale.reset(); render(); });
+router.on('game.start', async () => { woke = true; uitleg = null; intro = null; render(); await sleep(1200); say(pick(LINES.kern?.wacht)); });
+router.on('game.reset', () => { woke = false; loting = null; uitleg = null; intro = null; finale.reset(); render(); });
 router.on('stop.solved', p => {
   if (!p.part) { audio.play('ok'); return; } // bonusstop: geen onderdeel
   landing = true;
@@ -325,6 +470,7 @@ async function gateOk() {
   heartbeat(); setInterval(heartbeat, 60_000);
   tek.start().then(() => { delete $('#side').dataset.sig; render(); });
   render(); setInterval(render, 30_000);
+  if (!PROEF) prewarmThuis();
 }
 $('#gateform').onsubmit = async e => {
   e.preventDefault();

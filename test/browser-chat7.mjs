@@ -158,23 +158,38 @@ if (!only || only === 'kern') {
   // dezelfde events naar de kern
   await fake(K.page, (f, _pkm, pl) => f.rpc('regie_event', { p_key: 'job', p_type: 'monster.say', p_payload: pl }), wakeEv.payload);
   ok('kern: wakker na de wekknop', await K.until(() => !document.body.classList.contains('slaap') && window.pkm.mon.mood !== 'slaap', 4000));
-  ok('kern: zegt de wekzin', await K.until(() => __said.some(t => /wie maakt mij wakker/.test(t)), 6000));
-  ok('kern: daarna een startzin', await K.until(() => __said.length >= 2, 15000));
+  ok('kern: zegt de wekzin', await K.until(() => __said.some(t => /Wie maakt mij daar wakker/.test(t) && /feest van Hannah/.test(t)), 6000));
+  ok('kern: welkom op het feest in beeld', (await K.txt('#side')).includes('Welkom op het feest van Hannah'));
+  ok('kern: daarna het verhaal van Mecha-Pof (plaatje 1)', await K.until(() => __said.some(t => /Ik ben Mecha-Pof, een keukenrobot/.test(t)) && !!document.querySelector('#side .story img.pof'), 20000));
+  await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-intro1.png') }).catch(() => {});
+  ok('kern: POF: hij vliegt uit elkaar', await K.until(() => !!document.querySelector('#side .svis.boem'), 40000));
+  await sleep(700); await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-intro2.png') }).catch(() => {});
+  ok('kern: zeven stukken in beeld', await K.until(() => document.querySelectorAll('#side .stuk').length === 8, 10000));
+  await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-intro3.png') }).catch(() => {});
+  ok('kern: missie (taart en pannenkoeken), daarna terug naar het wachtscherm', await K.until(() => __said.some(t => /Met taart en met pannenkoeken/.test(t)), 30000) && await K.until(() => !document.querySelector('#side .story'), 30000));
   await fake(K.page, (f, _pkm, pl) => f.rpc('regie_event', { p_key: 'job', p_type: 'roles.shuffle', p_payload: pl }), lot.payload);
   ok('kern: loting-animatie (draaiende rol)', await K.until(() => !!document.querySelector('.slot.spin'), 20000));
   ok('kern: eerste naam klikt vast met aankondiging', await K.until(() => __said.some(t => /\.\.\. (Speurneus|Kaartlezer|Codekraker|Rekenmeester|Tijdbewaker)!/.test(t)), 15000));
   ok('kern: Hannah als laatste: Sleutelbewaarder', await K.until(() => __said.some(t => /Hannah\.\.\. Sleutelbewaarder/.test(t)), 70000));
   ok('kern: loting klaar, talenten in beeld', await K.until(() => !document.querySelector('#reel') && document.querySelectorAll('#side .slot.lock').length === 6, 35000));
   ok('kern: voorstelronde-uitleg', (await K.txt('#side')).includes('Voorstelronde'));
-  // speluitleg (12 nov): zes kaarten, één zin per kaart, daarna terug naar het wachtscherm
+  // speluitleg (12 nov avond): zeven stappen met een voorbeeld in beeld, één zin per stap, daarna terug naar het wachtscherm
   await fake(K.page, f => f.rpc('regie_event', { p_key: 'job', p_type: 'monster.say', p_payload: { text: 'Speluitleg!', kern: true, uitleg: true } }));
-  ok('kern: speluitleg toont zes kaarten', await K.until(() => document.querySelectorAll('#side .ucard').length === 6 && !!document.querySelector('#side .ucard.on'), 6000));
+  ok('kern: speluitleg toont zeven stappen', await K.until(() => document.querySelectorAll('#side .ucard').length === 7 && !!document.querySelector('#side .ucard.on'), 6000));
+  ok('kern: stap 2: drie telefoons met de koppels', await K.until(() => document.querySelectorAll('#side .ph.rol').length === 3, 30000) && /Hannah & \w+/.test(await K.txt('#side')), await K.txt('#side'));
+  await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-uitleg2.png') }).catch(() => {});
+  ok('kern: stap 3: werkscherm per taak, en de taken schuiven door', await K.until(() => document.querySelectorAll('#side .ph .phr').length === 3, 30000) && await K.until(() => /doorgeschoven/.test(document.querySelector('#side .schuif')?.textContent || ''), 12000));
+  await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-uitleg3.png') }).catch(() => {});
+  ok('kern: stap 4: de radio met het gouden vak', await K.until(() => !!document.querySelector('#side .phzeg'), 30000));
+  await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-uitleg4.png') }).catch(() => {});
+  ok('kern: stap 5: de werkbank', await K.until(() => /Indienen/.test(document.querySelector('#side .dvis')?.textContent || '') && !!document.querySelector('#side .duo'), 30000));
+  await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-uitleg5.png') }).catch(() => {});
   await K.page.screenshot({ path: path.join(ROOT, 'test/out/kern-uitleg.png') }).catch(() => {});
-  ok('kern: speluitleg zegt de wensregel en regel zes en sluit af', await K.until(() => __said.some(t => /Hannah heeft één verjaardagswens/.test(t)) && __said.some(t => /Regel zes/.test(t)) && !document.querySelector('#side .ucard'), 130000));
+  ok('kern: speluitleg zegt de wens en de veiligheidsregel en sluit af', await K.until(() => __said.some(t => /Hannah heeft één verjaardagswens/.test(t)) && __said.some(t => /samen met de papa van Hannah/.test(t)) && !document.querySelector('#side .ucard'), 130000));
   await fake(K.page, f => f.rpc('regie_start', { p_key: 'job' }));
   ok('kern: onderweg-scherm', await K.until(() => /0 van 7/.test(document.querySelector('#caption').textContent), 4000));
-  ok('kern: zegt dat hij thuis wacht', await K.until(() => __said.some(t => /Ik wacht hier/.test(t)), 8000));
-  await sleep(7000); // "ik wacht hier" laten uitpraten
+  ok('kern: zegt dat hij thuis wacht', await K.until(() => __said.some(t => /wachten op mijn onderdelen/.test(t)), 8000));
+  await sleep(11000); // "ik blijf hier wachten" laten uitpraten
   await fake(K.page, f => f.rpc('regie_approve_stop', { p_key: 'job', p_drops: 10 }));
   ok('kern: lijf vliegt in (hologram)', await K.until(() => window.pkm.mon.parts.includes('lijf'), 4000));
   ok('kern: installatiezin lijf hardop', await K.until(() => __said.some(t => /Pantser vastgeklikt|Pannenkoekenpantser gemonteerd/.test(t)), 12000));
