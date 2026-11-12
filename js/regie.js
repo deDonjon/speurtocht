@@ -3,7 +3,7 @@
 // Geheimen (codes, missies, stop-geheimen) komen uit regie_state en staan alleen in `R`.
 import { state, PARTS, TALENTS } from './state.js';
 import { sync, IS_TEST } from './sync.js';
-import { LINES } from './monster-lines.js?v=14'; // wekzin (chat 7)
+import { LINES } from './monster-lines.js?v=15'; // wekzin (chat 7)
 import * as tk from './tekening.js?v=1'; // tab 📸 Tekeningen (12 nov)
 
 /* ================================================================ hulpjes */
