@@ -20,7 +20,7 @@
 import { hasRole } from './roles.js?v=2';
 import { audio } from './audio.js?v=11';
 import { LINES, NAAM_JARIGE } from './monster-lines.js?v=17';
-import { voice as monsterVoice, uitspraak } from './voice.js?v=7';
+import { voice as monsterVoice, uitspraak } from './voice.js?v=8';
 
 const ZDOG_SRC = [
   'https://cdn.jsdelivr.net/npm/zdog@1.1.3/dist/zdog.dist.min.js',

@@ -1,6 +1,6 @@
 // voice.js — de echte stem van Mecha-Pof (ElevenLabs) voor alles wat het monster zegt buiten de walkietalkie.
 //
-//   import { voice, uitspraak } from './voice.js?v=7';
+//   import { voice, uitspraak } from './voice.js?v=8';
 //   const p = await voice.speak(text, { galm })  → { done: Promise, level() 0..1, stop(), duration }   (gooit een fout als het niet lukt)
 //                                         galm = lichte nagalm (Mega-Mecha-Pof, zie monster.js); de mp3 blijft dezelfde
 //   voice.prewarm(texts, onProgress)    → zinnen vooraf laten opnemen (testpagina)
@@ -24,6 +24,7 @@ const OFF_KEY = 'pkm2_voice_off'; // testpagina: '1' = altijd de telefoonstem
 const UITSPRAAK = [
   [/\bEvy\b/g, 'Eevie'],
   [/\bMecha-Pof\b/g, 'Mekka-Pof'],
+  [/([Pp])antser/g, '$1andser'], // anders zegt de stem "penser" (ook in pannenkoekenpantser)
 ];
 export function uitspraak(text) { return UITSPRAAK.reduce((t, [re, s]) => t.replace(re, s), String(text ?? '')); }
 

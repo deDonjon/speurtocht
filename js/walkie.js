@@ -38,7 +38,7 @@
 import { audio, setRecording } from './audio.js?v=11';
 import { SUPABASE_URL, SUPABASE_KEY } from './sync.js';
 import { LINES, NAAM_JARIGE } from './monster-lines.js?v=17';
-import { uitspraak } from './voice.js?v=7';
+import { uitspraak } from './voice.js?v=8';
 
 const SDK = [
   'https://cdn.jsdelivr.net/npm/@elevenlabs/client@1.29.0/dist/lib.iife.js',
