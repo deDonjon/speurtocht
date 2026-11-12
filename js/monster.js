@@ -328,24 +328,56 @@ function buildModel(illo) {
   new Z.Ellipse({ addTo: m.hatScale, diameter: 6, quarters: 3, rotate: { z: -TAU / 4 * 1.5 }, translate: { y: -5, z: 8.6 }, stroke: 1.3, color: '#B9902A' });
   new Z.Shape({ addTo: m.hatScale, path: [{ y: -9 }, { y: -5.5 }], translate: { z: 8.8 }, stroke: 1.3, color: '#B9902A' });
   m.butterGlow = new Z.Shape({ addTo: m.hatScale, translate: { y: -5, z: 9 }, stroke: 16, color: 'rgba(255,233,138,0.35)', visible: false }); // knop licht op bij Mega
-  // jetpack: schuin op de rug
-  const jet = new Z.Anchor({ addTo: hoed, translate: { x: 34, y: 70, z: -52 }, rotate: { z: -0.3 } });
-  new Z.Shape({ addTo: jet, path: [{ x: -6, y: -6, z: 10 }, { x: -12, y: -6, z: 22 }], stroke: 4, color: STEEL_D }); // beugel naar het pantser
-  new Z.Box({ addTo: jet, width: 20, height: 42, depth: 18, stroke: 5, color: '#A24C14', frontFace: '#7A3410', rearFace: '#B9581A', leftFace: '#6A2C0C', rightFace: '#8A3E12', topFace: '#8A3E12', bottomFace: '#4A1C06' });
-  new Z.Shape({ addTo: jet, path: [{ x: -8, y: -18 }, { x: -8, y: 16 }], translate: { z: -11.6 }, stroke: 2.4, color: 'rgba(255,255,255,0.22)' }); // glans op de fles
-  new Z.Rect({ addTo: jet, width: 16, height: 15, translate: { y: 2, z: -12 }, fill: true, stroke: 1, color: '#FFF4DF' });
-  new Z.Shape({ addTo: jet, path: [{ x: -5, y: 1 }, { x: 5, y: 1 }], translate: { z: -12.6 }, stroke: 2.2, color: '#5A2E12' });
-  new Z.Shape({ addTo: jet, path: [{ x: -4, y: 5 }, { x: 4, y: 5 }], translate: { z: -12.6 }, stroke: 1.4, color: '#8A6A4A' });
-  new Z.Box({ addTo: jet, width: 12, height: 7, depth: 12, stroke: 2, translate: { y: -26 }, color: '#E0473C', topFace: '#F0645A' });
-  new Z.Shape({ addTo: jet, path: [{ y: 24 }, { y: 28 }], stroke: 10, color: STEEL_D });
-  new Z.Shape({ addTo: jet, path: [{ x: -3, y: 23.5, z: 3.6 }, { x: -3, y: 28, z: 3.6 }], stroke: 1.2, color: GLINT });
-  m.flame = new Z.Anchor({ addTo: jet, translate: { y: 30 } });
-  m.puddle = new Z.Shape({ addTo: m.flame, path: [{ y: 4 }, { y: 14 }], stroke: 22, color: 'rgba(245,158,46,0.28)' }); // gloed
-  new Z.Cone({ addTo: m.flame, diameter: 13, length: 26, rotate: { x: -TAU / 4 }, stroke: 2, color: '#F59E2E', backface: '#FFB347' });
-  new Z.Cone({ addTo: m.flame, diameter: 7, length: 16, rotate: { x: -TAU / 4 }, translate: { z: 0 }, stroke: 1.5, color: '#FFF1A6', backface: '#FFF8D0' });
-  // Mega: tweede, bredere vlamkrans en een gloedring onder de robot
-  m.megaFlame = new Z.Group({ addTo: m.flame, visible: false });
-  new Z.Cone({ addTo: m.megaFlame, diameter: 17, length: 34, rotate: { x: -TAU / 4 }, translate: { y: 2 }, stroke: 1.5, color: 'rgba(245,158,46,0.42)', backface: 'rgba(255,200,90,0.42)' });
+  // jetpack (12 nov, stoerder): twee stroopflessen als raketten in een V op de rug, met stalen straalpijpen,
+  // rode vinnen, een motorblok met LED-strip en twee vlammen met een witheet hart. De rode doppen steken
+  // achter de schouders uit, de vlammen komen onder het pantser vandaan: ook van voren zie je dat hij een jetpack heeft.
+  const jet = new Z.Anchor({ addTo: hoed, translate: { y: 50, z: -76 } });
+  // draagriemen over de schouders (los voor- en achterstuk: zo sorteren ze goed tegen het pantser)
+  [-1, 1].forEach(s => {
+    new Z.Shape({ addTo: hoed, path: [{ x: 27 * s, y: 39.5, z: 4 }, { x: 27 * s, y: 39.5, z: 36 }, { x: 27 * s, y: 47, z: 46 }], closed: false, stroke: 5.5, color: IRON });
+    new Z.Shape({ addTo: hoed, path: [{ x: 27 * s, y: 38.6, z: 6 }, { x: 27 * s, y: 38.6, z: 34 }], translate: { x: -1.6 * s }, closed: false, stroke: 1.2, color: IRON_L });
+    new Z.Box({ addTo: hoed, width: 9, height: 2.5, depth: 7, stroke: 1.2, translate: { x: 27 * s, y: 38.5, z: 26 }, color: STEEL, topFace: STEEL_L }); // gesp
+    new Z.Shape({ addTo: hoed, path: [{ x: 27 * s, y: 39.5, z: -4 }, { x: 27 * s, y: 39.5, z: -48 }, { x: 25 * s, y: 36, z: -68 }], closed: false, stroke: 5.5, color: IRON });
+  });
+  // motorblok tussen de flessen, met beugels naar het pantser
+  new Z.Box({ addTo: jet, width: 20, height: 36, depth: 12, stroke: 3, translate: { y: 4 }, color: IRON, frontFace: IRON_D, rearFace: '#394050', leftFace: IRON_D, rightFace: IRON_D, topFace: IRON_L, bottomFace: IRON_D });
+  [-1, 1].forEach(s => new Z.Shape({ addTo: jet, path: [{ x: 7 * s, y: -6, z: 4 }, { x: 9 * s, y: -10, z: 14 }], stroke: 4, color: STEEL_D }));
+  m.jetLeds = [-7, 0, 7].map(y => led(new Z.Shape({ addTo: jet, translate: { y: y + 3, z: -8.5 }, stroke: 3.4, color: LED })));
+  new Z.Shape({ addTo: jet, path: [{ x: -32, y: -14 }, { x: 32, y: -14 }], translate: { z: -1 }, stroke: 4.5, color: STEEL_D }); // dwarsbalk
+  new Z.Shape({ addTo: jet, path: [{ x: -28, y: -15.4, z: -3 }, { x: 28, y: -15.4, z: -3 }], stroke: 1.2, color: GLINT });
+  m.flames = []; m.megaFlames = [];
+  [-1, 1].forEach(s => {
+    const tank = new Z.Anchor({ addTo: jet, translate: { x: 25 * s, y: 0 }, rotate: { z: -0.24 * s } }); // V-vorm: toppen naar buiten
+    // de fles: bruin, met crème etiket en stalen banden
+    new Z.Cylinder({ addTo: tank, diameter: 24, length: 54, rotate: { x: TAU / 4 }, stroke: 3, color: '#A24C14', frontFace: '#8A3E12', backface: '#6A2C0C' });
+    // etiket en banden tekenen altijd over de fles heen (anders sorteren ze door de kijkhoek soms erachter)
+    const band = (d, l, y, color) => sink(new Z.Cylinder({ addTo: tank, diameter: d, length: l, rotate: { x: TAU / 4 }, translate: { y }, stroke: 1, color, frontFace: false, backface: false }), -4);
+    band(25.5, 11, 2, '#FFF4DF');
+    band(26, 2.2, 2, '#7A3410');
+    band(26, 2.6, -9, STEEL); band(26, 2.6, 13, STEEL);
+    new Z.Shape({ addTo: tank, path: [{ x: -7 * s, y: -23 }, { x: -7 * s, y: 22 }], translate: { z: -12.5 }, stroke: 2.2, color: '#C9733A' }); // glans op de fles
+    // rode dop met stalen ring, bovenop
+    new Z.Cylinder({ addTo: tank, diameter: 18, length: 8, rotate: { x: TAU / 4 }, translate: { y: -31 }, stroke: 2.5, color: '#E0473C', frontFace: '#F0645A', backface: '#B8342B' });
+    new Z.Shape({ addTo: tank, translate: { y: -37 }, stroke: 7, color: '#F0645A' });
+    // straalpijp: stalen klok met donkere binnenkant
+    new Z.Cylinder({ addTo: tank, diameter: 14, length: 5, rotate: { x: TAU / 4 }, translate: { y: 29 }, stroke: 2, color: STEEL_D, frontFace: false, backface: IRON_D });
+    new Z.Cone({ addTo: tank, diameter: 20, length: 10, rotate: { x: TAU / 4 }, translate: { y: 42 }, stroke: 2, color: STEEL, backface: '#2A2F38' });
+    new Z.Shape({ addTo: tank, path: [{ x: 4 * s, y: 34, z: -6 }, { x: 7 * s, y: 41, z: -7.5 }], stroke: 1.2, color: GLINT });
+    // vin aan de buitenkant
+    new Z.Shape({ addTo: tank, path: [{ x: 12 * s, y: 8 }, { x: 23 * s, y: 22 }, { x: 23 * s, y: 36 }, { x: 12 * s, y: 27 }], fill: true, stroke: 3, color: '#E0473C' });
+    new Z.Shape({ addTo: tank, path: [{ x: 13 * s, y: 11 }, { x: 22 * s, y: 23 }], translate: { z: -1.6 }, stroke: 1.2, color: '#F58A80' });
+    // vlam (wijst omlaag): gloed, oranje buitenkant, gele binnenkant, witheet hart
+    const f = new Z.Anchor({ addTo: tank, translate: { y: 42 } });
+    new Z.Shape({ addTo: f, path: [{ y: 6 }, { y: 22 }], stroke: 24, color: 'rgba(245,158,46,0.26)' });
+    new Z.Cone({ addTo: f, diameter: 16, length: 34, rotate: { x: -TAU / 4 }, stroke: 2, color: '#F57A1F', backface: '#FF9A3C' });
+    new Z.Cone({ addTo: f, diameter: 11, length: 25, rotate: { x: -TAU / 4 }, stroke: 1.5, color: '#FFC23A', backface: '#FFD25A' });
+    new Z.Cone({ addTo: f, diameter: 6.5, length: 14, rotate: { x: -TAU / 4 }, stroke: 1.5, color: '#FFFBEA', backface: '#FFFFFF' });
+    // Mega: extra vlamkrans
+    const mf = new Z.Group({ addTo: f, visible: false });
+    new Z.Cone({ addTo: mf, diameter: 20, length: 40, rotate: { x: -TAU / 4 }, translate: { y: 6 }, stroke: 1.5, color: 'rgba(245,122,31,0.4)', backface: 'rgba(255,200,90,0.4)' });
+    m.flames.push(f); m.megaFlames.push(mf);
+  });
+  // Mega: gloedring onder de robot
   m.megaRing = new Z.Ellipse({ addTo: m.world, diameter: 134, rotate: { x: TAU / 4 }, translate: { y: 103 }, stroke: 3, color: 'rgba(255,200,90,0.3)', visible: false });
   m.butterDrips = [];
 
@@ -492,10 +524,13 @@ function applyPose(m, P, parts) {
   const mt = clamp(P.melt, 0, 1);
   m.hatScale.scale.set({ x: 1 + 0.08 * mt, y: 1 - 0.35 * mt, z: 1 + 0.08 * mt });
   m.butterGlow.visible = mega > 0.3 && (P.t * 4) % 1 < 0.7;
-  const fl = (0.86 + 0.14 * Math.sin(P.t * 25) + 0.07 * Math.sin(P.t * 61)) * P.thrust * (1 + 0.7 * mt + 0.6 * mega) * (parts.has('hoed') ? 1 : 0.45);
-  m.flame.scale.set({ x: 0.8 + 0.25 * fl, y: Math.max(0.05, fl), z: 0.8 + 0.25 * fl });
-  m.megaFlame.visible = mega > 0.2;
-  m.megaFlame.scale.set({ x: 0.6 + 0.4 * mega, y: 0.3 + 0.7 * mega * (0.9 + 0.1 * Math.sin(P.t * 31)), z: 0.6 + 0.4 * mega });
+  m.flames.forEach((f, i) => { // twee vlammen, elk met een eigen flakkerritme
+    const ph = i * 1.7;
+    const fl = (0.86 + 0.14 * Math.sin(P.t * 25 + ph) + 0.07 * Math.sin(P.t * 61 + 2 * ph)) * P.thrust * (1 + 0.7 * mt + 0.6 * mega) * (parts.has('hoed') ? 1 : 0.45);
+    f.scale.set({ x: 0.8 + 0.25 * Math.min(fl, 2.4), y: Math.max(0.05, Math.min(fl, 2.6)), z: 0.8 + 0.25 * Math.min(fl, 2.4) }); // niet langer dan het beeld
+    m.megaFlames[i].visible = mega > 0.2;
+    m.megaFlames[i].scale.set({ x: 0.6 + 0.4 * mega, y: 0.3 + 0.7 * mega * (0.9 + 0.1 * Math.sin(P.t * 31 + ph)), z: 0.6 + 0.4 * mega });
+  });
   m.megaRing.visible = mega > 0.2;
   const mr = 0.9 + 0.1 * Math.sin(P.t * 5);
   m.megaRing.scale.set({ x: mr * mega, y: 1, z: mr * mega });
@@ -560,8 +595,8 @@ function flatSvg(set, bg, dark = isDark()) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">${bg ? `<rect width="300" height="300" fill="${dark ? BG_DARK : BG}"/>` : ''}
 <ellipse cx="150" cy="286" rx="78" ry="7" fill="${dark ? '#2A3550' : '#E6D3AE'}"/>
 <g transform="translate(26 6) scale(.62)">
-<g${o('hoed')}><g transform="rotate(-14 266 332)"><rect x="246" y="300" width="42" height="80" rx="10" fill="#A24C14"/><rect x="251" y="324" width="32" height="30" rx="4" fill="#FFF4DF"/><rect x="256" y="288" width="22" height="14" rx="3" fill="#E0473C"/></g>
-<path d="M300 382C292 400 300 424 310 436C320 424 328 400 320 382C316 392 304 392 300 382Z" fill="#F59E2E"/><path d="M305 388C302 400 306 414 310 420C314 414 318 400 315 388Z" fill="#FFF1A6"/>
+<g${o('hoed')}><g transform="rotate(-12 140 300)"><rect x="125" y="214" width="30" height="86" rx="10" fill="#A24C14"/><rect x="123" y="246" width="34" height="18" rx="3" fill="#FFF4DF"/><rect x="123" y="236" width="34" height="4" fill="#C9D1D8"/><rect x="129" y="202" width="22" height="14" rx="4" fill="#E0473C"/></g><g transform="rotate(12 260 300)"><rect x="245" y="214" width="30" height="86" rx="10" fill="#A24C14"/><rect x="243" y="246" width="34" height="18" rx="3" fill="#FFF4DF"/><rect x="243" y="236" width="34" height="4" fill="#C9D1D8"/><rect x="249" y="202" width="22" height="14" rx="4" fill="#E0473C"/></g>
+<path d="M124 372C116 392 112 420 116 446C128 426 140 398 140 372Z" fill="#F57A1F"/><path d="M128 376C124 394 122 414 124 428C130 414 136 396 136 376Z" fill="#FFD25A"/><path d="M276 372C284 392 288 420 284 446C272 426 260 398 260 372Z" fill="#F57A1F"/><path d="M272 376C276 394 278 414 276 428C270 414 264 396 264 376Z" fill="#FFD25A"/>
 <rect x="184" y="140" width="26" height="18" rx="4" fill="#FFE98A" stroke="#D9B53E" stroke-width="1.5"/><circle cx="197" cy="150" r="4" fill="none" stroke="#B9902A" stroke-width="1.5"/></g>
 <g${o('lijf')}><rect x="150" y="226" width="100" height="22" fill="#2F3542"/>${plate(352, 1.04)}${plate(322, 1)}${plate(292, .96)}${plate(262, .9)}
 <rect x="174" y="296" width="52" height="46" rx="8" fill="#2F3542" stroke="#9AA3AD" stroke-width="1.5"/><circle cx="200" cy="318" r="16" fill="#0E1B2E" stroke="#9AA3AD" stroke-width="1.5"/><path d="M188 318A12 12 0 0 1 212 318" fill="none" stroke="#F59E2E" stroke-width="3"/><path d="M200 318L208 310" stroke="#7FE8FF" stroke-width="2" stroke-linecap="round"/><circle cx="182" cy="302" r="2.2" fill="#4ADE80"/><circle cx="218" cy="302" r="2.2" fill="#E0473C"/></g>
