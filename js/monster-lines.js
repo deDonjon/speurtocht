@@ -234,10 +234,17 @@ export const LINES = {
     gered: [
       'Pfffoe. Thuis. Jetpack koelt af. Jullie hebben mij gered van een gesmolten bodem.',
     ],
-    // De tijd is om, maar ze zijn er nog niet. Nooit erg: gewoon rustig doorlopen.
+    // De tijd is om, maar ze zijn er nog niet: noodkoeling op elke telefoon (samen koel tikken). Nooit eng, geen straf.
     op: [
-      'Pssssst... de jetpack is gaan sissen. Geeft niks, ik koel wel af met een natte theedoek. Loop maar rustig door, niet rennen.',
-      'Bliep. Jetpack op nul. Mijn stroop is een beetje aangebrand, maar ik leef nog. Stevig doorlopen, speurders, ik wacht op jullie.',
+      'Pssssst! Jetpack op nul, ik sis als een pannenkoek in de pan! Noodkoeling, monteurs: sta stil en tik mij koel!',
+      'Bliep bliep! Tijd om, mijn stroop brandt aan! Stop even en tik zo snel als je kunt op de koelknop!',
+    ],
+    afgekoeld: [
+      'Aaaah. Afgekoeld. Dat scheelde een aangebrande bodem. Dank je wel, monteurs! Nu rustig naar huis, niet rennen.',
+    ],
+    // Thuis aangekomen nadat de tijd om was (en er gekoeld is).
+    thuis: [
+      'Pfffoe. Thuis. Jetpack koel, bodem heel. Jullie zijn mijn favoriete brandweer.',
     ],
   },
   // Verjaardagswens: alleen de jarige, één keer (wish.used).

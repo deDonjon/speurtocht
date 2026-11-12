@@ -2,7 +2,7 @@
 //   thief.*        de Kruimelaar: een kruimelrobotje pikt een onderdeel, achtervolging op de kaart, de armen pakken het terug
 //   storm.*        Kortsluiting: 30 s vonken wegtikken op elke telefoon, scores tellen op (storm.score {n})
 //   fork.*         Dubbel signaal: twee kanten op, elke speurder stemt (fork.vote {player_id, choice})
-//   finale.timer   Jetpack oververhit: aftelklok naar huis; thuis aankomen = gered
+//   finale.timer   Jetpack oververhit: aftelklok naar huis; thuis aankomen = gered; tijd om = noodkoeling (samen koel tikken)
 //   pan            Poffertjespan (12 nov avond): schuifpuzzel in een poffertjespan, op elke telefoon dezelfde husseling. Geen eigen events:
 //                  de regie zet game.surprise = { kind:'pan', started_at, data:{ seed, mode:'wissel'|'makkelijk'|'gewoon', image?, nums } } (patchGame) en haalt hem weer weg.
 //                  image = Mecha-Pof (leeg) of een goedgekeurde tekening (ondertekende link uit de regie).
@@ -159,6 +159,12 @@ body.sp-storm .pkmon-bubble,body.sp-storm .bubble{display:none!important}
   box-shadow:0 0 18px rgba(255,233,138,.8);animation:sp-pop .25s ease-out,sp-flicker .35s steps(2) infinite;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 #sp-ov .sp-spark.hit{animation:sp-hit .22s ease-out forwards;pointer-events:none}
 #sp-ov .sp-score{display:flex;justify-content:space-between;width:100%;color:#EAF2FF;font-weight:900;font-size:1.1rem}
+/* jetpack: noodkoeling */
+#sp-ov .sp-big.sp-hot{color:#FF8A5C;text-shadow:0 0 18px rgba(255,120,70,.7)}
+#sp-ov .sp-temp{width:100%;height:26px;border-radius:13px;background:#0E1B2E;border:2px solid #3C4A66;overflow:hidden}
+#sp-ov .sp-temp i{display:block;height:100%;background:linear-gradient(90deg,#7FE8FF,#F2BE62 45%,#FF5A3C);transition:width .12s linear}
+#sp-ov .sp-koel{width:100%;min-height:120px;border-radius:22px;border:3px solid #7FE8FF;background:linear-gradient(180deg,#1E6F8C,#12425A);color:#EAF8FF;font:400 2.2rem 'Lilita One',system-ui,sans-serif;box-shadow:0 6px 0 #0A1322,0 0 26px rgba(127,232,255,.45);touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+#sp-ov .sp-koel:active{transform:translateY(4px);box-shadow:0 2px 0 #0A1322}
 /* dubbel signaal */
 #sp-ov .sp-fork{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
 #sp-ov .sp-fork button{min-height:96px;border-radius:16px;border:2px solid #4E5D7E;background:linear-gradient(180deg,#3A4356,#2A3142);color:#EAF2FF;font:800 1rem/1.25 Nunito,system-ui,sans-serif;padding:10px;box-shadow:0 4px 0 #10141C}
@@ -394,35 +400,82 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
   }
 
   // ---------------------------------------------------------------- Jetpack oververhit (finale.timer)
+  // Loopt de klok af vóór ze thuis zijn, dan volgt de noodkoeling: op elke telefoon springt een thermometer open en tikken ze
+  // de jetpack samen koel (KOEL_TIKS tikken per telefoon). Daarna: 'afgekoeld', rustig naar huis. Geen straf, wel een echt einde.
+  const KOEL_TIKS = 20;
+  let rescuedAt = null; // started_at van de timer die thuis al is afgerond
+  // Dezelfde timer herkennen: het event (ev.at) en game.surprise.started_at kunnen een fractie verschillen, dus met speling vergelijken.
+  const sameTimer = (a, b) => !!a && !!b && Math.abs(Date.parse(a) - Date.parse(b)) < 5000;
+  const koelGet = () => { try { return localStorage.getItem('pkm2_koel'); } catch { return null; } };
   function timerStart(p, startedAt) {
-    cur = { kind: 'finale', seconds: +p.seconds || 300, startedAt: startedAt || new Date(now()).toISOString(), warned: false, out: false, timer: 0 };
-    alarm(); refresh();
-    speak('oververhit', 'start', { interrupt: true });
+    cur = { kind: 'finale', seconds: +p.seconds || 300, startedAt: startedAt || new Date(now()).toISOString(), warned: false, out: false, cooled: false, taps: 0, timer: 0 };
+    if (sameTimer(koelGet(), cur.startedAt)) { cur.out = true; cur.warned = true; cur.cooled = true; cur.taps = KOEL_TIKS; } // deze telefoon had al gekoeld (herladen)
+    const late = timerLeft() <= 0; // een telefoon die pas inlogt als de tijd al om is: geen alarm en geen startzin meer
+    if (!late) alarm();
+    refresh();
+    if (!late) speak('oververhit', 'start', { interrupt: true });
     cur.timer = setInterval(timerTick, 500); timers.add(cur.timer);
+    if (late) timerTick();
   }
   const timerLeft = () => roundSecondsLeft(cur.startedAt, cur.seconds, now());
   function timerTick() {
     if (cur?.kind !== 'finale') return;
     const left = timerLeft();
     showBanner(bannerFor());
-    if (ov) { const big = ov.querySelector('.sp-big'); if (big) big.textContent = mmss(left); }
+    if (ov && !cur.out) { const big = ov.querySelector('.sp-big'); if (big) big.textContent = mmss(left); }
     if (left <= 10 && left > 0 && !cur.out && hasRole('radio')) { if (cur.lastTick !== left) { cur.lastTick = left; audio?.play('klok'); } }
-    if (left <= 60 && !cur.warned) { cur.warned = true; speak('oververhit', 'bijna'); }
-    if (left <= 0 && !cur.out) { cur.out = true; audio?.play('val'); buzz([200, 100, 200]); speak('oververhit', 'op', { interrupt: true }); refresh(); }
+    if (left <= 60 && left > 0 && !cur.warned) { cur.warned = true; speak('oververhit', 'bijna'); }
+    if (left <= 0 && !cur.out) timerOut();
+  }
+  // De tijd is om: alarm, de thermometer springt open op elke telefoon.
+  function timerOut() {
+    cur.out = true; cur.warned = true;
+    alarm(); audio?.play('val'); buzz([200, 100, 200, 100, 400]);
+    speak('oververhit', 'op', { interrupt: true });
+    modal = null; refresh(); openOverlay();
+  }
+  const koelTemp = () => Math.max(0, Math.round(100 * (1 - cur.taps / KOEL_TIKS)));
+  function koelTap() {
+    if (cur?.kind !== 'finale' || !cur.out || cur.cooled) return;
+    cur.taps++; audio?.play('vonk'); buzz(20);
+    if (cur.taps >= KOEL_TIKS) return koelDone();
+    const t = koelTemp(), bar = ov?.querySelector('.sp-temp i'), num = ov?.querySelector('.sp-big');
+    if (bar) bar.style.width = t + '%';
+    if (num) num.textContent = t + '°';
+  }
+  function koelDone() {
+    cur.cooled = true;
+    try { localStorage.setItem('pkm2_koel', cur.startedAt); } catch {}
+    confetti(); audio?.play('ok'); buzz([60, 40, 60, 40, 200]);
+    speak('oververhit', 'afgekoeld', { interrupt: true });
+    refresh(); openOverlay();
+    const c = cur; later(() => { if (cur === c && !modal) { closeOverlay(); refresh(); } }, 7000);
   }
   function timerHtml() {
     const left = timerLeft();
-    return `<span class="sp-eye">🔥 Jetpack</span><h2>${cur.out ? 'Pssst… de jetpack sist' : 'Jetpack oververhit!'}</h2>
-      ${cur.out ? '<p>Geen zorgen, hij koelt wel weer af. Stevig doorlopen naar huis, niet rennen.</p>' : `<div class="sp-big">${mmss(left)}</div><p>Zo lang houdt de jetpack het nog. Snel (maar veilig!) naar huis.</p>`}
+    if (cur.out && cur.cooled) return `<span class="sp-eye">❄️ Jetpack</span><h2>Afgekoeld!</h2><div class="sp-big">0°</div>
+      <p>Pfff, dat scheelde een aangebrande bodem. Nu rustig naar huis, daar wacht Mecha-Pof op zijn hoed.</p>
+      <button class="sp-ok" data-a="close">Verder</button>`;
+    if (cur.out) return `<span class="sp-eye">🔥 Jetpack op nul</span><h2>Noodkoeling!</h2>
+      <div class="sp-big sp-hot">${koelTemp()}°</div>
+      <div class="sp-temp"><i style="width:${koelTemp()}%"></i></div>
+      <p>De jetpack sist! Sta even stil en tik hem samen koel.</p>
+      <button class="sp-koel" type="button" data-a="koel">🌬️ KOEL!</button>
+      <p class="sp-note">Op elke telefoon. Daarna rustig verder lopen, bij de begeleider blijven.</p>`;
+    return `<span class="sp-eye">🔥 Jetpack</span><h2>Jetpack oververhit!</h2>
+      <div class="sp-big">${mmss(left)}</div><p>Zo lang houdt de jetpack het nog. Snel (maar veilig!) naar huis.</p>
       <p class="sp-note">Rennen over de weg hoeft nooit. Bij de begeleider blijven.</p>
       <button class="sp-ok" data-a="close">Verder</button>`;
   }
   function timerRescued() {
     if (cur?.kind !== 'finale') return;
+    rescuedAt = cur.startedAt;
     clearInterval(cur.timer); confetti(); audio?.play('badge'); buzz([60, 40, 60, 40, 200]);
-    openOverlay(`<span class="sp-eye">🔥 Jetpack</span><h2>Gered!</h2><p>Thuis! De jetpack koelt af. Jullie hebben Mecha-Pof gered van een gesmolten bodem.</p>`);
+    openOverlay(cur.out
+      ? `<span class="sp-eye">❄️ Jetpack</span><h2>Thuis!</h2><p>De jetpack is afgekoeld en Mecha-Pof is weer thuis. Goed gekoeld, monteurs!</p>`
+      : `<span class="sp-eye">🔥 Jetpack</span><h2>Gered!</h2><p>Thuis! De jetpack koelt af. Jullie hebben Mecha-Pof gered van een gesmolten bodem.</p>`);
     if (!cur.out) award('jetpack', me().map(x => x.id));
-    speak('oververhit', 'gered', { interrupt: true });
+    speak('oververhit', cur.out ? 'thuis' : 'gered', { interrupt: true });
     end(6000);
   }
 
@@ -609,7 +662,7 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
       case 'storm': return { t: cur.over ? '⚡ Kortsluiting: telling…' : '⚡ Kortsluiting! Tik de vonken', v: cur.over ? '' : stormLeft() + 's' };
       case 'fork': { const t = forkTally(); return { t: `📡 Dubbel signaal · A ${t.a} · B ${t.b}`, v: cur.result ? (cur.result === 'a' ? 'A' : 'B') : 'stem!' }; }
       case 'pan': return { t: cur.doneMs != null ? '🥞 Poffertjespan: gelukt!' : `🥞 Poffertjes door elkaar · tik om te ${cur.mode === 'wissel' ? 'wisselen' : 'schuiven'}`, v: cur.doneMs != null ? '✓' : cur.moves + ' zetten' };
-      case 'finale': return { t: cur.out ? '🔥 Jetpack sist… rustig naar huis' : '🔥 Jetpack oververhit · snel naar huis', v: cur.out ? '' : mmss(timerLeft()) };
+      case 'finale': return cur.cooled ? { t: '❄️ Jetpack afgekoeld · rustig naar huis', v: '✓' } : cur.out ? { t: '🔥 Jetpack sist! Tik om te koelen', v: koelTemp() + '°' } : { t: '🔥 Jetpack oververhit · snel naar huis', v: mmss(timerLeft()) };
       default: return { t: '' };
     }
   }
@@ -620,6 +673,7 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
   function onOverlayClick(e) {
     const a = e.target.closest('[data-a]')?.dataset.a;
     if (a === 'close') { modal = null; closeOverlay(); refresh(); return; }
+    if (a === 'koel') { koelTap(); return; }
     if (a === 'panhelp') { panHelp(); return; }
     const w = e.target.closest('[data-w]')?.dataset.w; if (w) { wishPick(w); return; }
     const pf = e.target.closest('[data-pof]'); if (pf) { panTap(pf.dataset.pof); return; }
@@ -651,7 +705,7 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
       if (s.kind === 'thief') thiefStart(d, s.started_at);
       else if (s.kind === 'storm') stormStart(d, s.started_at);
       else if (s.kind === 'fork') forkOpen(d, s.started_at);
-      else if (s.kind === 'finale') timerStart(d, s.started_at);
+      else if (s.kind === 'finale') { if (!['finale', 'klaar'].includes(g.phase) && !sameTimer(rescuedAt, s.started_at)) timerStart(d, s.started_at); } // thuis is de klok klaar: niet opnieuw starten zolang de regie hem laat staan
       else if (s.kind === 'pan') panStart(d, s.started_at);
     } else if (!s && cur && ['thief', 'storm', 'fork', 'finale', 'pan'].includes(cur.kind)) {
       if (cur.kind === 'pan') { panEnd(); return; }

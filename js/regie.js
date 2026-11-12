@@ -3,7 +3,7 @@
 // Geheimen (codes, missies, stop-geheimen) komen uit regie_state en staan alleen in `R`.
 import { state, PARTS, TALENTS } from './state.js';
 import { sync, IS_TEST } from './sync.js';
-import { LINES } from './monster-lines.js?v=18'; // wekzin (chat 7)
+import { LINES } from './monster-lines.js?v=19'; // wekzin (chat 7)
 import * as tk from './tekening.js?v=2'; // tab 📸 Tekeningen (12 nov)
 
 /* ================================================================ hulpjes */
@@ -257,7 +257,7 @@ function surpriseStatus() {
     return `<div class="surprise"><span class="k">📡 Dubbel signaal</span><p>A: <b>${esc(s.data?.a || 'A')}</b> (${a}) · B: <b>${esc(s.data?.b || 'B')}</b> (${b})</p></div>`;
   }
   if (s.kind === 'pan') return `<div class="surprise"><span class="k">🥞 Poffertjespan</span><p>Staat op de telefoons sinds ${fmtTime(started)} (${ago(started)}) · ${s.data?.image ? 'met een tekening' : 'met Mecha-Pof'} · stand ${esc({ wissel: 'wisselen', makkelijk: 'schuiven makkelijk', gewoon: 'schuiven gewoon' }[s.data?.mode] || 'schuiven gewoon')}</p></div>`;
-  if (s.kind === 'finale') { const left = secondsLeft(s.data?.seconds || 0); return `<div class="surprise"><span class="k">🔥 Jetpack oververhit</span><p><span class="countdown">${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</span> tot de jetpack het begeeft</p></div>`; }
+  if (s.kind === 'finale') { const left = secondsLeft(s.data?.seconds || 0); return `<div class="surprise"><span class="k">🔥 Jetpack oververhit</span><p>${left > 0 ? `<span class="countdown">${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</span> tot de jetpack het begeeft` : 'Tijd om: op de telefoons staat de noodkoeling (samen koel tikken). Stop de timer als ze thuis zijn.'}</p></div>`; }
   return `<div class="surprise"><span class="k">${esc(s.kind)}</span></div>`;
 }
 setInterval(() => { if (loggedIn && game()?.surprise && $('#surprise')) $('#surprise').innerHTML = surpriseStatus(); }, 1000);
