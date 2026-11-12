@@ -4,7 +4,7 @@
 import { state, PARTS, TALENTS } from './state.js';
 import { sync, IS_TEST } from './sync.js';
 import { LINES } from './monster-lines.js?v=21'; // wekzin (chat 7)
-import * as tk from './tekening.js?v=2'; // tab 📸 Tekeningen (12 nov)
+import * as tk from './tekening.js?v=3'; // tab 📸 Tekeningen (12 nov)
 import { stand, seintjes, lagText, TANKSTATION } from './planning.js?v=1'; // blok Stand: schema, verwachte eindtijd, seintjes (12 nov avond)
 
 /* ================================================================ hulpjes */
@@ -51,6 +51,7 @@ const EV_LABEL = {
 };
 const PUZZLE_TYPES = ['vraag', 'code', 'keuze', 'opdracht', 'memory', 'schuif', 'splits', 'slot', 'sync', 'licht', 'formatie', 'qr'];
 const QUICK_SAYS = [
+  'Eerste opdracht, monteurs! Allemaal bij de krukjes op het erf voor de teamfoto. Kijk stoer. Of lief. Of allebei. Bliep!',
   'Bzzzt! Mijn sensoren zien jullie. Doorlopen, speurders!',
   'Piep piep. Blijf bij de begeleider, mijn processor wordt zenuwachtig.',
   'Stroopmeter in het rood. Snel, ik heb honger!',

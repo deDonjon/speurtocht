@@ -28,3 +28,7 @@ create table if not exists foto_tekening (
 create index if not exists foto_tekening_game on foto_tekening (game_id, created_at desc);
 alter table foto_tekening enable row level security;
 revoke all on foto_tekening from anon, authenticated;
+
+-- 12 nov avond: originele foto's op volle resolutie in dezelfde privé-bucket (map <spel-id>/origineel/), via de functie monster-origineel.
+-- iPhones kunnen HEIC aanleveren, dus dat mag er ook in.
+update storage.buckets set allowed_mime_types = array['image/png','image/jpeg','image/webp','image/heic','image/heif'] where id = 'monster-prive';

@@ -1,6 +1,7 @@
 // tekening.js — foto wordt Mecha-Pof-tekening (12 nov 2026). Gebruikt door regie.html (tab 📸 Tekeningen) en kern.html (finale).
 // Praat met de Edge Function monster-foto (regiesleutel verplicht). De tekeningen staan als PNG in de PRIVÉ-bucket monster-prive;
-// deze module krijgt alleen ondertekende links (3 uur geldig). De foto zelf blijft alleen in het geheugen van de regie-telefoon.
+// deze module krijgt alleen ondertekende links (3 uur geldig). De ORIGINELE foto gaat bij het kiezen op volle resolutie naar dezelfde
+// privé-bucket (map origineel/, via een ondertekende upload-link) en komt mee in de zip; naar OpenAI gaat alleen de verkleinde versie.
 //
 //   Regie:  tk.init({ onChange, toast, players })   één keer na het inloggen; ververst zelf zolang er tekeningen bezig zijn
 //           tk.tabHTML()                            inhoud van de tab (regie.js zet hem in het paneel)
@@ -11,6 +12,7 @@ import { sync, SUPABASE_URL, SUPABASE_KEY, IS_TEST, GAME_CODE } from './sync.js'
 import { PARTS, TALENTS } from './state.js';
 
 const FUNCTIE = SUPABASE_URL + '/functions/v1/monster-foto';
+const FUNCTIE_ORIG = SUPABASE_URL + '/functions/v1/monster-origineel'; // originele foto's, volle resolutie
 const STIJL_PNG = new URL('../test/mecha-pof-stijl.png', import.meta.url).href;
 const MAX_ZIJDE = 1600;
 const NAAM = { groep: 'Groep', feest: 'Feestplaat', portret: 'Portret' }, STIJLEN = { strip: 'Stripboek', prent: 'Prentenboek' };
@@ -19,8 +21,8 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const sleutel = () => { try { return sync.regie.sleutel?.() || sessionStorage.getItem('pkm2_regie' + (IS_TEST ? '_' + GAME_CODE : '')) || ''; } catch { return ''; } };
 
 /* ================================================================ verbinding met de functie */
-async function post(body, isForm = false) {
-  const r = await fetch(FUNCTIE, { method: 'POST', body: isForm ? body : JSON.stringify(body),
+async function post(body, isForm = false, url = FUNCTIE) {
+  const r = await fetch(url, { method: 'POST', body: isForm ? body : JSON.stringify(body),
     headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'x-regie-key': sleutel(), ...(isForm ? {} : { 'content-type': 'application/json' }) } });
   const j = await r.json().catch(() => ({ ok: false, error: `HTTP ${r.status}` }));
   if (!j.ok) throw new Error(j.error || `HTTP ${r.status}`);
@@ -29,6 +31,21 @@ async function post(body, isForm = false) {
 export const lijst = () => post({ actie: 'lijst' }).then(j => j.rijen || []);
 export const keur = (id, ok) => post({ actie: 'keur', id, ok });
 export const weg = id => post({ actie: 'weg', id });
+export const originelen = () => post({ actie: 'lijst' }, false, FUNCTIE_ORIG).then(j => j.rijen || []);
+/** Originele foto (volle resolutie) rechtstreeks in de privé-bucket zetten. */
+export async function bewaarOrigineel(slot, file) {
+  const type = (file.type || 'image/jpeg').toLowerCase();
+  const { url } = await post({ actie: 'upload', slot, type }, false, FUNCTIE_ORIG);
+  const r = await fetch(url, { method: 'PUT', body: file, headers: { 'content-type': type, 'x-upsert': 'true', apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } });
+  if (!r.ok) throw new Error(`opslaan gaf HTTP ${r.status}`);
+}
+async function origineel(slot) { // status staat bij de foto: bezig → ok | fout (dan knop Opnieuw)
+  const f = R.fotos.get(slot); if (!f?.file) return;
+  f.orig = 'bezig'; opts.onChange();
+  try { await bewaarOrigineel(slot, f.file); if (R.fotos.get(slot) === f) f.orig = 'ok'; R.origN = null; }
+  catch (e) { if (R.fotos.get(slot) === f) f.orig = 'fout'; opts.toast('⚠️ Origineel niet bewaard: ' + (e.message || e), 6000, true); }
+  opts.onChange();
+}
 let stijlBlob = null;
 async function stijlvoorbeeld() { if (!stijlBlob) { const r = await fetch(STIJL_PNG); if (!r.ok) throw new Error('stijlvoorbeeld niet gevonden'); stijlBlob = await r.blob(); } return stijlBlob; }
 const formaat = ({ w, h }) => { const r = w / h; return r > 1.2 ? '1536x1024' : r < 0.83 ? '1024x1536' : '1024x1024'; };
@@ -91,7 +108,7 @@ export function badge() { return R.rijen.filter(r => r.status === 'klaar' && !R.
 async function kiesGekozen(e) {
   const f = e.target.files?.[0]; e.target.value = ''; if (!f || !kiesVoor) return;
   const slot = kiesVoor; kiesVoor = null;
-  try { const oud = R.fotos.get(slot); if (oud) URL.revokeObjectURL(oud.url); R.fotos.set(slot, await verklein(f)); opts.onChange(); }
+  try { const oud = R.fotos.get(slot); if (oud) URL.revokeObjectURL(oud.url); R.fotos.set(slot, { ...(await verklein(f)), file: f, orig: '' }); opts.onChange(); origineel(slot); }
   catch (err) { opts.toast('⚠️ ' + (err.message || err), 4000, true); }
 }
 async function teken(soort, slot, stijl, speler = null) {
@@ -107,6 +124,7 @@ async function klik(e) {
   if (a === 'teken') return teken(b.dataset.soort, b.dataset.slot, R.stijl[b.dataset.slot] || 'strip', b.dataset.speler || null);
   if (a === 'groot') { R.gezien.add(id); return groot(b.dataset.url || rij?.url); }
   if (a === 'zip') return downloadAlles();
+  if (a === 'orig') return origineel(b.dataset.slot);
   if (!rij) return;
   b.disabled = true;
   try {
@@ -143,7 +161,8 @@ async function downloadAlles() {
   try {
     await ververs();
     const klaar = R.rijen.filter(r => r.status === 'klaar' && r.url);
-    if (!klaar.length) { opts.toast('Nog geen klare tekeningen.', 3000, true); return; }
+    const orig = (await originelen().catch(() => [])).filter(o => o.url);
+    if (!klaar.length && !orig.length) { opts.toast('Nog geen klare tekeningen of foto\'s.', 3000, true); return; }
     const { default: JSZip } = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
     const zip = new JSZip(), root = 'Mecha-Pof tekeningen';
     let n = 0;
@@ -152,9 +171,15 @@ async function downloadAlles() {
       const png = await (await fetch(r.url)).blob();
       zip.file(`${map}/${bestandsnaam(r, 'png')}`, png);
       zip.file(`${map}/klein/${bestandsnaam(r, 'jpg')}`, await naarJpeg(png));
-      opts.toast(`📦 ${++n} van ${klaar.length}…`, 1200);
+      opts.toast(`📦 ${++n} van ${klaar.length + orig.length}…`, 1200);
     }
-    zip.file(`${root}/LEESMIJ.txt`, 'Tekeningen van het verjaardagsfeest (Operatie Mecha-Pof, 13 november 2026).\nPNG = beste kwaliteit (printen). Map "klein" = JPEG om te versturen.\n"-gekozen" = de tekening die in het spel is gebruikt.\n');
+    const tel = {};
+    for (const o of orig) { // originele foto's op volle resolutie, zoals ze gekozen zijn
+      const wie = o.slot === 'groep' ? 'Reparatieteam' : o.naam || 'Onbekend', k = (tel[wie] = (tel[wie] || 0) + 1), ext = (o.bestand.match(/\.([a-z0-9]+)$/i) || [])[1] || 'jpg';
+      zip.file(`${root}/Originele foto's/${wie}-${k}.${ext}`, await (await fetch(o.url)).blob());
+      opts.toast(`📦 ${++n} van ${klaar.length + orig.length}…`, 1200);
+    }
+    zip.file(`${root}/LEESMIJ.txt`, 'Tekeningen van het verjaardagsfeest (Operatie Mecha-Pof, 13 november 2026).\nPNG = beste kwaliteit (printen). Map "klein" = JPEG om te versturen.\n"-gekozen" = de tekening die in het spel is gebruikt.\nMap "Originele foto\'s" = de foto\'s zelf, op volle resolutie.\n');
     const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
     const naam = 'mecha-pof-tekeningen.zip', file = new File([blob], naam, { type: 'application/zip' });
     if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file] }); return; } catch (e) { if (e.name === 'AbortError') return; } }
@@ -183,7 +208,7 @@ function fotoBlok(slot, label) {
   return `<div class="tk-foto">${f ? `<img src="${esc(f.url)}" alt="">` : '<div class="tk-leeg">📷</div>'}
     <div class="row"><button class="sm plain" data-tk="maak" data-slot="${esc(slot)}">📷 Maak</button><button class="sm plain" data-tk="kies" data-slot="${esc(slot)}">🖼️ Kies</button>
     <select data-tk-stijl="${esc(slot)}">${Object.entries(STIJLEN).map(([k, l]) => `<option value="${k}" ${(R.stijl[slot] || 'strip') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
-    ${f ? '' : `<p class="note">${esc(label)}</p>`}</div>`;
+    ${f ? `<p class="note">${f.orig === 'ok' ? `✓ Origineel bewaard (${(f.file.size / 1048576).toFixed(1).replace('.', ',')} MB, volle resolutie)` : f.orig === 'fout' ? `⚠️ Origineel niet bewaard <button class="sm plain" data-tk="orig" data-slot="${esc(slot)}">Opnieuw</button>` : '⏳ Origineel wordt bewaard…'}</p>` : `<p class="note">${esc(label)}</p>`}</div>`;
 }
 export function tabHTML() {
   for (const r of R.rijen) if (r.status === 'klaar') R.gezien.add(r.id); // de tab is open: alles wat klaar is, is gezien
@@ -207,7 +232,7 @@ export function tabHTML() {
         <div class="tk-lijst">${rij(r => r.player_id === p.id).map(kaart).join('')}</div></div>`; }).join('')}
   </div>
   <div class="page"><span class="tab">Bewaren en versturen</span>
-    <p class="note">Alle klare tekeningen staan privé opgeslagen (niet openbaar). De zip heeft per meid een map, plus "Reparatieteam"; elk beeld als PNG (printen) en als kleine JPEG (versturen).${kosten ? ` Tot nu toe ± $${kosten.toFixed(2)}.` : ''}</p>
+    <p class="note">Alle klare tekeningen staan privé opgeslagen (niet openbaar). De zip heeft per meid een map, plus "Reparatieteam"; elk beeld als PNG (printen) en als kleine JPEG (versturen). Elke foto die je hier maakt of kiest wordt ook zelf bewaard, op volle resolutie, en zit in de zip onder "Originele foto's".${kosten ? ` Tot nu toe ± $${kosten.toFixed(2)}.` : ''}</p>
     <button class="plain wide" data-tk="zip" ${zipBezig ? 'disabled' : ''}>${zipBezig ? '📦 Bezig met inpakken…' : '📦 Alles downloaden (zip)'}</button>
     ${R.geladen ? '' : '<p class="note">Laden…</p>'}
   </div>`;
