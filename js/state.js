@@ -86,6 +86,8 @@ export const state = {
     for (const p of s.players) if (p.online && p.device_id && !claims.has(p.id)) ids.add(p.device_id);
     return [...ids].sort();
   },
+  /** Spelers die een toestel via presence meldt (ook als device_id in de database leeg is, bv. na een reset). */
+  playersOn(deviceId) { return presence.get(deviceId)?.players || []; },
   phones() { return Math.max(1, state.devices().length); }, // aantal toestellen online (1, 2 of 3)
   partsMissing() { const have = new Set(s.game?.parts || []); return Object.keys(PARTS).filter(p => !have.has(p)); },
   partsFound() { return s.game?.parts || []; },

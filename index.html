@@ -82,6 +82,9 @@ input.big:focus{border-color:var(--led);box-shadow:inset 0 2px 8px rgba(0,0,0,.5
 .conn{width:16px;height:20px;flex:none}
 .walkiebtn{min-height:40px;padding:0 13px 0 10px;border-radius:999px;background:linear-gradient(180deg,#FFE3A6 0%,var(--gold) 55%,var(--gold-dark) 100%);color:#2B1606;border:0;box-shadow:0 3px 0 var(--gold-deep),0 0 14px rgba(242,190,98,.45);font-family:var(--display);font-size:1rem;letter-spacing:.02em;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
 .walkiebtn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--gold-deep)}
+.walkiebtn.wijs{animation:wijs .5s ease-in-out 4 alternate}
+@keyframes wijs{to{transform:scale(1.12);box-shadow:0 3px 0 var(--gold-deep),0 0 28px 6px rgba(242,190,98,.85)}}
+.roles .role.wijs{animation:led .4s steps(1) 6}
 .iconbtn{min-height:40px;width:40px;padding:0;border-radius:12px;background:linear-gradient(180deg,#3A4356,#2A3142);color:var(--ink);border:2px solid var(--line2);box-shadow:none;font-size:18px;display:grid;place-items:center}
 .parts{display:flex;gap:5px;justify-content:center;max-width:540px;margin:6px auto 0}
 .part{width:30px;height:30px;border-radius:50%;background:var(--visor);border:2px dashed var(--line2);display:grid;place-items:center;font-size:15px}
@@ -676,7 +679,7 @@ const conn = c => `<svg class="conn" viewBox="0 0 16 20" aria-label="${c === 'on
 function rolesHtml() { // rollen van deze telefoon bij de huidige stop, plus wie de andere heeft
   const mine = myRoles();
   return ROLES.map(r => { const own = mine.includes(r), who = own ? '' : whoHas(r);
-    return `<span class="role ${own ? 'mine' : ''}" title="${esc(ROLE_INFO[r].short)}">${own ? '✓ ' : ''}${ROLE_INFO[r].icon} ${own ? ROLE_INFO[r].label : esc(who || 'ander')}</span>`; }).join('');
+    return `<span class="role ${own ? 'mine' : ''}${r === 'radio' && !own && Date.now() < wijsUntil ? ' wijs' : ''}" title="${esc(ROLE_INFO[r].short)}">${own ? '✓ ' : ''}${ROLE_INFO[r].icon} ${own ? ROLE_INFO[r].label : esc(who || 'ander')}</span>`; }).join('');
 }
 function renderBar() {
   const g = S().game, me = state.me(), got = g?.parts || [];
@@ -684,7 +687,7 @@ function renderBar() {
     <div class="chips">${me.map(p => { const x = guard(p); return `<span class="chip" style="--acc:${x.color}"><i>${x.icon}</i>${esc(p.name)}</span>`; }).join('') || '<span class="eyebrow">Mecha-Pof</span>'}</div>
     ${g && g.phase !== 'lobby' ? `<span class="drops" title="stroopdruppels">💧${g.drops || 0}</span>` : ''}
     ${conn(S().conn)}${sync.outboxSize() ? `<span class="note">${sync.outboxSize()}</span>` : ''}
-    ${me.length && g && !naAfloop() ? (hasRole('radio') ? '<button class="walkiebtn" data-b="walkie" aria-label="Walkietalkie met het monster">📻 Walkie</button>' : !['lobby', 'klaar'].includes(g.phase) ? '' : `<span class="note" title="De walkietalkie zit op de radiotelefoon">📻 bij ${esc(speakerNames() || 'een ander')}</span>`) : ''}
+    ${me.length && g && !naAfloop() ? (hasRole('radio') ? `<button class="walkiebtn${Date.now() < wijsUntil ? ' wijs' : ''}" data-b="walkie" aria-label="Walkietalkie met het monster">📻 Walkie</button>` : !['lobby', 'klaar'].includes(g.phase) ? '' : `<span class="note" title="De walkietalkie zit op de radiotelefoon">📻 bij ${esc(speakerNames() || 'een ander')}</span>`) : ''}
     <button class="iconbtn" data-b="mute" aria-label="Geluid">${muted ? '🔇' : '🔊'}</button>
     <button class="iconbtn" data-b="tray" aria-label="Begeleider">⚙︎</button></div>
     ${g && g.phase !== 'lobby' ? `<div class="parts">${Object.keys(PARTS).map(k => `<span class="part ${got.includes(k) ? 'got' : ''}" title="${esc(PARTS[k].label)}">${got.includes(k) ? PARTS[k].icon : ''}</span>`).join('')}</div>` : ''}
@@ -954,7 +957,18 @@ async function boot() {
   refresh('remount');
 }
 addEventListener('hashchange', () => { const m = (location.hash.match(/[#&]m=(\d{4})(?!\d)/) || [])[1]; if (!m || !booted) return; pasCode = m; try { history.replaceState(null, '', location.pathname + location.search); } catch {} pasLogin().then(() => refresh()); });
-window.pkm = { state, sync, router, finale, PARTS, TALENTS, mon, monsterUrl, monsterImage, audio, toast, say, bubble, chime: audio.chime, buzz, refresh, roles: { myRoles, hasRole, whoHas, deviceWithRole }, install, surprises, nav, callRinging, ringCall, walkieTools, get walkie() { return walkie; } };
+// Tikken op het monster: hooguit eens per 20 s vertelt hij waar de walkie zit, en de knop (of de radio in de rollenregel) licht op.
+var lastTapHint = 0, wijsUntil = 0; // var: renderBar() kan al eerder lopen; // wijsUntil: tot wanneer de walkieknop (of de radio in de rollenregel) oplicht
+function tapLine() {
+  const g = S().game;
+  if (!state.me().length || !g || naAfloop() || Date.now() - lastTapHint < 20_000 || callRinging() || walkie) return null;
+  lastTapHint = Date.now();
+  const mine = hasRole('radio'), who = mine ? '' : speakerNames();
+  wijsUntil = Date.now() + 2400; renderBar(); setTimeout(renderBar, 2500);
+  if (mine) return 'Bliep! Wil je me spreken? Tik op de gouden knop. Walkie! Daar zit mijn mond.';
+  return who ? `Hihi, dat kietelt! Wil je me spreken? Mijn walkie zit bij ${who}. Roep haar maar!` : 'Hihi, dat kietelt! Mijn walkie zit op een andere telefoon. Daar kun je me spreken.';
+}
+window.pkm = { tapLine, state, sync, router, finale, PARTS, TALENTS, mon, monsterUrl, monsterImage, audio, toast, say, bubble, chime: audio.chime, buzz, refresh, roles: { myRoles, hasRole, whoHas, deviceWithRole }, install, surprises, nav, callRinging, ringCall, walkieTools, get walkie() { return walkie; } };
 renderBar(); refresh('remount'); boot();
 </script>
 </body>

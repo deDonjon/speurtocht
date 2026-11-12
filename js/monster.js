@@ -1227,7 +1227,9 @@ export function createMonster() {
     } else return;
     kick(2600);
     if (line && (kind !== 'tik' || !talking)) {
-      const l = lineFor(kind);
+      // tikken: de app mag een eigen zin geven (pkm.tapLine, bv. waar de walkie zit); anders een gewone kietelzin
+      const own = kind === 'tik' && mood !== 'slaap' ? globalThis.pkm?.tapLine?.() : null;
+      const l = own || lineFor(kind);
       if (l) setTimeout(() => say(l, { auto: true }), kind === 'start' ? 700 : 250);
     }
   }

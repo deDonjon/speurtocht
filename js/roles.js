@@ -46,7 +46,8 @@ export function deviceWithRole(role, s = stopIndex(), devices = state.devices())
 export function namesOnDevice(deviceId) {
   if (!deviceId) return '';
   const s = state.get();
-  const ps = deviceId === s.device.id ? state.me() : s.players.filter(p => p.device_id === deviceId && p.online);
+  const live = state.playersOn?.(deviceId) || [];
+  const ps = deviceId === s.device.id ? state.me() : s.players.filter(p => live.includes(p.id) || (p.device_id === deviceId && p.online));
   return ps.map(p => p.name).join(' & ');
 }
 /** Wie heeft een rol: "Hannah & Isa" of '' als dat deze telefoon is. */
