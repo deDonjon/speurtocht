@@ -72,7 +72,8 @@ const CSS = `
 .sp-thief.old{opacity:.4;border-style:dashed;box-shadow:none}
 .sp-thief.now{animation:sp-hop .9s ease-in-out infinite}
 .sp-me{width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#FCE3A6,#F2BE62 55%,#C9792C);border:3px solid #0E1B2E;display:grid;place-items:center;font-size:12px;box-shadow:0 0 0 2px #F2BE62}
-/* kortsluiting */
+/* kortsluiting: tijdens het tikken geen tekstballon over de arena (de stem klinkt wel) */
+body.sp-storm .pkmon-bubble,body.sp-storm .bubble{display:none!important}
 #sp-ov .sp-arena{position:relative;width:100%;height:min(52vh,420px);border-radius:18px;background:radial-gradient(circle at 50% 40%,#1E3352,#0A1322 75%);border:2px solid #15A4C8;overflow:hidden;touch-action:manipulation}
 #sp-ov .sp-arena .wire{position:absolute;left:-10%;right:-10%;height:3px;background:repeating-linear-gradient(90deg,#4E5D7E 0 18px,#2A3142 18px 26px);opacity:.7}
 #sp-ov .sp-spark{position:absolute;width:64px;height:64px;margin:-32px 0 0 -32px;border:0;border-radius:50%;padding:0;background:radial-gradient(circle,#FFE98A 0%,#F59E2E 45%,rgba(245,158,46,0) 70%);color:#3A1C06;font-size:30px;line-height:1;
@@ -153,8 +154,9 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
     afterRender();
   }
   function closeOverlay() { if (ov) { ov.remove(); ov = null; } cur?.map?.remove?.(); if (cur) cur.map = null; }
-  function refresh() { if (!cur) { if (!modal) closeOverlay(); hideBanner(); return; } showBanner(bannerFor()); if (ov && !modal) { ov.querySelector('.sp-page').innerHTML = renderCur(); afterRender(); } }
-  function end(ms = 0) { const c = cur; const fin = () => { if (cur === c) { cur = null; if (!modal) closeOverlay(); hideBanner(); } }; ms ? later(fin, ms) : fin(); }
+  const stormBody = () => document.body.classList.toggle('sp-storm', cur?.kind === 'storm');
+  function refresh() { stormBody(); if (!cur) { if (!modal) closeOverlay(); hideBanner(); return; } showBanner(bannerFor()); if (ov && !modal) { ov.querySelector('.sp-page').innerHTML = renderCur(); afterRender(); } }
+  function end(ms = 0) { const c = cur; const fin = () => { if (cur === c) { cur = null; stormBody(); if (!modal) closeOverlay(); hideBanner(); } }; ms ? later(fin, ms) : fin(); }
 
   // ---------------------------------------------------------------- de Kruimelaar (thief)
   function thiefStart(p, startedAt) {
@@ -463,7 +465,7 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
     get modal() { return modal; },
     openOverlay: () => openOverlay(),
     badgeLabel,
-    destroy() { offs.forEach(f => f?.()); timers.forEach(t => { clearTimeout(t); clearInterval(t); }); cur = null; closeOverlay(); hideBanner(); wishBtn?.remove(); hideTip(); },
+    destroy() { offs.forEach(f => f?.()); timers.forEach(t => { clearTimeout(t); clearInterval(t); }); cur = null; stormBody(); closeOverlay(); hideBanner(); wishBtn?.remove(); hideTip(); },
   };
 }
 export default createSurprises;

@@ -452,12 +452,13 @@ function tabVerras() {
   const thiefOn = s?.kind === 'thief', stormOn = s?.kind === 'storm', forkOn = s?.kind === 'fork', timerOn = s?.kind === 'finale';
   const jump = thiefOn ? +(eventsAfter('thief.jump', s.started_at)[0]?.payload?.i ?? 0) : 0, n = s?.data?.points?.length || 0;
   const birthday = players().find(p => p.is_birthday);
+  const pick = got.length ? got : IS_TEST ? Object.keys(PARTS) : []; // testspel: de Kruimelaar kan ook zonder gevonden deel of gestart spel
   return `${s ? `<p class="note">Er loopt al een verrassing (${esc(s.kind)}). Eén tegelijk werkt het best: stop die eerst.</p>` : ''}
     <div class="page ${thiefOn ? 'warn' : ''}"><span class="tab">🍪 De Kruimelaar</span>
       <p class="note">Een kruimelrobot steelt een gevonden deel en springt van punt naar punt rond de groep. De Rekenmeester pakt het terug (armen). De punten verschijnen op de kaart.</p>
       ${thiefOn ? `<p>Heeft <b>${esc(PARTS[s.data?.part]?.label || '?')}</b> · punt ${jump + 1} van ${n}</p><div class="grid3"><button class="plain" data-a="thief.jump" ${jump + 1 >= n ? 'disabled' : ''}>⏭ Volgende punt</button><button class="ok" data-a="thief.caught">🫳 Gevangen!</button><button class="danger" data-a="thief.end">✖ Afbreken</button></div>`
-        : `<div class="row"><label class="grow">Welk deel steelt hij?<select data-ui="thiefPart">${got.length ? got.map(k => `<option value="${k}" ${ui.thiefPart === k ? 'selected' : ''}>${PARTS[k].icon} ${esc(PARTS[k].label)}</option>`).join('') : '<option value="">— nog niets gevonden —</option>'}</select></label><button class="led" data-a="thief.start" ${got.length && act ? '' : 'disabled'} style="align-self:end">🍪 Start</button></div>
-           <p class="note">Vier punten op 70–140 m rond ${devs.some(d => d.lat != null && d.online) ? 'de telefoons' : 'de actieve stop'}.</p>`}
+        : `<div class="row"><label class="grow">Welk deel steelt hij?<select data-ui="thiefPart">${pick.length ? pick.map(k => `<option value="${k}" ${ui.thiefPart === k ? 'selected' : ''}>${PARTS[k].icon} ${esc(PARTS[k].label)}</option>`).join('') : '<option value="">— nog niets gevonden —</option>'}</select></label><button class="led" data-a="thief.start" ${pick.length && (act || IS_TEST) ? '' : 'disabled'} style="align-self:end">🍪 Start</button></div>
+           <p class="note">Vier punten op 70–140 m rond ${devs.some(d => d.lat != null && d.online) ? 'de telefoons' : 'de actieve stop'}.${IS_TEST && !got.length ? ' Testspel: starten kan ook zonder gevonden deel.' : ''}</p>`}
     </div>
     <div class="page ${stormOn ? 'warn' : ''}"><span class="tab">⚡ Kortsluiting</span>
       <p class="note">Iedereen tikt vonken weg op de eigen telefoon; de scores tellen op.</p>
@@ -577,7 +578,7 @@ app.addEventListener('click', async e => {
     case 'quick': ui.say = b.dataset.s; renderPanel(); return;
     case 'say': { const text = ui.say.trim(); if (!text) return toast('Typ eerst wat hij moet zeggen.'); if (await busy(() => sync.regie.event('monster.say', { text, ...(ui.mood ? { mood: ui.mood } : {}) }), '🗣️ Gestuurd')) { ui.say = ''; renderPanel(); } return; }
     case 'call': { if (!ui.call) return; const p = { player_id: ui.call, message_id: uid() }; if (ui.callText.trim()) p.text = ui.callText.trim(); return busy(() => sync.regie.event('monster.call', p), `📞 ${playerName(ui.call)} wordt gebeld`); }
-    case 'thief.start': { const part = ui.thiefPart || (g?.parts || [])[0]; if (!part) return; return busy(() => sync.regie.event('thief.start', { part, points: thiefPoints() }), '🍪 De Kruimelaar is los'); }
+    case 'thief.start': { const part = ui.thiefPart || (g?.parts || [])[0] || (IS_TEST ? Object.keys(PARTS)[0] : null); if (!part) return; return busy(() => sync.regie.event('thief.start', { part, points: thiefPoints() }), '🍪 De Kruimelaar is los'); }
     case 'thief.jump': { const i = +(eventsAfter('thief.jump', g.surprise.started_at)[0]?.payload?.i ?? 0) + 1; return busy(() => sync.regie.event('thief.jump', { i }), `⏭ Punt ${i + 1}`); }
     case 'thief.caught': return busy(() => sync.regie.event('thief.caught', {}), '🫳 Gevangen!');
     case 'thief.end': return busy(() => sync.regie.event('thief.end', {}), 'Kruimelaar afgebroken');
