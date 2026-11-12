@@ -42,8 +42,8 @@ export const LINES = {
       'LED-ogen aan. Scannen links, scannen rechts. Gevonden: zes speurders en een kat die mij raar aankijkt. Ik help jullie nu navigeren.',
     ],
     neus: [
-      'Aardbei-knop erin. Snuif, snuif. Ik ruik weer! Ik ruik stroop, ik ruik modder, en ik ruik... hints. Vanaf nu mag je mij om een hint vragen.',
-      'Neus gemonteerd. Niet op drukken, dan nies ik stoom. Mijn hintsensor werkt weer. Vraag maar, als jullie vastzitten.',
+      'Aardbei-knop erin. Snuif, snuif. Ik ruik weer! Ik ruik stroop, ik ruik modder, en ik ruik... hints. Vanaf nu mag je mij ook via de walkie om een hint vragen.',
+      'Neus gemonteerd. Niet op drukken, dan nies ik stoom. Mijn hintsensor werkt weer. Zitten jullie vast? Vraag het mij dan gerust via de walkie.',
     ],
     mond: [
       'Test, test, één twee. Luidspreker werkt! Nu kan ik alarm slaan als er iets geks gebeurt. En ik kan weer brutaal zijn. Daar heb ik zin in.',
@@ -99,7 +99,7 @@ export const LINES = {
     'Jullie krijgen drie telefoons, twee monteurs per telefoon. En nu komt het: elke telefoon kan iets anders. Eén is de kaart, één is de radio en één is de werkbank. Jullie hebben elkaar dus echt nodig.',
     'De kaart wijst de weg en telt de meters af. Op de radio bel ik jullie op. En op de werkbank los je de puzzel op. Bij elke plek schuiven de taken een telefoon door. Bovenaan je scherm staat wat jouw telefoon op dat moment is.',
     'Zijn jullie op een plek aangekomen, dan bel ik de radio. Luister tot ik klaar ben. Daarna zeggen jullie samen wat er groot in beeld staat. Heb je mij niet verstaan? Tik dan op herhaal.',
-    'Dan de puzzel. Die staat op de werkbank, maar jullie lossen hem samen op. Meedenken en hardop roepen mag dus. Is hij goed, dan dient de Sleutelbewaarder hem in en schudt de monteur het onderdeel vast. Komen jullie er echt niet uit? Vraag dan een hint. Die kost wel een paar stroopdruppels.',
+    'Dan de puzzel. Die staat op de werkbank, maar jullie lossen hem samen op. Meedenken en hardop roepen mag dus. Is hij goed, dan dient de Sleutelbewaarder hem in en schudt de monteur het onderdeel vast. Komen jullie er echt niet uit? Tik dan op de hintknop onder de puzzel. Die kost wel een paar stroopdruppels.',
     'Dan nog iets speciaals voor de jarige. {jarige} heeft één verjaardagswens. Die zit achter de taart linksonder op haar telefoon. Ze mag een puzzel overslaan, een gratis hint vragen of iedereen een robotdans laten doen. Het kan maar één keer, dus bewaar hem voor een lastig moment.',
     'En het allerbelangrijkste. Blijf bij elkaar, en steek alleen over samen met de papa van {jarige}. Dat was het! Zijn jullie er klaar voor? Dan gaan we zo beginnen.',
   ],
@@ -493,7 +493,7 @@ export const LINES = {
         'Bzzzt, Mecha-Pof hier. Alles is zwart. Ik heb net sorry gezegd tegen een lantaarnpaal. Mijn LED-ogen liggen bij deze plek. {monteur}, jij bent de monteur, dus jij hebt hier de leiding. Jij verdeelt wie welke schijf doet. Krijg ik mijn ogen terug, dan zeg ik voortaan hoe ver het nog is.',
       ],
       neus: [
-        'Piep piep, snuf... niks. Ik ruik helemaal niks. Mijn aardbei-knop ligt hier. {monteur}, jij bent de monteur, dus jij hebt hier de leiding. Jij zegt wie waar gaat staan. Zonder neus kan ik geen hints ruiken, en hints ruiken naar warme stroop.',
+        'Piep piep, snuf... niks. Ik ruik helemaal niks. Mijn aardbei-knop ligt hier. {monteur}, jij bent de monteur, dus jij hebt hier de leiding. Jij zegt wie waar gaat staan. Zonder neus kan ik zelf geen hints ruiken. Gelukkig staat er altijd een hintknop onder de puzzel.',
       ],
       mond: [
         'Krrr... hoor je dat? Ik praat door een theezeefje. Mijn luidsprekerrooster ligt hier. {monteur}, jij bent de monteur, dus jij hebt hier de leiding. Laat iedereen goed kijken, en jij beslist wanneer jullie het weten. Met een mond kan ik alarm slaan. En nog brutaler doen. Sorry, niet sorry.',
