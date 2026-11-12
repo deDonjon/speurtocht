@@ -107,5 +107,32 @@ console.log('— telefoon: timer → Kortsluiting → timer terug');
   ok('geen scriptfouten', T.errors.length === 0, T.errors.join(' | '));
   await T.page.close(); }
 
+console.log('— tabblad Spel: vóór de start en onderweg');
+{ const w = world({ phase: 'lobby', active: 0, parts: [], startedMin: 0 }); w.game.started_at = null;
+  const R = await open('regie.html', w);
+  await R.page.waitForSelector('input[type=password]'); await R.page.fill('input[type=password]', 'job'); await R.page.keyboard.press('Enter');
+  await R.page.waitForSelector('[data-a=wake]', { timeout: 8000 });
+  const vis = sel => R.page.evaluate(q => { const e = document.querySelector(q); return !!e && e.getClientRects().length > 0 && !e.closest("details:not([open])"); }, sel);
+  ok('lobby: wekken, loting, uitleg en Start in beeld', await vis('[data-a=wake]') && await vis('[data-a=loting]') && await vis('[data-a=uitleg]') && await vis('[data-a=start]'));
+  ok('lobby: talenten loten en instellingen ingeklapt; geen energieknoppen', !(await vis('[data-a=deal]')) && !(await vis('[data-a=radius]')) && !(await R.page.$('[data-a=energy]')));
+  ok('lobby: geen blok Stand', (await R.txt('#stand')).trim() === '');
+  await R.page.click('details[data-d=voor] > summary');
+  await R.page.evaluate(() => window.regie.render()); await sleep(300);
+  ok('uitklapblok blijft open na verversen', await vis('[data-a=radius]'));
+  await R.page.screenshot({ path: '/tmp/regie-lobby.png', fullPage: true });
+  ok('geen scriptfouten', R.errors.length === 0, R.errors.join(' | '));
+  await R.page.close();
+  const Q = await regie(world({ phase: 'puzzel', active: 1, parts: ['lijf'], startedMin: 22, solved: [['s1', 9]] }));
+  const vis2 = sel => Q.page.evaluate(q => { const e = document.querySelector(q); return !!e && e.getClientRects().length > 0 && !e.closest("details:not([open])"); }, sel);
+  await Q.page.waitForSelector('[data-a=approve]');
+  ok('onderweg: hint, GPS overslaan, goedkeuren en Plan B in beeld', await vis2('[data-a=hint]') && await vis2('[data-a=skip]') && await vis2('[data-a=approve]') && await vis2('[data-a=planb]'));
+  ok('onderweg: Start, Reset en talenten loten ingeklapt onder Beheer', !(await vis2('[data-a=start]')) && !(await vis2('[data-a=reset]')) && !(await vis2('[data-a=deal]')) && !(await Q.page.$('[data-a=wake]')));
+  await Q.page.click('details[data-d=beheer] > summary');
+  ok('Beheer open: Reset naar lobby bereikbaar', await vis2('[data-a=reset]'));
+  ok('tabs: Spel, Verrassingen, Bonus vooraan', await Q.page.evaluate(() => [...document.querySelectorAll('nav.tabs button')].slice(0, 3).map(b => b.dataset.tab).join() === 'spel,verras,bonus'));
+  await Q.page.click('details[data-d=beheer] > summary'); await Q.page.screenshot({ path: '/tmp/regie-run.png', fullPage: true });
+  ok('geen scriptfouten', Q.errors.length === 0, Q.errors.join(' | '));
+  await Q.page.close(); }
+
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} MISLUKT, ${n} goed.` : `\n${n} checks goed.`); process.exit(failed ? 1 : 0);

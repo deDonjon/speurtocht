@@ -39,6 +39,7 @@ let sound = store.get(KEY_SOUND, true);
 let follow = store.get(KEY_FOLLOW, true);
 const ui = { say: '', mood: '', hint: '', drops: 10, forkA: '', forkB: '', storm: 30, timerMin: 5, call: '', callText: '', wish: 'puzzel overslaan', planb: '', thiefPart: '', logFilter: '', panImg: '', panNums: true, panMode: 'makkelijk' }; // ingetypte waarden overleven een re-render
 let pendingPanel = false;
+const open = {}; // welke uitklapblokken open staan (overleeft een re-render)
 
 const SURPRISE_TYPES = ['thief.start', 'thief.jump', 'thief.caught', 'thief.end', 'storm.start', 'storm.score', 'storm.end', 'fork.open', 'fork.vote', 'fork.result', 'finale.timer', 'wish.used'];
 const PHASES = { lobby: 'Lobby', onderweg: 'Onderweg', puzzel: 'Puzzel', finale: 'Finale', klaar: 'Klaar' };
@@ -234,7 +235,7 @@ function renderLive() {
     <div class="card gold"><span class="k">Druppels · hints</span><span class="v big">💧${g.drops || 0} <span style="font-size:1rem;color:var(--muted)">· ${g.hints || 0} hint${g.hints === 1 ? '' : 's'}</span></span></div>
     <div class="card ${pz ? (pz.solved_at ? 'ok' : 'warn') : ''}"><span class="k">Puzzel</span><span class="v">${pz ? (pz.solved_at ? `✓ opgelost door ${esc(playerName(pz.solved_by) || 'regie')}` : `${pz.moves?.length || 0} zetten · ${pz.hints || 0} hint · ${ago(pz.arrived_at)}`) : g.phase === 'onderweg' ? 'nog onderweg' : '—'}</span></div>
     <div class="card"><span class="k">Online</span><span class="v">${players().filter(p => p.online).length}/${players().length} · ${devices().filter(d => d.online).length} 📱</span></div>
-    <div class="card ${g.energy === 1 ? 'bad' : g.energy === 3 ? 'ok' : ''}"><span class="k">Energie · wens</span><span class="v">${g.energy ? '⚡'.repeat(g.energy) : '—'} · ${g.wish_used ? '🎂 gebruikt' : '🎂 vrij'}</span></div>` : '';
+    <div class="card ${g.wish_used ? '' : 'gold'}"><span class="k">Verjaardagswens</span><span class="v">${g.wish_used ? '🎂 gebruikt' : '🎂 vrij'}</span></div>` : '';
   $('#surprise', live).innerHTML = surpriseStatus();
   renderStand();
   $('#devs', live).innerHTML = devices().map(d => `<div class="dev ${d.online ? '' : 'off'}"><span class="dot ${d.online ? 'on' : ''}"></span><span class="who">${d.players.map(p => `<b>${esc(p.name)}</b>${p.talent ? ' <small class="note">(' + esc(TALENTS[p.talent]?.label || p.talent) + ')</small>' : ''}`).join(' & ')}</span>
@@ -333,7 +334,7 @@ function parkTick() {
 }
 
 /* ---------- tabbladen */
-const TABS = [['spel', '🎮 Spel'], ['monster', '🤖 Mecha-Pof'], ['foto', '📸 Tekeningen'], ['verras', '✨ Verrassingen'], ['bonus', '⭐ Bonus'], ['spelers', '👧 Spelers'], ['stops', '📍 Stops'], ['log', '📜 Logboek']];
+const TABS = [['spel', '🎮 Spel'], ['verras', '✨ Verrassingen'], ['bonus', '⭐ Bonus'], ['monster', '🤖 Mecha-Pof'], ['foto', '📸 Tekeningen'], ['spelers', '👧 Spelers'], ['stops', '📍 Stops'], ['log', '📜 Logboek']];
 function renderPanel() {
   const panel = $('#panel');
   if (panel.contains(document.activeElement) && document.activeElement.matches('input,textarea,select')) { pendingPanel = true; return; }
@@ -345,6 +346,8 @@ function renderPanel() {
 }
 document.addEventListener('focusout', () => { if (pendingPanel) setTimeout(() => { if (!$('#panel')?.contains(document.activeElement)) renderPanel(); }, 50); });
 app.addEventListener('click', e => { const b = e.target.closest('[data-tab]'), t = b?.dataset.tab; if (t) { tab = t; store.set(KEY_TAB, t); renderPanel(); if (b.dataset.sein) $('#panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+app.addEventListener('click', e => { const d = e.target.closest('summary')?.parentElement; if (d?.dataset?.d) open[d.dataset.d] = !d.open; }); // de klik komt vóór het omklappen
+app.addEventListener('toggle', e => { const d = e.target?.dataset?.d; if (d) open[d] = e.target.open; }, true);
 app.addEventListener('input', e => {
   const k = e.target.dataset.ui; if (!k) return;
   ui[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.type === 'number' || e.target.type === 'range' ? +e.target.value : e.target.value;
@@ -382,32 +385,41 @@ function teaserPanel() {
 function tabSpel() {
   const g = game(), act = activeStop(), pz = activePuzzle(), r = route();
   const started = g?.phase && g.phase !== 'lobby';
-  return `${teaserPanel()}${kernPanel()}<div class="page"><span class="tab">Spel</span>
+  const spel = `<div class="page"><span class="tab">Spel</span>
       <div class="grid2"><button class="ok" data-a="start">${started ? '▶ Opnieuw starten' : '▶ Start (route in volgorde)'}</button><button class="danger" data-a="reset">↺ Reset naar lobby</button></div>
       <p class="note">${started ? `Gestart ${fmtTime(g.started_at)} · route: ${r.map(s => esc(s.name)).join(' → ')}` : `Nog niet gestart. ${players().filter(p => p.online).length} van ${players().length} speurders online.`}</p>
-    </div>
-    <div class="page ${pz && !pz.solved_at && g?.phase === 'puzzel' ? 'warn' : ''}"><span class="tab">Huidige stop${act ? ' · ' + esc(act.name) : ''}</span>
+    </div>`;
+  const stop = `<div class="page ${pz && !pz.solved_at && g?.phase === 'puzzel' ? 'warn' : ''}"><span class="tab">Huidige stop${act ? ' · ' + esc(act.name) : ''}</span>
       ${act ? `<p class="note">${esc(act.clue)}</p>${act.puzzles?.[0]?.question ? `<p>Puzzel: <b>${esc(act.puzzles[pz?.variant ?? 0]?.question || act.puzzles[0].question)}</b>${act.puzzles?.[pz?.variant ?? 0]?.answer ? ` · antwoord <span class="code">${esc(act.puzzles[pz?.variant ?? 0].answer)}</span>` : ''}</p>` : ''}
         ${act.puzzles?.[pz?.variant ?? 0]?.hint ? `<p class="note">Hint in de puzzel: ${esc(act.puzzles[pz?.variant ?? 0].hint)}</p>` : ''}` : '<p class="note">Geen actieve stop.</p>'}
       <div class="grid2"><button class="plain" data-a="skip" ${g?.phase !== 'onderweg' ? 'disabled' : ''}>📡 GPS overslaan</button><button class="plain" data-a="hint" ${!started ? 'disabled' : ''}>💡 Hint geven</button></div>
       <label>Eigen hinttekst (leeg = de hint van de puzzel)<input data-ui="hint" value="${esc(ui.hint)}" placeholder="bijv. Kijk eens onder het bankje…"></label>
       <div class="row"><label class="grow">Druppels bij goedkeuren<input type="number" data-ui="drops" value="${ui.drops}" min="0" max="30"></label><button class="ok" data-a="approve" ${!started || g?.phase === 'klaar' ? 'disabled' : ''} style="align-self:end">✅ Stop goedkeuren</button></div>
       <p class="note">Goedkeuren rondt de actieve stop af alsof de Sleutelbewaarder heeft ingediend (deel erbij, volgende stop actief).</p>
-    </div>
-    <div class="page"><span class="tab">Instellingen</span>
+    </div>`;
+  const planb = `<div class="page"><span class="tab">Telefoon uitgevallen</span>
+      ${devices().length ? `<label>Telefoon die is uitgevallen (voor Plan B)<select data-ui="planb">${devices().map(d => `<option value="${d.id}" ${ui.planb === d.id ? 'selected' : ''}>${d.players.map(p => esc(p.name)).join(' & ')}${d.online ? '' : ' (offline)'}</option>`).join('')}</select></label>` : ''}
+      <button class="plain" data-a="planb" ${devices().length ? '' : 'disabled'}>🪫 Plan B: verder zonder deze telefoon</button>
+      <p class="note">De rollen radio, kaart en werkbank verdelen zich over de telefoons die er nog zijn.</p>
+    </div>`;
+  const inst = `<div class="page"><span class="tab">Instellingen</span>
       <label class="inline"><input type="checkbox" data-a="any" ${g?.settings?.any_can_submit ? 'checked' : ''}> Iedereen mag indienen (niet alleen de Sleutelbewaarder) — vóór het feest uit</label>
       <div class="grid2"><label>Standaardstraal (m)<input type="number" data-a="radius" value="${g?.settings?.radius ?? 20}" min="5" max="100"></label><label>Minimale afstand tussen stops (m)<input type="number" data-a="mingap" value="${g?.settings?.min_gap ?? 150}" min="20" max="1000"></label></div>
-      <div class="row"><span class="note grow">Energie van Mecha-Pof</span>${[1, 2, 3].map(n => `<button class="plain sm ${g?.energy === n ? 'led' : ''}" data-a="energy" data-n="${n}">${'⚡'.repeat(n)}</button>`).join('')}</div>
-      <div class="grid2"><button class="plain" data-a="deal">🎲 Talenten loten</button><button class="plain" data-a="planb" ${devices().length ? '' : 'disabled'}>🪫 Plan B (telefoon uitgevallen)</button></div>
-      ${devices().length ? `<label>Telefoon die is uitgevallen (voor Plan B)<select data-ui="planb">${devices().map(d => `<option value="${d.id}" ${ui.planb === d.id ? 'selected' : ''}>${d.players.map(p => esc(p.name)).join(' & ')}${d.online ? '' : ' (offline)'}</option>`).join('')}</select></label>` : ''}
-    </div>
-    <details class="adv"><summary>Noodknoppen (fase en stop met de hand zetten)</summary>
+    </div>`;
+  const loten = `<div class="page warn"><span class="tab">Talenten opnieuw loten</span>
+      <p class="note">Niet gebruiken op het feest: de talenten staan vast en zijn op de passen gedrukt.</p>
+      <button class="danger" data-a="deal">🎲 Talenten opnieuw loten</button>
+    </div>`;
+  const nood = `<details class="adv" data-d="nood" ${open.nood ? 'open' : ''}><summary>Noodknoppen (fase en stop met de hand zetten)</summary>
       <div class="stack" style="margin-top:8px">
         <div class="row"><label class="grow">Fase<select id="phasesel">${Object.keys(PHASES).map(p => `<option value="${p}" ${g?.phase === p ? 'selected' : ''}>${PHASES[p]}</option>`).join('')}</select></label>
           <label class="grow">Actieve stop<select id="actsel">${r.map((s, i) => `<option value="${i}" ${g?.active_index === i ? 'selected' : ''}>${i + 1}. ${esc(s.name)}</option>`).join('') || '<option>— eerst starten —</option>'}</select></label>
           <button class="danger" data-a="force" style="align-self:end">Zet</button></div>
         <p class="note">Gebruik dit alleen als het spel vastloopt. De puzzelstand van de nieuwe stop wordt niet gewist; "GPS overslaan" na het zetten laat de telefoons aankomen.</p>
       </div></details>`;
+  // Vóór de start: klaarzetten bovenaan. Tijdens het spel: alleen wat je onderweg nodig hebt; starten, reset en instellingen zitten ingeklapt.
+  if (!started) return `${kernPanel()}${spel}<details class="adv" data-d="voor" ${open.voor ? 'open' : ''}><summary>Voorpret, instellingen en noodknoppen</summary><div class="stack" style="margin-top:12px">${teaserPanel()}${inst}${loten}${nood}</div></details>`;
+  return `${stop}${planb}<details class="adv" data-d="beheer" ${open.beheer ? 'open' : ''}><summary>Beheer: reset naar lobby, opnieuw starten, instellingen</summary><div class="stack" style="margin-top:12px">${spel}${inst}${loten}${nood}</div></details>`;
 }
 /* ---------- thuis: het kernscherm (kern.html op de laptop), de wekknop en de loting met animatie (chat 7) */
 const WEKZIN = LINES.wek?.[0] || 'Bzzzt... wie maakt mij wakker?';
@@ -420,7 +432,7 @@ function kernPanel() {
     <p class="note">Kernscherm: ${on ? `<b style="color:var(--ok)">aan</b> (${ago(at)} geleden gemeld)` : '<b style="color:var(--straw)">niet gezien</b> — open <a href="./kern.html" target="_blank">kern.html</a> op de laptop'}. ${woke ? 'Mecha-Pof is wakker.' : 'Mecha-Pof slaapt nog.'}</p>
     <div class="grid2"><button class="${woke ? 'plain' : 'ok'}" data-a="wake">⏻ Wek Mecha-Pof</button><button class="${woke ? 'ok' : 'plain'}" data-a="loting">🎰 Loting starten${bday ? ` (${esc(bday.name)} vast)` : ''}</button></div>
     <button class="plain wide" data-a="uitleg" style="margin-top:8px">📋 Speluitleg op het kernscherm (7 stappen met voorbeelden, ±2 min)</button>
-    <p class="note">Wekken = Mecha-Pof wordt wakker op de laptop, heet iedereen welkom op het feest en vertelt zijn eigen verhaal (4 plaatjes, ±1½ min). Loting = de vijf anderen krijgen een willekeurig talent, ${esc(bday?.name || 'de jarige')} wordt Sleutelbewaarder; de kern laat de namen draaien en Mecha-Pof kondigt elk talent aan. Volgorde: wekken → loting → passen uitdelen → voorstelronde via de walkie → speluitleg → inloggen → start. Monteurspassen (<a href="./print/monteurspas.html?namen=1" target="_blank">met namen en codes</a>).</p>
+    <p class="note">Wekken = Mecha-Pof wordt wakker op de laptop, heet iedereen welkom op het feest en vertelt zijn eigen verhaal (4 plaatjes, ±1½ min). Loting = het talentenrad op de laptop onthult per monteur haar talent (de talenten staan vast, ${esc(bday?.name || 'de jarige')} als laatste). Volgorde: wekken → loting → passen uitdelen → speluitleg → inloggen → voorstelronde via de walkie → start. Monteurspassen (<a href="./print/monteurspas.html?namen=1" target="_blank">met namen en codes</a>).</p>
   </div>`;
 }
 function lotingVast() { // talenten al vooraf verdeeld (passen zijn gedrukt): zes verschillende, de jarige Sleutelbewaarder
@@ -558,7 +570,7 @@ function tabVerras() {
            <div class="row"><label class="grow"><input type="checkbox" data-ui="panNums" ${ui.panNums ? 'checked' : ''} style="width:auto;min-height:0;margin-right:8px">Cijfers op de poffertjes (telt alleen bij "gewoon" met een tekening; anders altijd aan)</label><button class="led" data-a="pan.start" style="align-self:end">🥞 Start</button></div>`}
     </div>
     <div class="page"><span class="tab">🎂 Verjaardagswens</span>
-      <p class="note">Alleen ${esc(birthday?.name || 'de jarige')} mag hem één keer inzetten vanaf haar telefoon. ${g?.wish_used ? '<b>Al gebruikt.</b>' : 'Nog niet gebruikt.'} Vanuit de regie kun je hem namens haar inzetten (telt dan niet als "gebruikt" in het spel, alleen in het logboek).</p>
+      <p class="note">Alleen ${esc(birthday?.name || 'de jarige')} mag hem één keer inzetten vanaf haar telefoon. ${g?.wish_used ? '<b>Al gebruikt.</b>' : 'Nog niet gebruikt.'} Vanuit de regie kun je hem namens haar inzetten; dan is hij ook op haar telefoon gebruikt.</p>
       <div class="row"><label class="grow">Waarvoor<select data-ui="wish">${['puzzel overslaan', 'gratis hint', 'dansje van Mecha-Pof'].map(w => `<option ${ui.wish === w ? 'selected' : ''}>${w}</option>`).join('')}</select></label><button class="plain" data-a="wish" style="align-self:end">🎂 Inzetten namens ${esc(birthday?.name || 'jarige')}</button></div>
     </div>`;
 }
@@ -578,7 +590,7 @@ function tabStops() {
   const gap = game()?.settings?.min_gap || 150, act = activeStop(), g = game();
   let total = 0; const r = route(); for (let i = 1; i < r.length; i++) total += haversine(r[i - 1], r[i]);
   return `<div class="page"><span class="tab">Stops (${all.length})</span>
-      <p class="note">${r.length ? `Route ${Math.round(total)} m in gelote volgorde.` : 'Volgorde = seq; bij Start wordt de route geschud (start vooraan, thuis achteraan).'} Tik op een stop op de kaart of op ✏️ om te bewerken; met 🗺️ kies je de plek op de kaart.</p>
+      <p class="note">${r.length ? `Route ${Math.round(total)} m hemelsbreed, in vaste volgorde.` : 'Bij Start loopt de route in de volgorde van de nummers.'} Tik op een stop op de kaart of op ✏️ om te bewerken; met 🗺️ kies je de plek op de kaart.</p>
       <div class="list">${all.map(st => { const i = stopIndex(st), done = g && i != null && i < g.active_index && g.phase !== 'lobby';
         const near = all.filter(x => x.id !== st.id).map(x => ({ x, d: haversine(st, x) })).sort((a, b) => a.d - b.d)[0];
         const warn = near && near.d < gap && st.key !== 'home' && near.x.key !== 'home';
