@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="fonts/fonts.css">
 <style id="base"></style>
 <style>
-/* Mega-Mecha-Pof levensgroot, 90 × 180 cm (rol 90 cm). Thuis achter de krukjes, onder een laken tot de finale.
+/* Mega-Mecha-Pof levensgroot, 90 × 180 cm (rol 90 cm). Thuis achter de krukjes; hangt vanaf het begin als speelbord (Mecha-Pof vaag, als bouwtekening).
    ?donker=1 = donkere werkplaats (veel inkt); standaard licht (pannenkoekcrème). ?talenten=1 = talenten erbij uit het spel (regiesleutel). */
 @page{size:90cm 180cm;margin:0}
 .sheet{width:90cm;height:180cm;position:relative;overflow:hidden;background:#FFF4DF;color:#3A1C06;display:flex;flex-direction:column;align-items:center}
@@ -20,7 +20,7 @@ h1{margin:.6cm 0 0;font-family:'Lilita One',sans-serif;font-weight:400;font-size
 .sub b{color:#E0352B;font-weight:400}
 .mon{width:82cm;height:82cm;margin-top:1cm;position:relative}
 .mon svg{width:100%;height:100%;display:block}
-#spoor{position:absolute;inset:-13cm -3.5cm -11cm -3.5cm}#mon{position:relative}
+#spoor{position:absolute;inset:-1.5cm -3.5cm -1.5cm -3.5cm;z-index:2}#mon{position:relative;opacity:.3}
 .glow{position:absolute;left:8cm;right:8cm;bottom:3cm;height:9cm;border-radius:50%;background:radial-gradient(closest-side,rgba(242,190,98,.55),transparent)}
 .meter{display:flex;align-items:center;gap:1.4cm;margin-top:-2cm;font-family:'Chakra Petch',monospace;font-weight:700;font-size:2.6cm;letter-spacing:.25em;color:#9A5419}
 .meter .bar{width:44cm;height:3cm;border-radius:2cm;border:.35cm solid #3A1C06;background:linear-gradient(90deg,#15A4C8,#7FE8FF 30%,#F59E2E 65%,#E0352B 88%,#FF2E9A);position:relative;overflow:hidden}
@@ -37,13 +37,13 @@ h1{margin:.6cm 0 0;font-family:'Lilita One',sans-serif;font-weight:400;font-size
 </head>
 <body>
 <div class="wrap"><div class="sheet" id="sheet">
-  <div class="top"><div class="eyebrow">SYSTEEM COMPLEET</div><h1>OPERATIE<br>MECHA-POF</h1><div class="sub">Reparatieteam <b>Hannah 10</b></div></div>
-  <div class="mon"><div id="spoor"></div><div class="glow"></div><div id="mon"></div></div>
-  <div class="meter">STROOPMETER <div class="bar"></div> <b>MEGA</b></div>
+  <div class="top"><div class="eyebrow">ZEVEN ONDERDELEN ZOEK</div><h1>OPERATIE<br>MECHA-POF</h1><div class="sub">Reparatieteam <b>Hannah 10</b></div></div>
+  <div class="mon"><div class="glow"></div><div id="mon"></div><div id="spoor"></div></div>
+  <div class="meter">DOEL <div class="bar"></div> <b>MEGA</b></div>
   <div class="teamwrap"><div class="teamtitle">HET REPARATIETEAM</div><div class="team" id="team"></div></div>
 </div></div>
 <script type="module">
-import { BASE_CSS, preview, monsterSvg } from './print.js';
+import { BASE_CSS, preview, monsterSvg, ICONS, PART_COLOR } from './print.js';
 document.getElementById('base').textContent = BASE_CSS;
 const qs = new URLSearchParams(location.search);
 if (qs.has('donker')) document.documentElement.classList.add('dark');
@@ -59,24 +59,29 @@ if (qs.has('talenten')) { // na de loting: talenten uit het spel
     const r = await sync.regie.state(); team(Object.fromEntries(r.players.filter(p => p.talent).map(p => [p.name, LABEL[p.talent]])));
   } catch (e) { console.warn('talenten', e.message); }
 }
-// Vage herinnering aan de route: de zeven plekken als soldeerpunten op een printplaat-spoor. Gespiegeld en gedraaid, zonder
-// namen of nummers, zodat het geen plattegrond is die je kunt nalopen.
+// Speelbord (12 nov, hangt vanaf het begin): de route als bordspel-pad met zeven vakken; Mecha-Pof vaag erachter (bouwtekening).
+// Gespiegeld, gedraaid en uitgerekt, zonder plaatsnamen: geen plattegrond die je kunt nalopen.
 { const { STOPS } = await import('./kaart.js');
   const pl = [STOPS[6], ...STOPS.slice(0, 6)].map(s => [-(s.lng - 5.5630) * 69160, -(s.lat - 51.6150) * 111320]); // meters, gespiegeld
   const rot = 38 * Math.PI / 180, r = pl.map(([x, y]) => [x * Math.cos(rot) - y * Math.sin(rot), x * Math.sin(rot) + y * Math.cos(rot)]);
-  const xs = r.map(p => p[0]), ys = r.map(p => p[1]), kx = 76 / (Math.max(...xs) - Math.min(...xs)), ky = 94 / (Math.max(...ys) - Math.min(...ys)); // uitgerekt over het hele vlak: nog minder een plattegrond
-  const P = r.map(([x, y]) => [44.5 + (x - (Math.max(...xs) + Math.min(...xs)) / 2) * kx, 53 + (y - (Math.max(...ys) + Math.min(...ys)) / 2) * ky]);
+  const xs = r.map(p => p[0]), ys = r.map(p => p[1]), kx = 72 / (Math.max(...xs) - Math.min(...xs)), ky = 66 / (Math.max(...ys) - Math.min(...ys)); // uitgerekt over het hele vlak: nog minder een plattegrond
+  const P = r.map(([x, y]) => [44.5 + (x - (Math.max(...xs) + Math.min(...xs)) / 2) * kx, 42.5 + (y - (Math.max(...ys) + Math.min(...ys)) / 2) * ky]);
   const n = P.length, g = i => P[(i + n) % n]; let d = `M${g(0)[0].toFixed(1)} ${g(0)[1].toFixed(1)}`; // vloeiende gesloten lus (Catmull-Rom)
   for (let i = 0; i < n; i++) { const [p0, p1, p2, p3] = [g(i - 1), g(i), g(i + 1), g(i + 2)];
     d += `C${(p1[0] + (p2[0] - p0[0]) / 5).toFixed(1)} ${(p1[1] + (p2[1] - p0[1]) / 5).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 5).toFixed(1)} ${(p2[1] - (p3[1] - p1[1]) / 5).toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`; }
-  const tak = P.map(([x, y], i) => { const a = Math.atan2(y - 53, x - 44.5) + (i % 2 ? .5 : -.4), l = 7 + (i * 5) % 6; return `<path d="M${x.toFixed(1)} ${y.toFixed(1)}l${(Math.cos(a) * l).toFixed(1)} ${(Math.sin(a) * l).toFixed(1)}h${i % 2 ? 5 : -5}"/>`; }).join('');
-  const c = document.documentElement.classList.contains('dark') ? '#7FE8FF' : '#C9792C';
-  document.getElementById('spoor').innerHTML = `<svg viewBox="0 0 89 106" preserveAspectRatio="none" style="width:100%;height:100%"><g fill="none" stroke="${c}" stroke-linecap="round" stroke-linejoin="round">
-    <path d="${d}" stroke-width="3.4" opacity=".1"/><path d="${d}" stroke-width="1.1" opacity=".22"/><path d="${d}" stroke-width=".35" stroke-dasharray=".2 2.2" stroke="#fff" opacity=".7"/>
-    <g stroke-width=".55" opacity=".2">${tak}</g></g>
-    ${P.map(([x, y], i) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${i ? 2.5 : 3.4}" fill="#FFF4DF" stroke="${c}" stroke-width=".9" opacity=".5"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${i ? .9 : 1.4}" fill="${i ? c : '#E0352B'}" opacity=".5"/>`).join('')}</svg>`; }
+  // Speelbord: het pad als stapstenen, zeven vakken met het onderdeel dat daar ligt (1 pantser … 6 benen, thuis = start en 7).
+  const dark = document.documentElement.classList.contains('dark'), c = dark ? '#7FE8FF' : '#9A5419', veld = dark ? '#0E1B2E' : '#FFF9EE';
+  const DEEL = ['hoed', 'lijf', 'ogen', 'neus', 'mond', 'armen', 'benen']; // P[0] = thuis
+  const vak = ([x, y], i) => { const R = i ? 6.3 : 7.6, part = DEEL[i], col = PART_COLOR[part], ic = R * 1.45;
+    return `<circle cx="${x.toFixed(1)}" cy="${(y + .7).toFixed(1)}" r="${R}" fill="${c}" opacity=".55"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${R}" fill="${veld}" stroke="${col}" stroke-width="1.1"/>
+      <svg x="${(x - ic / 2).toFixed(1)}" y="${(y - ic / 2).toFixed(1)}" width="${ic}" height="${ic}" viewBox="-6 -2 112 106">${ICONS[part]}</svg>
+      <circle cx="${(x - R * .72).toFixed(1)}" cy="${(y - R * .72).toFixed(1)}" r="2.3" fill="#141A26" stroke="#F2BE62" stroke-width=".4"/><text x="${(x - R * .72).toFixed(1)}" y="${(y - R * .72 + 1.15).toFixed(1)}" text-anchor="middle" font-family="Lilita One" font-size="3.2" fill="#F2BE62">${i || 7}</text>
+      ${i ? '' : `<text x="${x.toFixed(1)}" y="${(y + R + 3.6).toFixed(1)}" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="2.3" letter-spacing=".5" fill="${c}" stroke="${veld}" stroke-width=".9" paint-order="stroke">START + FINISH</text>`}`; };
+  document.getElementById('spoor').innerHTML = `<svg viewBox="0 0 89 85" preserveAspectRatio="none" style="width:100%;height:100%"><g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="${d}" stroke="${c}" stroke-width="4.6" opacity=".9"/><path d="${d}" stroke="${veld}" stroke-width="3.6"/><path d="${d}" stroke="${c}" stroke-width="1.5" stroke-dasharray="0 3.1" opacity=".75"/></g>
+    ${P.map(vak).slice(1).join('')}${vak(P[0], 0)}</svg>`; }
 document.getElementById('mon').innerHTML = await monsterSvg('mega');
-const fit = preview(document.getElementById('sheet'), { title: 'Mega-Mecha-Pof', size: '90 × 180 cm', hint: 'thuis, onder een laken tot de finale · de lege strook onder elke naam is voor het talent (stift) of ?talenten=1' });
+const fit = preview(document.getElementById('sheet'), { title: 'Mega-Mecha-Pof', size: '90 × 180 cm', hint: 'thuis, hangt vanaf het begin van het spel · speelbord met de zeven onderdelen' });
 window.__ready = true; fit();
 </script>
 </body>
