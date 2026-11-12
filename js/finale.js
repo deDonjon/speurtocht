@@ -43,7 +43,7 @@ export function badgeInfo(b) {
 }
 
 /** Eindscherm: één kaart per speurder, jarige eerst, daarna op talentvolgorde. */
-export function endCards(st, { portret = {} } = {}) { // portret: { [player_id]: url } (kern.html, goedgekeurde tekeningen)
+export function endCards(st, { portret = {}, druppels = null } = {}) { // druppels: { [player_id]: n } (js/stroop.js) → gouden regel op de kaart // portret: { [player_id]: url } (kern.html, goedgekeurde tekeningen)
   const s = st.get(), order = Object.keys(TALENTS);
   const ps = s.players.slice().sort((a, b) => (!!b.is_birthday - !!a.is_birthday) || (order.indexOf(a.talent) - order.indexOf(b.talent)) || a.name.localeCompare(b.name));
   return ps.map(p => {
@@ -54,6 +54,7 @@ export function endCards(st, { portret = {} } = {}) { // portret: { [player_id]:
     return `<div class="fin-card" style="--acc:${p.color || info?.color || '#7FE8FF'}">${portret[p.id] ? `<img class="fin-portret" src="${esc(portret[p.id])}" alt="" data-groot>` : ''}
       <div class="fin-head"><span class="fin-ic">${info?.icon || '⭐'}</span><div><b>${esc(p.name)}${p.is_birthday ? ' 🎂' : ''}</b><small>${esc(t?.label || 'Monteur')}${info ? ' · ' + esc(info.label) : ''}</small></div></div>
       <p class="fin-zin">“${esc(zin)}${extra ? ' ' + esc(extra) : ''}”</p>
+      ${druppels && druppels[p.id] != null && info ? `<p class="fin-drops">💧 <b>${druppels[p.id]}</b> stroopdruppels voor ${esc(info.label)}</p>` : ''}
       <div class="fin-badges">${badges || '<span class="fin-badge dim">nog geen badges</span>'}</div></div>`;
   }).join('');
 }
@@ -63,6 +64,7 @@ export const END_CSS = `.fin-cards{display:grid;grid-template-columns:repeat(aut
 .fin-ic{font-size:2rem;flex:none}.fin-zin{margin:0;font-weight:800;line-height:1.35;color:#EAF2FF}
 .fin-badges{display:flex;gap:6px;flex-wrap:wrap}.fin-badge{background:#1A1F2A;border:1px solid #15A4C8;color:#7FE8FF;border-radius:999px;padding:2px 9px;font-size:.8rem;font-weight:800;white-space:nowrap}
 .fin-badge.dim{border-color:#3C4A66;color:#93A0B8}
+.fin-drops{margin:0;color:#F2BE62;font-weight:800;font-size:.9rem}.fin-drops b{font-size:1.15em}
 .fin-check{display:flex;justify-content:center;gap:clamp(6px,1.2vw,14px);flex-wrap:wrap;margin:6px 0}
 .fin-check i{font-style:normal;font-size:clamp(1.6rem,4vw,3.4rem);width:1.6em;height:1.6em;display:grid;place-items:center;border-radius:50%;background:#0E1B2E;border:3px solid #7FE8FF;box-shadow:0 0 16px rgba(127,232,255,.55);animation:finPop .35s both}
 @keyframes finPop{0%{transform:scale(0);opacity:0}70%{transform:scale(1.25);opacity:1}100%{transform:none;opacity:1}}

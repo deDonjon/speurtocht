@@ -164,6 +164,7 @@ import { audio } from './js/audio.js?v=11';
 import { voice } from './js/voice.js?v=7';
 import { LINES } from './js/monster-lines.js?v=14';
 import { createFinale, endCards, END_CSS, fillLine, stageHTML, TAART_HTML, buildHighlights } from './js/finale.js?v=9';
+import { loadDropLog, dropsByPlayer } from './js/stroop.js?v=1'; // druppels per monteur op de eindkaarten
 import { kernTekeningen } from './js/tekening.js?v=1'; // goedgekeurde tekeningen (regie → 📸 Tekeningen), 12 nov
 
 const $ = s => document.querySelector(s);
@@ -252,6 +253,7 @@ function uitlegVis(i, k = 0) {
   if (i === 5) return `<div class="duo"><div class="reuze">🎂</div><div class="tips"><div class="tip"><em>⏭️</em><div><b>Een puzzel overslaan</b></div></div><div class="tip"><em>💡</em><div><b>Een gratis hint</b></div></div><div class="tip"><em>🤖</em><div><b>Iedereen doet een robotdans</b></div></div></div></div>`;
   return `<div class="duo"><div class="reuze">🚸</div><div class="tips"><div class="tip"><em>👭</em><div><b>Bij elkaar blijven</b>niemand loopt vooruit of blijft achter</div></div><div class="tip"><em>🛑</em><div><b>Oversteken</b>alleen samen met de papa van ${esc(jarigeNaam())}</div></div></div></div>`;
 }
+let dropLog = new Map(), dropKey = null; // stroopdruppels per onderdeel (eindkaarten)
 let loting = null;  // { order:[{p, talent}], i, spinning }
 const wokeSinceReset = () => { // wekzin na de laatste reset (events nieuwste eerst)
   for (const e of S().events) { if (e.type === 'game.reset') return false; if (e.type === 'monster.say' && e.payload?.wake) return true; }
@@ -341,12 +343,13 @@ function render() {
     const stg = finale.stage;
     cap.innerHTML = `<h1 class="title">${stg === 'idle' && !finale.done ? 'Alle zeven onderdelen!' : stg === 'check' ? 'Systeemcontrole…' : stg === 'taart' ? 'Nieuwe missie!' : stg === 'terugblik' ? 'Wat een spel!' : 'MEGA-MECHA-POF!'}</h1>`;
     // Eén vast blok per stap; alleen opnieuw tekenen als de stap verandert (anders herstarten de animaties).
-    const sig = showEnd ? 'eind:' + tek.sig() + ':' + S().players.map(p => p.id + (p.badges || []).join()).join('|') : 'fin:' + stg + (finale.slide ? ':' + finale.slide.i : '');
+    if (showEnd && dropKey !== (g?.started_at || '-')) { dropKey = g?.started_at || '-'; dropLog = new Map(); loadDropLog(sync, state).then(l => { dropLog = l; render(); }).catch(() => {}); }
+    const sig = showEnd ? 'eind:' + dropLog.size + ':' + tek.sig() + ':' + S().players.map(p => p.id + (p.badges || []).join()).join('|') : 'fin:' + stg + (finale.slide ? ':' + finale.slide.i : '');
     if (side.dataset.sig !== sig) {
       side.dataset.sig = sig;
       const T = tek.get();
       side.innerHTML = showEnd ? `${T.feest ? `<div class="panel"><h2>Operatie Mecha-Pof</h2><img class="fin-feest" src="${esc(T.feest)}" alt="" data-groot></div>` : ''}<div class="panel"><h2>Volgende missie</h2>${TAART_HTML}</div>
-        <div class="panel"><h2>Het Reparatieteam</h2><div class="fin-cards">${endCards(state, { portret: T.portret })}</div></div>
+        <div class="panel"><h2>Het Reparatieteam</h2><div class="fin-cards">${endCards(state, { portret: T.portret, druppels: dropLog.size ? dropsByPlayer(dropLog, S().players) : null })}</div></div>
         <div class="row" style="justify-content:center"><button data-t="foto">📸 Teamfoto</button></div>`
       : stg === 'idle' ? `<div class="panel"><h2>Finale</h2><p class="sub" style="text-align:left">De boterknop zit erop. Klaar voor Mega-Mecha-Pof?</p><button data-t="finale">▶ Finale afspelen</button></div>`
       : `<div class="panel"><h2>${{ check: 'Systeemcontrole', mega: 'Stroopmeter', vers: 'DJ Mecha-Pof', confetti: 'Robotdans!', terugblik: 'Terugblik', taart: 'Eerst taart, dan pannenkoeken' }[stg] || 'Finale'}</h2>${stageHTML(stg, finale)}${{ vers: '<p class="sub">Na elk “hiep hiep”: HOERA!</p>', confetti: '<p class="sub">🎉 Poppers! Doe Mecha-Pof na.</p>' }[stg] || ''}</div>`;

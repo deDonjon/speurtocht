@@ -214,6 +214,13 @@ export const sync = {
     state.apply('game', g, 'UPDATE');
     return g;
   },
+  /** Alle stop.solved-events van dit spel (nieuwste eerst): de stroopmeter per onderdeel (js/stroop.js). */
+  async solvedLog() {
+    const c = await client(); if (!gameId) return null;
+    const r = await c.from('event').select('*').eq('game_id', gameId).eq('type', 'stop.solved').order('at', { ascending: false }).limit(40);
+    if (r.error) throw new SyncError(r.error.message, r.error.code, r.error);
+    return r.data || [];
+  },
   async badge(playerId, badge) { return rpc('award_badge', { p_code: actorCode(), p_player: playerId, p_badge: badge }, { buffer: true }); },
   async log(type, payload = {}) { return rpc('log_event', { p_code: actorCode(), p_type: type, p_payload: payload }, { buffer: true }); },
   /** Zelfde als log(), maar namens een bepaalde bewaker op dit toestel (bijv. fork.vote per speelster). Valt terug op log(). */

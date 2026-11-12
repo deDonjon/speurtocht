@@ -206,6 +206,37 @@ button.piece{box-shadow:none;font-weight:800}
 button.press{min-height:96px;font-size:1.6rem;letter-spacing:.06em}
 .hint{background:var(--visor);border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:12px;padding:10px 12px;font-weight:800}
 .submit{border-top:2px dashed var(--line2);padding-top:12px;display:flex;flex-direction:column;gap:8px}
+/* goed / fout duidelijk (12 nov): vak om de melding, banner bovenin op elke telefoon, groene kaart bij opgelost */
+.feedback:not(:empty){background:rgba(255,90,78,.14);border:2px solid var(--straw);border-radius:12px;padding:10px 12px;font-size:1.1rem;line-height:1.3}
+.feedback.ok:not(:empty){background:rgba(74,222,128,.14);border-color:var(--ok)}
+.tries:not(:empty)::before{content:'Al geprobeerd:';color:var(--muted);font-size:.85rem;font-weight:800;align-self:center}
+#verdict{position:fixed;left:0;right:0;margin:0 auto;top:calc(env(safe-area-inset-top,0px) + 74px);z-index:35;width:min(92vw,440px);border-radius:18px;padding:16px 18px;text-align:center;pointer-events:none;box-shadow:0 10px 40px rgba(0,0,0,.65);animation:verdict .3s}
+#verdict b{display:block;font-family:var(--hud);font-size:1.9rem;letter-spacing:.06em;line-height:1.1}
+#verdict span{display:block;font-weight:800;font-size:1.08rem;margin-top:6px}
+#verdict small{display:block;opacity:.85;margin-top:4px;font-size:.88rem}
+#verdict.bad{background:#3A1210;border:3px solid var(--straw);color:#FFD9D6;animation:verdict .3s,shake .4s .3s}
+#verdict.good{background:#0E2E1C;border:3px solid var(--ok);color:#D9FFE7;box-shadow:0 0 34px rgba(74,222,128,.45)}
+@keyframes verdict{from{transform:translateY(-26px) scale(.85);opacity:0}}
+.solvedbox{background:rgba(74,222,128,.14);border:2px solid var(--ok);border-radius:14px;padding:12px;text-align:center;display:flex;flex-direction:column;gap:4px}
+.solvedbox b{color:var(--ok);font-family:var(--hud);font-size:1.4rem;letter-spacing:.05em}
+.solvedbox span{font-weight:800}.solvedbox span b{color:var(--gold);font-family:inherit;font-size:1.1em;letter-spacing:0}
+.callkey{font-size:1.15rem;font-weight:800;text-align:center;background:var(--visor);border:2px solid var(--gold);border-radius:14px;padding:12px;animation:pulsekey 1.4s infinite}
+#dosubmit:not(:disabled){animation:pulsekey 1.4s infinite}
+@keyframes pulsekey{50%{box-shadow:0 4px 0 var(--ok-dark),0 0 26px rgba(242,190,98,.7)}}
+/* stroopmeter (js/stroop.js): tikbaar in de balk, uitleg + per onderdeel */
+.drops{cursor:pointer;border:1px solid var(--gold-dark);border-radius:999px;padding:2px 9px;background:rgba(242,190,98,.1)}
+.drops.bump{animation:dropbump .9s}
+@keyframes dropbump{30%{transform:scale(1.5);background:rgba(242,190,98,.45);box-shadow:0 0 18px rgba(242,190,98,.7)}}
+.dropgain{margin:0;font-weight:900;font-size:1.25rem;color:var(--gold);text-shadow:0 0 12px rgba(242,190,98,.4)}
+.dropgain small{display:block;font-size:.8rem;color:var(--ink);font-weight:800;text-shadow:none}
+.stroop{align-items:stretch!important}.stroop>*{text-align:center}
+.droprules{margin:0;padding:0;list-style:none;display:grid;gap:6px;text-align:left!important}
+.droprules li{background:var(--visor);border-radius:10px;padding:7px 10px;font-weight:800;display:flex;justify-content:space-between;gap:10px}
+.droprules li em{font-style:normal;color:var(--gold);white-space:nowrap}
+.droplist{display:grid;gap:6px;text-align:left!important}
+.droprow{display:flex;align-items:center;gap:10px;background:var(--visor);border:1px solid var(--line2);border-radius:10px;padding:6px 10px}
+.droprow i{font-style:normal;font-size:1.4rem;flex:none}.droprow span{flex:1;min-width:0}.droprow b{display:block}.droprow small{display:block;color:var(--muted);font-size:.8rem}
+.droprow em{font-style:normal;font-weight:900;color:var(--gold);white-space:nowrap}.droprow.todo{opacity:.55}.droprow.todo em{color:var(--muted);font-weight:700;font-size:.85rem}
 
 /* ---------- overlays */
 .overlay{position:fixed;inset:0;z-index:30;background:rgba(8,11,18,.82);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;padding:max(20px,env(safe-area-inset-top,0px)) 18px max(20px,env(safe-area-inset-bottom,0px));overflow:auto}
@@ -253,13 +284,14 @@ import { sync } from './js/sync.js';
 import { createMap } from './js/map.js?v=5'; // ?v ophogen bij elke wijziging: GitHub Pages en Safari bewaren oude bestanden
 import { createMonster, monsterImage, lineText } from './js/monster.js?v=23'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
 import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole } from './js/roles.js?v=2'; // radio / kaart / werkbank, roterend per stop
-import { createInstall } from './js/install.js?v=3'; // installatieritueel: monteur schudt, deel klikt vast
+import { createInstall } from './js/install.js?v=4'; // installatieritueel: monteur schudt, deel klikt vast
 import { openWalkie, incomingCall, callGreeting, arrivalCall } from './js/walkie.js?v=25'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
 import { createNavVoice } from './js/navvoice.js?v=1'; // gesproken navigatie zodra de LED-ogen terug zijn (radiotelefoon)
 import { createSurprises } from './js/surprises.js?v=3'; // Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens
 import { audio } from './js/audio.js?v=11'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
 import { teaserActive, mountTeaser } from './js/teaser.js?v=2'; // voorpret vóór het feest (game.settings.teaser)
 import { createFinale, endCards, END_CSS, CHECK_MS, TAART_HTML, slideHTML } from './js/finale.js?v=9'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
+import { stackOf, nextAt, loadDropLog, dropRows, dropsByPlayer } from './js/stroop.js?v=1'; // stroopmeter: uitleg, stapel, druppels per onderdeel
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -367,13 +399,14 @@ const router = {
 state.on('event', ev => { if (!ev || seen.has(ev.id)) return; seen.add(ev.id); if (primed) router.dispatch(ev); });
 
 router.on('game.start', () => { overlay(`<div class="page"><span class="tab">Systeem opgestart</span>${mslot('lg')}<h2>Mecha-Pof wordt wakker…</h2><p>Zoek de eerste plek. Het monster kijkt mee.</p></div>`, 2600); mon.setMood('wakker'); mon.react('start'); audio.play('start'); buzz([80, 60, 120]); });
-router.on('game.reset', () => { closeOverlay(); toast('Het spel is opnieuw klaargezet.'); });
+router.on('game.reset', () => { closeOverlay(); dropLog = new Map(); toast('Het spel is opnieuw klaargezet.'); });
 router.on('stop.arrived', () => { audio.play('aankomst'); buzz([80, 40, 80]); });
 router.on('stop.solved', p => {
   const st = state.stop(p.stop_id);
-  audio.play('ok'); buzz([60, 40, 60]);
+  audio.play('ok'); buzz([60, 40, 60]); verdict(null);
+  if (p.stop_id) dropLog.set(p.stop_id, { part: p.part || null, drops: +p.drops || 0 }); // stroopmeter per onderdeel
   if (!p.part) { bonusDone(st, p); return; } // bonusopdracht: geen onderdeel, geen ritueel
-  install.start({ part: p.part, stop_id: p.stop_id, by: p.by, last: st?.key === 'home' }); // monteur schudt, deel klikt vast
+  install.start({ part: p.part, stop_id: p.stop_id, by: p.by, last: st?.key === 'home', drops: +p.drops || 0 }); // monteur schudt, deel klikt vast
 });
 function bonusDone(st, p) {
   overlay(`<div class="page"><span class="tab">Bonus gelukt</span><div style="font-size:3.4rem;line-height:1">⭐</div>
@@ -505,6 +538,38 @@ function overlay(html, ms) {
   if (ms) ovTimer = setTimeout(closeOverlay, ms); placeMonster(); return o;
 }
 function closeOverlay() { clearTimeout(ovTimer); $('#ov')?.remove(); placeMonster(); }
+/* Banner bovenin: GOED of NIET GOED, op elke telefoon tegelijk (screens.puz roept hem aan). verdict(null) = weg. */
+let verdictT = null;
+function verdict(kind, html, ms = 3400) {
+  clearTimeout(verdictT); $('#verdict')?.remove(); if (!kind) return;
+  const d = document.createElement('div'); d.id = 'verdict'; d.className = kind; d.setAttribute('role', 'alert'); d.innerHTML = html;
+  document.body.appendChild(d); verdictT = setTimeout(() => d.remove(), ms);
+}
+/* Stroopmeter: tik op 💧 in de balk. Uitleg, de pannenkoekenstapel tot nu toe en de druppels per onderdeel (met haar monteur). */
+let dropLog = new Map(); // stop_id → { part, drops }
+const partStops = () => state.route().filter(x => x.part).length || 7;
+const dropRowsHtml = () => dropRows(dropLog, state).map(r => `<div class="droprow ${r.drops == null ? 'todo' : ''}"><i>${r.icon}</i><span><b>${esc(r.who)}</b><small>${esc(r.label)}</small></span><em>${r.drops == null ? 'nog te halen' : '💧 ' + r.drops}</em></div>`).join('');
+const stackHtml = n => `<div class="stack">${Array.from({ length: n }, (_, i) => `<i style="width:${150 - i * 6}px;animation-delay:${i * .08}s"></i>`).join('')}</div>`;
+function openStroop() {
+  if (busy()) return;
+  const g = S().game || {}, d = g.drops || 0, stops = partStops(), stack = stackOf(d, stops), nxt = nextAt(d, stops);
+  overlay(`<div class="page stroop"><span class="tab">Stroopmeter</span>
+    <h2>💧 ${d} stroopdruppels</h2>
+    <p>Stroop is de brandstof van Mecha-Pof. Jullie sparen hem <b>samen</b>: hoe meer druppels, hoe hoger de pannenkoekenstapel aan het eind.</p>
+    ${stackHtml(stack)}
+    <p><b>${stack} van de 10 pannenkoeken hoog</b>${nxt ? `<br><span class="note">Nog ${nxt} druppel${nxt === 1 ? '' : 's'} tot de volgende pannenkoek.</span>` : '<br><span class="note">De stapel is vol. Mega!</span>'}</p>
+    <ul class="droprules">
+      <li>🔩 Onderdeel terug <em>+10</em></li>
+      <li>⚡ Binnen 4 minuten opgelost <em>+3 extra</em></li>
+      <li>💡 Hint gevraagd <em>3 minder</em></li>
+      <li>✗ Fout antwoord <em>kost niks</em></li></ul>
+    <h3>Per onderdeel</h3>
+    <div class="droplist">${dropRowsHtml()}</div>
+    <p class="note">Elke monteur heeft haar eigen onderdeel. De druppels verdienen jullie met z'n allen.</p>
+    <button class="ok wide" data-x="close">Verder ▶</button></div>`);
+  $('#ov [data-x=close]')?.addEventListener('click', closeOverlay);
+  loadDropLog(sync, state).then(l => { if (l.size >= dropLog.size) dropLog = l; const el = $('#ov .droplist'); if (el) el.innerHTML = dropRowsHtml(); }).catch(() => {});
+}
 function showMission(m, name) {
   const text = typeof m === 'string' ? m : (m?.text || m?.mission || JSON.stringify(m));
   let n = 10;
@@ -682,11 +747,14 @@ function rolesHtml() { // rollen van deze telefoon bij de huidige stop, plus wie
   return ROLES.map(r => { const own = mine.includes(r), who = own ? '' : whoHas(r);
     return `<span class="role ${own ? 'mine' : ''}${r === 'radio' && !own && Date.now() < wijsUntil ? ' wijs' : ''}" title="${esc(ROLE_INFO[r].short)}">${own ? '✓ ' : ''}${ROLE_INFO[r].icon} ${own ? ROLE_INFO[r].label : esc(who || 'ander')}</span>`; }).join('');
 }
+let lastDrops = null, bumpAt = 0;
 function renderBar() {
   const g = S().game, me = state.me(), got = g?.parts || [];
+  const dNow = g?.drops || 0, bump = lastDrops !== null && dNow > lastDrops && Date.now() - bumpAt > 1000; if (bump) bumpAt = Date.now();
+  const stillBump = Date.now() - bumpAt < 900; lastDrops = dNow; // de balk wordt vaak opnieuw getekend: de sprong moet blijven staan
   $('#bar').innerHTML = `<div class="in">
     <div class="chips">${me.map(p => { const x = guard(p); return `<span class="chip" style="--acc:${x.color}"><i>${x.icon}</i>${esc(p.name)}</span>`; }).join('') || '<span class="eyebrow">Mecha-Pof</span>'}</div>
-    ${g && g.phase !== 'lobby' ? `<span class="drops" title="stroopdruppels">💧${g.drops || 0}</span>` : ''}
+    ${g && g.phase !== 'lobby' ? `<span class="drops ${bump || stillBump ? 'bump' : ''}" data-b="drops" role="button" tabindex="0" title="Stroopmeter: tik voor uitleg" aria-label="Stroopmeter: ${g.drops || 0} stroopdruppels, tik voor uitleg">💧${g.drops || 0}</span>` : ''}
     ${conn(S().conn)}${sync.outboxSize() ? `<span class="note">${sync.outboxSize()}</span>` : ''}
     ${me.length && g && !naAfloop() ? (hasRole('radio') ? `<button class="walkiebtn${Date.now() < wijsUntil ? ' wijs' : ''}" data-b="walkie" aria-label="Walkietalkie met het monster">📻 Walkie</button>` : !['lobby', 'klaar'].includes(g.phase) ? '' : `<span class="note" title="De walkietalkie zit op de radiotelefoon">📻 bij ${esc(speakerNames() || 'een ander')}</span>`) : ''}
     <button class="iconbtn" data-b="mute" aria-label="Geluid">${muted ? '🔇' : '🔊'}</button>
@@ -699,6 +767,7 @@ $('#bar').addEventListener('click', e => {
   if (b === 'mute') { muted = !muted; store.set('pkm2_muted', muted); renderBar(); }
   if (b === 'tray') openTray();
   if (b === 'walkie') startWalkie();
+  if (b === 'drops') openStroop();
 });
 
 /* ---------- boot */
@@ -763,6 +832,7 @@ screens.lobby = el => {
           <li><b>Loop naar de volgende plek.</b> De kaart-telefoon wijst de weg, de rest loopt mee.</li>
           <li><b>Mecha-Pof belt de radio.</b> Luister tot hij klaar is en zeg dan samen wat groot in beeld staat. Niet verstaan? Tik op <b>↻ Herhaal</b>.</li>
           <li><b>Los samen de puzzel op.</b> Hij staat op de werkbank, maar iedereen denkt mee. Is hij goed? Dan dient de Sleutelbewaarder hem in en schudt de monteur het onderdeel vast.</li>
+          <li><b>💧 Spaar stroopdruppels.</b> Elk onderdeel levert er 10 op. Snel klaar? 3 extra. Een hint kost er 3. Fout antwoord kost niks. Hoe meer druppels, hoe hoger de pannenkoekenstapel aan het eind. Tik onderweg op 💧 om te kijken.</li>
           ${birthday() ? `<li><b>🎂 Cadeautje voor ${esc(birthday().name)}.</b> Zij heeft één verjaardagswens: de taart linksonder op haar telefoon. Een puzzel overslaan, een gratis hint of een robotdans. Het kan maar één keer!</li>` : ''}
           <li><b>Blijf bij elkaar.</b> Oversteken doen we alleen samen met de begeleider.</li></ol></div>` : '');
     $('#guards', el).innerHTML = ps.map(p => { const x = guard(p); return `<div class="guard ${mine.has(p.id) ? 'mine' : ''}" style="--acc:${x.color}"><span class="ic">${x.icon}</span>
@@ -828,6 +898,15 @@ const loadPuzzle = type => modCache[type] ||= import(`./js/puzzles/${type}.js?v=
 screens.puz = (el, id) => {
   const st = state.stop(id), { n, total } = stopNo(st);
   let mod = null, modErr = '', pending = [], sig = '', askedArrive = false, submitting = false;
+  let seenWrong = null, seenSolved = null; // voor de banner GOED / NIET GOED: alleen bij een nieuwe poging, niet bij het openen
+  // Foute pogingen tellen, los van het puzzeltype: tries als lijst (vraag, code, slot, qr, splits, wachtwoord), als getal (licht) of wrong (keuze).
+  const wrongInfo = d => {
+    if (Array.isArray(d?.tries)) { const w = d.tries.filter(t => !t.ok && !t.unknown), l = w[w.length - 1]; return { n: w.length, v: String(l?.v ?? l?.code ?? '') }; }
+    if (typeof d?.tries === 'number') return { n: d.tries, v: '' };
+    if (Array.isArray(d?.wrong)) return { n: d.wrong.length, v: String(d.wrong[d.wrong.length - 1] ?? '') };
+    return { n: 0, v: '' };
+  };
+  const kort = v => v.length > 22 ? v.slice(0, 20) + '…' : v;
   el.innerHTML = `${mslot('sm')}
     <div class="page"><span class="tab">📍 Jullie zijn er · ${st.key === 'home' ? 'Finale' : isBonus(st) ? 'Bonus' : `plek ${n} van ${total}`}</span>
       <h2>${esc(st.name)}</h2>
@@ -848,9 +927,7 @@ screens.puz = (el, id) => {
   }
   async function submit() {
     const p = ps(); if (!p || submitting) return; submitting = true; update(true);
-    const fast = p.arrived_at && Date.now() - Date.parse(p.arrived_at) < 4 * 60_000;
-    const drops = Math.max(2, 10 - 3 * (p.hints || 0)) + (fast ? 3 : 0);
-    try { await sync.solve(drops, st.id); } catch (e) { toast('⚠️ ' + e.message); } finally { submitting = false; update(true); }
+    try { await sync.solve(dropsFor(p), st.id); } catch (e) { toast('⚠️ ' + e.message); } finally { submitting = false; update(true); }
   }
   function update(force) {
     // Dit scherm hoort bij één stop; is die al afgerond, dan schuift refresh() zo het volgende scherm in.
@@ -870,6 +947,14 @@ screens.puz = (el, id) => {
     let data; try { data = moves.reduce((d, m) => mod.reduce(d, m, ctx), mod.init(cfg, ctx)); }
     catch (e) { console.error(e); pz.innerHTML = '<p class="feedback">Deze puzzel struikelt. Vraag de begeleider.</p>'; return; }
     const solved = !!p.solved_at || mod.isSolved(data, cfg, ctx);
+    const wi = wrongInfo(data);
+    if (seenWrong !== null && !p.solved_at && !install.busy) {
+      if (solved && !seenSolved) { const k = keyHolder();
+        verdict('good', `<b>✓ GOED!</b><span>${canSubmit() ? 'Nu nog indienen: druk op de groene knop 🔑' : k ? `Roep ${esc(k.name)}: zij dient in 🔑` : 'De begeleider keurt het goed.'}</span>`, 3000); audio.play('ok'); buzz([60, 40, 60, 40, 140]); }
+      else if (wi.n > seenWrong && !solved) {
+        verdict('bad', `<b>✗ NIET GOED</b><span>${wi.v ? `“${esc(kort(wi.v))}” is het niet.` : 'Dat is het nog niet.'} Probeer het nog eens!</span><small>Fout kost geen stroopdruppels.</small>`); audio.play('fout'); buzz([140, 70, 140]); }
+    }
+    seenWrong = wi.n; seenSolved = solved;
     if (werkbank) {
       mod.render(pz, data, { me: state.me(), talents: state.myTalents(), phones: ctx.phones, config: cfg, hints: p.hints, move, hint: () => sync.hint(st.id).catch(e => toast(e.message)), solve: submit,
         roles, deviceIndex: ctx.devices.indexOf(S().device.id), devices: ctx.devices, players: ctx.players, werkbankDevice: deviceWithRole('werkbank'), radioDevice: deviceWithRole('radio') });
@@ -880,20 +965,21 @@ screens.puz = (el, id) => {
     }
     $('#radiobox', el).innerHTML = roles.includes('radio') && lastBrief?.stopId === st.id && !solved ? '<button class="plain wide" id="rebrief">📻 Bericht van Mecha-Pof nog eens horen</button>' : '';
     // hint: op elke telefoon zichtbaar zodra één monteur hem vraagt
-    $('#hintbox', el).innerHTML = !cfg.hint ? '' : p.hints > 0 ? `<div class="hint">💡 ${esc(cfg.hint)}</div>` : solved ? '' : '<button class="ghost" id="askhint">💡 Hint nodig? (kost stroopdruppels)</button>';
-    const ah = $('#askhint', el); if (ah) ah.onclick = () => { if (confirm('Hint vragen? Dat kost de groep stroopdruppels.')) sync.hint(st.id).catch(e => toast(e.message)); };
+    $('#hintbox', el).innerHTML = !cfg.hint ? '' : p.hints > 0 ? `<div class="hint">💡 ${esc(cfg.hint)}</div>` : solved ? '' : '<button class="ghost" id="askhint">💡 Hint nodig? (kost 3 stroopdruppels)</button>';
+    const ah = $('#askhint', el); if (ah) ah.onclick = () => { if (confirm('Hint vragen? Dat kost 3 stroopdruppels van dit onderdeel.')) sync.hint(st.id).catch(e => toast(e.message)); };
     const sb = $('#submit', el); sb.hidden = !solved;
     if (solved) {
       const kh = keyHolder();
+      const dz = dropsFor(p), box = `<div class="solvedbox"><b>✓ GOED OPGELOST!</b><span>Dit levert <b>💧 ${dz}</b> stroopdruppels op${dz > 10 ? ' (10 + 3 omdat jullie snel zijn ⚡)' : (p.hints || 0) > 0 ? ' (hint gebruikt 💡)' : ''}.</span></div>`;
       sb.innerHTML = p.solved_at ? '<p class="feedback ok">✓ Ingediend!</p>'
-        : canSubmit() ? `<p><b>Opgelost!</b> ${state.hasTalent('sleutelbewaarder') ? 'Jij bent de Sleutelbewaarder.' : ''} Dien het in om het deel te verdienen.</p><button class="ok wide big-btn" id="dosubmit" ${submitting ? 'disabled' : ''}>🔑 Indienen</button>`
-        : kh ? `<p><b>Opgelost!</b> Alleen <b>${esc(kh.name)}</b>, de Sleutelbewaarder, kan het indienen. Roep haar!</p>`
-        : '<p><b>Opgelost!</b> Er is nog geen Sleutelbewaarder. De begeleider keurt deze stop goed.</p>';
+        : canSubmit() ? `${box}<p><b>Laatste stap:</b> ${state.hasTalent('sleutelbewaarder') ? 'jij bent de Sleutelbewaarder. D' : 'd'}ien het in om het deel te verdienen.</p><button class="ok wide big-btn" id="dosubmit" ${submitting ? 'disabled' : ''}>🔑 Indienen</button>`
+        : kh ? `${box}<p class="callkey">🔑 Roep <b>${esc(kh.name)}</b>! Alleen de Sleutelbewaarder kan indienen.</p>`
+        : `${box}<p>Er is nog geen Sleutelbewaarder. De begeleider keurt deze stop goed.</p>`;
       const d = $('#dosubmit', el); if (d) d.onclick = submit;
     }
   }
   update(true);
-  return { update: () => update(false), destroy: () => mod?.destroy?.(pz) };
+  return { update: () => update(false), destroy: () => { verdict(null); mod?.destroy?.(pz); } };
 };
 
 /* ---------- klaar: finale (Mega-Mecha-Pof, vers, confetti) en daarna het eindscherm met badges per speurder (js/finale.js)
@@ -905,27 +991,29 @@ const FIN_TEXT = { check: ['Systeemcontrole…', 'Alle zeven onderdelen klikken 
 const finVisual = stg => stg === 'check' ? `<div class="fin-check">${Object.values(PARTS).map((p, i) => `<i style="animation-delay:${(i * CHECK_MS / 1000).toFixed(2)}s">${p.icon}</i>`).join('')}</div>`
   : stg === 'taart' ? TAART_HTML : stg === 'terugblik' ? slideHTML(finale.slide?.item, finale.slide?.i, finale.slide?.n) : '';
 screens.klaar = el => {
+  loadDropLog(sync, state).then(l => { if (l.size >= dropLog.size) dropLog = l; update(); }).catch(() => {}); // druppels per onderdeel voor de eindkaarten
   const update = () => {
     const g = S().game, stops = state.route().filter(x => x.part).length || 7, b = birthday(), stg = finale.stage;
     const showEnd = stg === 'eind' || finale.done || (stg === 'idle' && !install.busy);
-    const sig = showEnd ? 'end:' + naAfloop() + S().players.map(p => p.id + (p.badges || []).join()).join('|') + (g.drops || 0) : 'fin:' + stg + (finale.slide ? ':' + finale.slide.i : '');
+    const sig = showEnd ? 'end:' + naAfloop() + S().players.map(p => p.id + (p.badges || []).join()).join('|') + (g.drops || 0) + ':' + dropLog.size : 'fin:' + stg + (finale.slide ? ':' + finale.slide.i : '');
     if (el.dataset.sig === sig) return; el.dataset.sig = sig;
     if (!showEnd) {
       const [h, p] = FIN_TEXT[stg] || ['Mecha-Pof start op…', 'De boterknop is ingedrukt. Even geduld…'];
       el.innerHTML = `<div class="center"><span class="eyebrow">Finale</span><h1>${esc(h)}</h1></div>${stg === 'taart' ? '' : mslot('lg')}<div class="page center"><span class="tab">Mega-Mecha-Pof</span>${finVisual(stg)}${p ? `<p class="clue">${esc(p)}</p>` : ''}${kernOnline() ? '<p class="note">Kijk en luister naar het grote scherm binnen!</p>' : ''}</div>`;
       return;
     }
-    const stack = Math.max(1, Math.min(10, Math.round((g.drops || 0) / (stops * 10) * 10)));
+    const stack = stackOf(g.drops || 0, stops);
     el.innerHTML = `<div class="center"><span class="eyebrow">Dossier gesloten</span><h1>MEGA-MECHA-POF!</h1></div>
       ${mslot('lg')}
       <div class="page center"><span class="tab">Het Reparatieteam</span>
-        <div class="fin-cards">${endCards(state)}</div>
+        <div class="fin-cards">${endCards(state, { druppels: dropLog.size ? dropsByPlayer(dropLog, S().players) : null })}</div>
         ${naAfloop() ? '<p class="note">Operatie geslaagd op vrijdag 13 november. Dit is jullie eindstand. Bliep!</p>' : `<div class="row" style="justify-content:center">${hasRole('radio') ? '<button class="berry" data-k="walkie">📻 Afscheid: over en sluiten</button>' : ''}<button class="plain" data-k="foto">📸 Teamfoto</button></div>
         <p class="note">Allemaal tegelijk in de walkietalkie: <b>over en sluiten</b>!</p>`}</div>
       <div class="page center"><span class="tab">Eindcijfer</span>
         <div class="stack">${Array.from({ length: stack }, (_, i) => `<i style="width:${150 - i * 6}px;animation-delay:${i * .12}s"></i>`).join('')}</div>
         <h2>${stack} van de 10 pannenkoeken hoog</h2>
         <p>${g.drops || 0} stroopdruppels · ${g.hints || 0} hint${g.hints === 1 ? '' : 's'}</p>
+        ${dropLog.size ? `<div class="droplist" style="width:100%">${dropRowsHtml()}</div>` : ''}
         ${b ? `<p class="clue">${esc(b.name)}, jij hebt de boterknop aangezet. Gefeliciteerd, jarige!</p>` : ''}
       </div>
       <div class="page center"><span class="tab">Volgende missie</span>${TAART_HTML}</div>`;
