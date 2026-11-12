@@ -40,7 +40,7 @@ export function createInstall(d) {
       <div style="font-size:3.6rem;line-height:1">${info.icon}</div>
       <h2>${esc(info.label[0].toUpperCase() + info.label.slice(1))}!</h2>
       <p>Jullie hebben <strong>${esc(info.label)}</strong> van Mecha-Pof terug${byName ? ` (ingediend door ${esc(byName)})` : ''}.</p>
-      ${drops > 0 ? `<p class="dropgain">💧 +${drops} stroopdruppels${drops > 10 ? ' <small>10 + 3 omdat jullie zo snel waren ⚡</small>' : ''}</p>` : ''}
+      ${drops > 0 ? `<p class="dropgain"><i class="sd"></i>+${drops} stroopdruppels${drops > 10 ? ' <small>10 + 3 poedersuiker omdat jullie zo snel waren ⚡</small>' : ''}</p>` : ''}
       ${mslot('md', 'data-parts="1"')}
       <div id="inst"></div></div>`);
     mon.setParts(got);

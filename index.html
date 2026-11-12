@@ -224,9 +224,33 @@ button.press{min-height:96px;font-size:1.6rem;letter-spacing:.06em}
 #dosubmit:not(:disabled){animation:pulsekey 1.4s infinite}
 @keyframes pulsekey{50%{box-shadow:0 4px 0 var(--ok-dark),0 0 26px rgba(242,190,98,.7)}}
 /* stroopmeter (js/stroop.js): tikbaar in de balk, uitleg + per onderdeel */
-.drops{cursor:pointer;border:1px solid var(--gold-dark);border-radius:999px;padding:2px 9px;background:rgba(242,190,98,.1)}
-.drops.bump{animation:dropbump .9s}
-@keyframes dropbump{30%{transform:scale(1.5);background:rgba(242,190,98,.45);box-shadow:0 0 18px rgba(242,190,98,.7)}}
+/* stroop (12 nov laat): echte stroopdruppel in plaats van de waterdruppel, de teller loopt vol, en bij nieuwe druppels druipt de stroop over het scherm.
+   Poedersuiker = de snelheidsbonus (+3): dan sneeuwt het er poedersuiker overheen. */
+:root{--syr1:#5A2C08;--syr2:#8A4A12;--syr3:#C9792C;--syr4:#F2BE62}
+.sd{display:inline-block;width:.72em;height:.9em;vertical-align:-.1em;margin-right:.18em;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 30'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%237A3E0C'/%3E%3Cstop offset='.45' stop-color='%23D9882E'/%3E%3Cstop offset='1' stop-color='%238A4A12'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M12 1C8.5 9 3 14 3 19.5a9 9 0 0 0 18 0C21 14 15.5 9 12 1z' fill='url(%23g)' stroke='%235A2C08' stroke-width='1'/%3E%3Cellipse cx='8.6' cy='18' rx='2' ry='4' fill='%23FFE3A6' opacity='.85' transform='rotate(18 8.6 18)'/%3E%3C/svg%3E") center/contain no-repeat;font-style:normal}
+.drops{position:relative;cursor:pointer;border:2px solid var(--syr3);border-radius:999px;padding:2px 10px 2px 8px;color:#FFE9B8;text-shadow:0 1px 0 var(--syr1);
+  background:linear-gradient(0deg,var(--syr3) 0,var(--syr2) var(--f,0%),rgba(90,44,8,.35) var(--f,0%));box-shadow:inset 0 1px 0 rgba(255,227,166,.35),0 0 10px rgba(201,121,44,.35)}
+.drops::after{content:'';position:absolute;left:58%;top:100%;width:7px;height:0;border-radius:0 0 7px 7px;background:linear-gradient(90deg,var(--syr2),var(--syr3),var(--syr2));pointer-events:none}
+.drops.bump{animation:dropbump .9s}.drops.bump::after{animation:chipdrip 1.6s ease-in-out}
+@keyframes dropbump{30%{transform:scale(1.55);box-shadow:0 0 26px rgba(242,190,98,.95)}}
+@keyframes chipdrip{0%{height:0}45%{height:26px}70%{height:30px}100%{height:0}}
+#drip{position:fixed;inset:0;z-index:45;pointer-events:none;overflow:hidden;transition:transform 1s cubic-bezier(.55,0,.9,.45)}
+#drip.weg{transform:translateY(108%)}
+#drip .pool{position:absolute;left:-6%;right:-6%;top:0;height:9vh;border-radius:0 0 50% 50%/0 0 70% 70%;background:linear-gradient(180deg,var(--syr1),var(--syr2) 55%,var(--syr3));box-shadow:0 8px 24px rgba(90,44,8,.6),inset 0 -6px 10px rgba(255,227,166,.25);transform-origin:top;animation:poolin .45s cubic-bezier(.2,.9,.3,1.3) both}
+@keyframes poolin{from{transform:scaleY(0)}}
+#drip i{position:absolute;top:4vh;height:0;border-radius:0 0 999px 999px;background:linear-gradient(90deg,var(--syr1),var(--syr2) 22%,var(--syr3) 42%,var(--syr4) 50%,var(--syr3) 60%,var(--syr2) 80%,var(--syr1));box-shadow:0 0 16px rgba(201,121,44,.55),inset 0 -10px 14px rgba(255,227,166,.25);animation:dripdown 1.5s cubic-bezier(.35,.05,.25,1) forwards}
+@keyframes dripdown{to{height:var(--len)}}
+#drip i u{position:absolute;left:50%;bottom:0;width:78%;aspect-ratio:1/1.25;border-radius:50% 50% 50% 50%/38% 38% 62% 62%;background:radial-gradient(circle at 35% 40%,var(--syr4),var(--syr3) 45%,var(--syr2));transform:translateX(-50%);opacity:0;animation:dripfall .9s ease-in forwards}
+@keyframes dripfall{0%{opacity:1;transform:translate(-50%,0)}100%{opacity:1;transform:translate(-50%,75vh)}}
+#drip .gain{position:absolute;left:0;right:0;top:30%;text-align:center;font-family:var(--hud);font-weight:700;font-size:min(30vw,8rem);line-height:1;color:#FFF3D6;text-shadow:0 5px 0 var(--syr1),0 0 40px rgba(242,190,98,.9),0 0 90px rgba(201,121,44,.8);animation:gainpop .7s .25s cubic-bezier(.2,1.6,.4,1) both}
+#drip .gain small{display:block;font-family:inherit;font-size:.2em;letter-spacing:.08em;margin-top:.3em;text-transform:uppercase}
+#drip .gain em{display:block;font-style:normal;font-size:.14em;letter-spacing:.02em;margin-top:.5em;color:#fff;text-shadow:0 2px 0 #6b7a99,0 0 18px #fff}
+@keyframes gainpop{from{transform:scale(.2) rotate(-8deg);opacity:0}}
+#suiker{position:fixed;inset:0;z-index:46;pointer-events:none;width:100%;height:100%}
+.stack.syr i:last-child{position:relative;background:linear-gradient(180deg,var(--syr2),var(--syr3));border-bottom-color:var(--syr1)}
+.stack.syr i:last-child::before,.stack.syr i:last-child::after{content:'';position:absolute;top:60%;width:9px;border-radius:0 0 9px 9px;background:var(--syr2);animation:stackdrip 2.4s ease-in-out infinite}
+.stack.syr i:last-child::before{left:14%;height:18px}.stack.syr i:last-child::after{right:22%;height:30px;animation-delay:.8s}
+@keyframes stackdrip{50%{transform:scaleY(1.5)}}.stack.syr i:last-child::before,.stack.syr i:last-child::after{transform-origin:top}
 .dropgain{margin:0;font-weight:900;font-size:1.25rem;color:var(--gold);text-shadow:0 0 12px rgba(242,190,98,.4)}
 .dropgain small{display:block;font-size:.8rem;color:var(--ink);font-weight:800;text-shadow:none}
 .stroop{align-items:stretch!important}.stroop>*{text-align:center}
@@ -284,13 +308,13 @@ import { sync } from './js/sync.js';
 import { createMap } from './js/map.js?v=5'; // ?v ophogen bij elke wijziging: GitHub Pages en Safari bewaren oude bestanden
 import { createMonster, monsterImage, lineText } from './js/monster.js?v=25'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
 import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole } from './js/roles.js?v=2'; // radio / kaart / werkbank, roterend per stop
-import { createInstall } from './js/install.js?v=4'; // installatieritueel: monteur schudt, deel klikt vast
+import { createInstall } from './js/install.js?v=5'; // installatieritueel: monteur schudt, deel klikt vast
 import { openWalkie, incomingCall, callGreeting, arrivalCall } from './js/walkie.js?v=27'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
 import { createNavVoice } from './js/navvoice.js?v=1'; // gesproken navigatie zodra de LED-ogen terug zijn (radiotelefoon)
 import { createSurprises } from './js/surprises.js?v=6'; // Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens
 import { audio } from './js/audio.js?v=11'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
 import { teaserActive, mountTeaser } from './js/teaser.js?v=2'; // voorpret vóór het feest (game.settings.teaser)
-import { createFinale, endCards, END_CSS, CHECK_MS, TAART_HTML, slideHTML } from './js/finale.js?v=12'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
+import { createFinale, endCards, END_CSS, CHECK_MS, TAART_HTML, slideHTML } from './js/finale.js?v=13'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
 import { stackOf, nextAt, loadDropLog, dropsByPlayer } from './js/stroop.js?v=1'; // stroopmeter: uitleg en stapel (teamstand); per monteur alleen op haar eigen eindkaart
 
 /* ================================================================ hulpjes */
@@ -405,6 +429,7 @@ router.on('stop.solved', p => {
   const st = state.stop(p.stop_id);
   audio.play('ok'); buzz([60, 40, 60]); verdict(null);
   if (p.stop_id) dropLog.set(p.stop_id, { part: p.part || null, drops: +p.drops || 0 }); // stroopmeter per onderdeel
+  stroopDrip(+p.drops || 0, { sugar: (+p.drops || 0) > 10 }); // de stroop druipt over het scherm; snel = poedersuiker erbij
   if (!p.part) { bonusDone(st, p); return; } // bonusopdracht: geen onderdeel, geen ritueel
   install.start({ part: p.part, stop_id: p.stop_id, by: p.by, last: st?.key === 'home', drops: +p.drops || 0 }); // monteur schudt, deel klikt vast
 });
@@ -551,21 +576,46 @@ function verdict(kind, html, ms = 3400) {
   const d = document.createElement('div'); d.id = 'verdict'; d.className = kind; d.setAttribute('role', 'alert'); d.innerHTML = html;
   document.body.appendChild(d); verdictT = setTimeout(() => d.remove(), ms);
 }
+/* Stroop druipt over het scherm als er druppels bijkomen (elke telefoon, bij stop.solved). Met de snelheidsbonus sneeuwt er poedersuiker overheen.
+   Raakt niets aan: pointer-events uit, na 3,7 s weg. Bij "verminder beweging" alleen de sprong in de balk. */
+function stroopDrip(n, { sugar = false } = {}) {
+  $('#drip')?.remove(); if (!(n > 0) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const d = document.createElement('div'); d.id = 'drip'; d.setAttribute('aria-hidden', 'true');
+  const cols = Math.max(7, Math.round(innerWidth / 38)), w = innerWidth / cols; let h = '<b class="pool"></b>';
+  for (let i = 0; i < cols; i++) {
+    const wd = 12 + Math.random() * Math.min(34, w), x = i * w + Math.random() * Math.max(1, w - wd), len = 22 + Math.random() * 70, dl = .15 + Math.random() * .55, dur = 1 + Math.random() * 1.1;
+    h += `<i style="left:${x.toFixed(0)}px;width:${wd.toFixed(0)}px;--len:${len.toFixed(0)}vh;animation-delay:${dl.toFixed(2)}s;animation-duration:${dur.toFixed(2)}s">${Math.random() < .6 ? `<u style="animation-delay:${(dl + dur * .85).toFixed(2)}s"></u>` : ''}</i>`;
+  }
+  h += `<div class="gain">+${n}<small>stroopdruppels</small>${sugar ? '<em>❄ met poedersuiker: zo snel! ❄</em>' : ''}</div>`;
+  d.innerHTML = h; document.body.appendChild(d); audio.play('spetter'); buzz([40, 30, 40, 30, 200]);
+  if (sugar) setTimeout(poedersuiker, 600);
+  setTimeout(() => d.classList.add('weg'), 2600); setTimeout(() => d.remove(), 3700);
+}
+function poedersuiker(ms = 3000) {
+  $('#suiker')?.remove(); const c = document.createElement('canvas'); c.id = 'suiker'; c.width = innerWidth; c.height = innerHeight; document.body.appendChild(c);
+  const ctx = c.getContext('2d'), t0 = performance.now();
+  const ps = Array.from({ length: 320 }, () => ({ x: Math.random() * c.width, y: -Math.random() * c.height * .8, r: .7 + Math.random() * 2.4, s: 2.5 + Math.random() * 4.5, a: Math.random() * 6, o: .5 + Math.random() * .5 }));
+  const step = now => { const t = now - t0, fade = t > ms - 600 ? Math.max(0, (ms - t) / 600) : 1; ctx.clearRect(0, 0, c.width, c.height);
+    for (const p of ps) { p.y += p.s; p.a += .05; p.x += Math.sin(p.a) * .9; if (p.y > c.height) { p.y = -5; p.x = Math.random() * c.width; }
+      ctx.globalAlpha = p.o * fade; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.3); ctx.fill(); }
+    if (t < ms) requestAnimationFrame(step); else c.remove(); };
+  requestAnimationFrame(step); audio.play('giggle');
+}
 /* Stroopmeter: tik op 💧 in de balk. Uitleg en de pannenkoekenstapel tot nu toe: de teamstand. Druppels per monteur staan alleen op haar eigen eindkaart. */
 let dropLog = new Map(); // stop_id → { part, drops }
 const partStops = () => state.route().filter(x => x.part).length || 7;
-const stackHtml = n => `<div class="stack">${Array.from({ length: n }, (_, i) => `<i style="width:${150 - i * 6}px;animation-delay:${i * .08}s"></i>`).join('')}</div>`;
+const stackHtml = n => `<div class="stack syr">${Array.from({ length: n }, (_, i) => `<i style="width:${150 - i * 6}px;animation-delay:${i * .08}s"></i>`).join('')}</div>`;
 function openStroop() {
   if (busy()) return;
   const g = S().game || {}, d = g.drops || 0, stops = partStops(), stack = stackOf(d, stops), nxt = nextAt(d, stops);
   overlay(`<div class="page stroop"><span class="tab">Stroopmeter</span>
-    <h2>💧 ${d} stroopdruppels</h2>
+    <h2><i class="sd"></i>${d} stroopdruppels</h2>
     <p>Stroop is de brandstof van Mecha-Pof. Jullie sparen hem <b>samen</b>: hoe meer druppels, hoe hoger de pannenkoekenstapel aan het eind.</p>
     ${stackHtml(stack)}
     <p><b>${stack} van de 10 pannenkoeken hoog</b>${nxt ? `<br><span class="note">Nog ${nxt} druppel${nxt === 1 ? '' : 's'} tot de volgende pannenkoek.</span>` : '<br><span class="note">De stapel is vol. Mega!</span>'}</p>
     <ul class="droprules">
       <li>🔩 Onderdeel terug <em>+10</em></li>
-      <li>⚡ Binnen 4 minuten opgelost <em>+3 extra</em></li>
+      <li>⚡ Binnen 4 minuten opgelost <em>+3 poedersuiker</em></li>
       <li>💡 Hint gevraagd <em>3 minder</em></li>
       <li>✗ Fout antwoord <em>kost niks</em></li></ul>
     <p class="note">De druppels verdienen jullie met z'n allen.</p>
@@ -756,7 +806,7 @@ function renderBar() {
   const stillBump = Date.now() - bumpAt < 900; lastDrops = dNow; // de balk wordt vaak opnieuw getekend: de sprong moet blijven staan
   $('#bar').innerHTML = `<div class="in">
     <div class="chips">${me.map(p => { const x = guard(p); return `<span class="chip" style="--acc:${x.color}"><i>${x.icon}</i>${esc(p.name)}</span>`; }).join('') || '<span class="eyebrow">Mecha-Pof</span>'}</div>
-    ${g && g.phase !== 'lobby' ? `<span class="drops ${bump || stillBump ? 'bump' : ''}" data-b="drops" role="button" tabindex="0" title="Stroopmeter: tik voor uitleg" aria-label="Stroopmeter: ${g.drops || 0} stroopdruppels, tik voor uitleg">💧${g.drops || 0}</span>` : ''}
+    ${g && g.phase !== 'lobby' ? `<span class="drops ${bump || stillBump ? 'bump' : ''}" data-b="drops" style="--f:${Math.min(100, Math.round(dNow / (partStops() * 10) * 100))}%" role="button" tabindex="0" title="Stroopmeter: tik voor uitleg" aria-label="Stroopmeter: ${g.drops || 0} stroopdruppels, tik voor uitleg"><i class="sd"></i>${g.drops || 0}</span>` : ''}
     ${conn(S().conn)}${sync.outboxSize() ? `<span class="note">${sync.outboxSize()}</span>` : ''}
     ${me.length && g && !naAfloop() ? (hasRole('radio') ? `<button class="walkiebtn${Date.now() < wijsUntil ? ' wijs' : ''}" data-b="walkie" aria-label="Walkietalkie met het monster">📻 Walkie</button>` : !['lobby', 'klaar'].includes(g.phase) ? '' : `<span class="note" title="De walkietalkie zit op de radiotelefoon">📻 bij ${esc(speakerNames() || 'een ander')}</span>`) : ''}
     <button class="iconbtn" data-b="mute" aria-label="Geluid">${muted ? '🔇' : '🔊'}</button>
@@ -834,7 +884,7 @@ screens.lobby = el => {
           <li><b>Loop naar de volgende plek.</b> De kaart-telefoon wijst de weg, de rest loopt mee.</li>
           <li><b>Mecha-Pof belt de radio.</b> Luister tot hij klaar is en zeg dan samen wat groot in beeld staat. Niet verstaan? Tik op <b>↻ Herhaal</b>.</li>
           <li><b>Los samen de puzzel op.</b> Hij staat op de werkbank, maar iedereen denkt mee. Is hij goed? Dan dient de Sleutelbewaarder hem in en schudt de monteur het onderdeel vast.</li>
-          <li><b>💧 Spaar stroopdruppels.</b> Elk onderdeel levert er 10 op. Snel klaar? 3 extra. Een hint kost er 3. Fout antwoord kost niks. Hoe meer druppels, hoe hoger de pannenkoekenstapel aan het eind. Tik onderweg op 💧 om te kijken.</li>
+          <li><b><i class="sd"></i>Spaar stroopdruppels.</b> Elk onderdeel levert er 10 op. Snel klaar? 3 extra, met poedersuiker. Een hint kost er 3. Fout antwoord kost niks. Hoe meer druppels, hoe hoger de pannenkoekenstapel aan het eind. Tik onderweg op de stroopmeter bovenaan om te kijken.</li>
           ${birthday() ? `<li><b>🎂 Cadeautje voor ${esc(birthday().name)}.</b> Zij heeft één verjaardagswens: de taart linksonder op haar telefoon. Een puzzel overslaan, een gratis hint of een robotdans. Het kan maar één keer!</li>` : ''}
           <li><b>Blijf bij elkaar.</b> Oversteken doen we alleen samen met de begeleider.</li></ol></div>` : '');
     $('#guards', el).innerHTML = ps.map(p => { const x = guard(p); return `<div class="guard ${mine.has(p.id) ? 'mine' : ''}" style="--acc:${x.color}"><span class="ic">${x.icon}</span>
@@ -972,7 +1022,7 @@ screens.puz = (el, id) => {
     const sb = $('#submit', el); sb.hidden = !solved;
     if (solved) {
       const kh = keyHolder();
-      const dz = dropsFor(p), box = `<div class="solvedbox"><b>✓ GOED OPGELOST!</b><span>Dit levert <b>💧 ${dz}</b> stroopdruppels op${dz > 10 ? ' (10 + 3 omdat jullie snel zijn ⚡)' : (p.hints || 0) > 0 ? ' (hint gebruikt 💡)' : ''}.</span></div>`;
+      const dz = dropsFor(p), box = `<div class="solvedbox"><b>✓ GOED OPGELOST!</b><span>Dit levert <b><i class="sd"></i>${dz}</b> stroopdruppels op${dz > 10 ? ' (10 + 3 poedersuiker omdat jullie snel zijn ⚡)' : (p.hints || 0) > 0 ? ' (hint gebruikt 💡)' : ''}.</span></div>`;
       sb.innerHTML = p.solved_at ? '<p class="feedback ok">✓ Ingediend!</p>'
         : canSubmit() ? `${box}<p><b>Laatste stap:</b> ${state.hasTalent('sleutelbewaarder') ? 'jij bent de Sleutelbewaarder. D' : 'd'}ien het in om het deel te verdienen.</p><button class="ok wide big-btn" id="dosubmit" ${submitting ? 'disabled' : ''}>🔑 Indienen</button>`
         : kh ? `${box}<p class="callkey">🔑 Roep <b>${esc(kh.name)}</b>! Alleen de Sleutelbewaarder kan indienen.</p>`
@@ -1016,7 +1066,7 @@ screens.klaar = el => {
         ${naAfloop() ? '<p class="note">Operatie geslaagd op vrijdag 13 november. Dit is jullie eindstand. Bliep!</p>' : `<div class="row" style="justify-content:center">${hasRole('radio') ? '<button class="berry" data-k="walkie">📻 Afscheid: over en sluiten</button>' : ''}<button class="plain" data-k="foto">📸 Teamfoto</button></div>
         <p class="note">Allemaal tegelijk in de walkietalkie: <b>over en sluiten</b>!</p>`}</div>
       <div class="page center"><span class="tab">Eindcijfer</span>
-        <div class="stack">${Array.from({ length: stack }, (_, i) => `<i style="width:${150 - i * 6}px;animation-delay:${i * .12}s"></i>`).join('')}</div>
+        <div class="stack syr">${Array.from({ length: stack }, (_, i) => `<i style="width:${150 - i * 6}px;animation-delay:${i * .12}s"></i>`).join('')}</div>
         <h2>${stack} van de 10 pannenkoeken hoog</h2>
         <p>${g.drops || 0} stroopdruppels · ${g.hints || 0} hint${g.hints === 1 ? '' : 's'}</p>
         ${b ? `<p class="clue">${esc(b.name)}, jij hebt de boterknop aangezet. Gefeliciteerd, jarige!</p>` : ''}
@@ -1067,7 +1117,7 @@ function tapLine() {
   if (mine) return 'Bliep! Wil je me spreken? Tik op de gouden knop. Walkie! Daar zit mijn mond.';
   return who ? `Hihi, dat kietelt! Wil je me spreken? Mijn walkie zit bij ${who}. Roep haar maar!` : 'Hihi, dat kietelt! Mijn walkie zit op een andere telefoon. Daar kun je me spreken.';
 }
-window.pkm = { tapLine, state, sync, router, finale, PARTS, TALENTS, mon, monsterUrl, monsterImage, audio, toast, say, bubble, chime: audio.chime, buzz, refresh, roles: { myRoles, hasRole, whoHas, deviceWithRole }, install, surprises, nav, callRinging, ringCall, walkieTools, get walkie() { return walkie; } };
+window.pkm = { tapLine, stroopDrip, poedersuiker, state, sync, router, finale, PARTS, TALENTS, mon, monsterUrl, monsterImage, audio, toast, say, bubble, chime: audio.chime, buzz, refresh, roles: { myRoles, hasRole, whoHas, deviceWithRole }, install, surprises, nav, callRinging, ringCall, walkieTools, get walkie() { return walkie; } };
 renderBar(); refresh('remount'); boot();
 </script>
 </body>

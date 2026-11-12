@@ -55,7 +55,7 @@ export function endCards(st, { portret = {}, druppels = null, mijn = [] } = {}) 
     return `<div class="fin-card${mijn.includes(p.id) ? ' mine' : ''}" style="--acc:${p.color || info?.color || '#7FE8FF'}">${portret[p.id] ? `<img class="fin-portret" src="${esc(portret[p.id])}" alt="" data-groot>` : ''}
       <div class="fin-head"><span class="fin-ic">${info?.icon || '⭐'}</span><div><b>${esc(p.name)}${p.is_birthday ? ' 🎂' : ''}</b><small>${esc(t?.label || 'Monteur')}${info ? ' · ' + esc(info.label) : ''}</small></div></div>
       <p class="fin-zin">“${esc(zin)}${extra ? ' ' + esc(extra) : ''}”</p>
-      ${druppels && druppels[p.id] != null && info ? `<p class="fin-drops">💧 <b>${druppels[p.id]}</b> stroopdruppels voor ${esc(info.label)}</p>` : ''}
+      ${druppels && druppels[p.id] != null && info ? `<p class="fin-drops"><i class="sd"></i><b>${druppels[p.id]}</b> stroopdruppels voor ${esc(info.label)}</p>` : ''}
       <div class="fin-badges">${badges || '<span class="fin-badge dim">nog geen badges</span>'}</div></div>`;
   }).join('');
 }
