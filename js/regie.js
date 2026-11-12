@@ -243,7 +243,7 @@ function renderLive() {
 function surpriseStatus() {
   const g = game(), s = g?.surprise; if (!s) return '';
   const started = s.started_at;
-  if (s.kind === 'thief') { const j = eventsAfter('thief.jump', started)[0]; return `<div class="surprise"><span class="k">🍪 De Kruimelaar is actief</span><p>Gestolen: <b>${esc(PARTS[s.data?.part]?.label || s.data?.part || '?')}</b> · nu bij punt ${(j ? +j.payload?.i : 0) + 1} van ${s.data?.points?.length || 0} · ${ago(started)}</p></div>`; }
+  if (s.kind === 'thief') { const j = eventsAfter('thief.jump', started)[0]; return `<div class="surprise"><span class="k">🍪 De Kruimelaar is actief</span><p>Gestolen: <b>${esc(PARTS[s.data?.part]?.label || s.data?.part || '?')}</b> · nu bij punt ${(j ? +j.payload?.i : 0) + 1} van ${s.data?.points?.length || 0}${s.data?.points?.[j ? +j.payload?.i : 0]?.n ? ` (${esc(s.data.points[j ? +j.payload?.i : 0].n)})` : ''} · ${ago(started)}</p></div>`; }
   const secondsLeft = total => Math.max(0, Math.round((Date.parse(started) + total * 1000 - Date.now()) / 1000));
   if (s.kind === 'storm') {
     const scores = eventsAfter('storm.score', started), total = scores.reduce((n, e) => n + (+e.payload?.n || 0), 0);
@@ -454,13 +454,16 @@ function tabVerras() {
   const tekeningen = tk.gekozen?.() || [];
   const jump = thiefOn ? +(eventsAfter('thief.jump', s.started_at)[0]?.payload?.i ?? 0) : 0, n = s?.data?.points?.length || 0;
   const birthday = players().find(p => p.is_birthday);
-  const pick = got.length ? got : IS_TEST ? Object.keys(PARTS) : []; // testspel: de Kruimelaar kan ook zonder gevonden deel of gestart spel
+  const plan = thiefPlan(), pick = got.length ? got : IS_TEST ? Object.keys(PARTS) : []; // testspel: de Kruimelaar kan ook zonder gevonden deel of gestart spel
   return `${s ? `<p class="note">Er loopt al een verrassing (${esc(s.kind)}). Eén tegelijk werkt het best: stop die eerst.</p>` : ''}
     <div class="page ${thiefOn ? 'warn' : ''}"><span class="tab">🍪 De Kruimelaar</span>
-      <p class="note">Een kruimelrobot steelt een gevonden deel en springt van punt naar punt rond de groep. De Rekenmeester pakt het terug (armen). De punten verschijnen op de kaart.</p>
-      ${thiefOn ? `<p>Heeft <b>${esc(PARTS[s.data?.part]?.label || '?')}</b> · punt ${jump + 1} van ${n}</p><div class="grid3"><button class="plain" data-a="thief.jump" ${jump + 1 >= n ? 'disabled' : ''}>⏭ Volgende punt</button><button class="ok" data-a="thief.caught">🫳 Gevangen!</button><button class="danger" data-a="thief.end">✖ Afbreken</button></div>`
-        : `<div class="row"><label class="grow">Welk deel steelt hij?<select data-ui="thiefPart">${pick.length ? pick.map(k => `<option value="${k}" ${ui.thiefPart === k ? 'selected' : ''}>${PARTS[k].icon} ${esc(PARTS[k].label)}</option>`).join('') : '<option value="">— nog niets gevonden —</option>'}</select></label><button class="led" data-a="thief.start" ${pick.length && (act || IS_TEST) ? '' : 'disabled'} style="align-self:end">🍪 Start</button></div>
-           <p class="note">Vier punten op 70–140 m rond ${devs.some(d => d.lat != null && d.online) ? 'de telefoons' : 'de actieve stop'}.${IS_TEST && !got.length ? ' Testspel: starten kan ook zonder gevonden deel.' : ''}</p>`}
+      <p class="note">Een kruimelrobot steelt een gevonden deel en springt van punt naar punt, langs vaste plekken op weg naar de volgende plek. De Rekenmeester pakt het terug (armen). De punten verschijnen op de kaart.</p>
+      ${thiefOn ? `<p>Heeft <b>${esc(PARTS[s.data?.part]?.label || '?')}</b> · punt ${jump + 1} van ${n}${s.data?.points?.[jump]?.n ? `: <b>${esc(s.data.points[jump].n)}</b>` : ''}${s.data?.points?.[jump + 1]?.n ? ` · daarna: ${esc(s.data.points[jump + 1].n)}` : ''}</p><div class="grid3"><button class="plain" data-a="thief.jump" ${jump + 1 >= n ? 'disabled' : ''}>⏭ Volgende punt</button><button class="ok" data-a="thief.caught">🫳 Gevangen!</button><button class="danger" data-a="thief.end">✖ Afbreken</button></div>`
+        : `<div class="row"><label class="grow">Welk deel steelt hij?<select data-ui="thiefPart">${pick.length ? pick.map(k => `<option value="${k}" ${ui.thiefPart === k ? 'selected' : ''}>${PARTS[k].icon} ${esc(PARTS[k].label)}</option>`).join('') : '<option value="">— nog niets gevonden —</option>'}</select></label><button class="led" data-a="thief.start" ${pick.length && plan.points.length ? '' : 'disabled'} style="align-self:end">🍪 Start</button></div>
+           <p class="note">${plan.why === 'vast' ? `Vaste punten vanaf <b>${esc(plan.from?.name || '')}</b>, in looprichting: ${plan.names.map((x, k) => `${k + 1}. ${esc(x)}`).join(' → ')}. "Gevangen!" kan bij elk punt.`
+             : plan.why === 'test' ? 'Testspel, niet op de route: vier willekeurige punten op 70–140 m rond de telefoons (of de actieve plek).'
+             : plan.why === 'voorbij' ? 'De groep is de vaste punten van dit stuk al voorbij. Start hem bij de volgende plek.'
+             : 'Hier zijn geen vaste punten (vóór de start en thuis). Start hem bij een plek onderweg.'}</p>`}
     </div>
     <div class="page ${stormOn ? 'warn' : ''}"><span class="tab">⚡ Kortsluiting</span>
       <p class="note">Iedereen tikt vonken weg op de eigen telefoon; de scores tellen op.</p>
@@ -587,7 +590,7 @@ app.addEventListener('click', async e => {
     case 'quick': ui.say = b.dataset.s; renderPanel(); return;
     case 'say': { const text = ui.say.trim(); if (!text) return toast('Typ eerst wat hij moet zeggen.'); if (await busy(() => sync.regie.event('monster.say', { text, ...(ui.mood ? { mood: ui.mood } : {}) }), '🗣️ Gestuurd')) { ui.say = ''; renderPanel(); } return; }
     case 'call': { if (!ui.call) return; const p = { player_id: ui.call, message_id: uid() }; if (ui.callText.trim()) p.text = ui.callText.trim(); return busy(() => sync.regie.event('monster.call', p), `📞 ${playerName(ui.call)} wordt gebeld`); }
-    case 'thief.start': { const part = ui.thiefPart || (g?.parts || [])[0] || (IS_TEST ? Object.keys(PARTS)[0] : null); if (!part) return; return busy(() => sync.regie.event('thief.start', { part, points: thiefPoints() }), '🍪 De Kruimelaar is los'); }
+    case 'thief.start': { const part = ui.thiefPart || (g?.parts || [])[0] || (IS_TEST ? Object.keys(PARTS)[0] : null); if (!part) return; const plan = thiefPlan(); if (!plan.points.length) return toast('Hier heeft de Kruimelaar geen vaste punten'); return busy(() => sync.regie.event('thief.start', { part, points: plan.points }), '🍪 De Kruimelaar is los'); }
     case 'thief.jump': { const i = +(eventsAfter('thief.jump', g.surprise.started_at)[0]?.payload?.i ?? 0) + 1; return busy(() => sync.regie.event('thief.jump', { i }), `⏭ Punt ${i + 1}`); }
     case 'thief.caught': return busy(() => sync.regie.event('thief.caught', {}), '🫳 Gevangen!');
     case 'thief.end': return busy(() => sync.regie.event('thief.end', {}), 'Kruimelaar afgebroken');
@@ -612,14 +615,35 @@ app.addEventListener('click', async e => {
     case 'addstop': return editStop(null);
   }
 });
-function thiefPoints() { // vier punten in een kring rond de groep (of de actieve stop), 70–140 m
-  const live = devices().filter(d => d.lat != null && d.online), act = activeStop();
-  const c = live.length ? { lat: live.reduce((s, d) => s + d.lat, 0) / live.length, lng: live.reduce((s, d) => s + d.lng, 0) / live.length } : act || stops()[0];
-  if (!c) return [];
+// De Kruimelaar springt langs vaste plekken die Job op 9 nov zelf gescout heeft (scout_place, in looprichting), op het stuk van de
+// plek waar de groep vandaan komt naar de volgende plek. Sleutel = het onderdeel van de plek waar ze vandaan komen. Nummers = scoutplek.
+// Jij bepaalt hoe ver het gaat: "Gevangen!" kan bij elk punt. Thuis (hoed) en vóór de start zijn er geen punten.
+const THIEF_ROUTE = {
+  lijf:  [{ n: 'Huis nr. 10 (koe)', lat: 51.613392, lng: 5.559169 }, { n: 'De rustige straat', lat: 51.613456, lng: 5.559793 }, { n: 'Het rustige erf', lat: 51.613748, lng: 5.560574 }, { n: 'Het bruggetje', lat: 51.613975, lng: 5.560601 }], // 12, 13, 14, 15
+  ogen:  [{ n: 'Huis nr. 5', lat: 51.614158, lng: 5.561799 }, { n: 'Begin van het pad', lat: 51.614030, lng: 5.561992 }, { n: 'Halverwege het pad', lat: 51.613434, lng: 5.561683 }], // 18, 19, 20
+  neus:  [{ n: 'Het schuurtje', lat: 51.612899, lng: 5.561570 }, { n: 'Pad driekwart', lat: 51.612696, lng: 5.562330 }, { n: 'Laatste stuk pad (paaltjes)', lat: 51.611799, lng: 5.561991 }, { n: 'De vier balken', lat: 51.612190, lng: 5.563605 }], // 23, 24, 25, 29
+  mond:  [{ n: 'Het bankje met de pijlen', lat: 51.613806, lng: 5.564414 }], // 33
+  armen: [{ n: 'De boom', lat: 51.615542, lng: 5.565293 }, { n: 'De hoge bomen', lat: 51.615768, lng: 5.565120 }, { n: 'Het stalen huis', lat: 51.615985, lng: 5.564854 }, { n: 'Rustige plek naast de straat', lat: 51.616176, lng: 5.564080 }], // 36, 37, 38, 39
+  benen: [{ n: 'Het tankstation van de buren', lat: 51.616805, lng: 5.562375 }, { n: 'De leeuwensteen', lat: 51.616935, lng: 5.561987 }, { n: 'De brievenbussen', lat: 51.617044, lng: 5.561773 }], // 41, 42, 45
+};
+function thiefCenter() { const live = devices().filter(d => d.lat != null && d.online); return live.length ? { lat: live.reduce((s, d) => s + d.lat, 0) / live.length, lng: live.reduce((s, d) => s + d.lng, 0) / live.length, live: true } : null; }
+/** Welke punten krijgt de Kruimelaar nu? { points, names, from, why }. Vaste punten op het stuk naar de volgende plek; onderweg vallen de
+    punten af waar de groep al voorbij is. Alleen in het testspel, ver van de route: vier willekeurige punten rond de telefoons. */
+function thiefPlan() {
+  const g = game(), order = (g?.stop_order || []).map(id => stops().find(s => s.id === id)).filter(Boolean), i = g?.active_index ?? 0;
+  const here = thiefCenter(), act = order[i] || null;
+  let from = null; // de plek waar ze vandaan komen: bij een puzzel de plek zelf, onderweg de vorige (bonusplekken zonder deel tellen niet)
+  for (let k = g?.phase === 'onderweg' ? i - 1 : i; k >= 0 && !from; k--) { const st = order[k]; if (!st) continue; if (THIEF_ROUTE[st.part]) from = st; else if (st.part) break; } // een plek met een deel maar zonder punten (thuis): geen Kruimelaar
+  let pts = from ? THIEF_ROUTE[from.part].slice() : [];
+  if (pts.length && here && g?.phase === 'onderweg' && act) { const dMe = haversine(here, act); pts = pts.filter(p => haversine(p, act) < dMe - 10); } // al voorbij = weg
+  const far = IS_TEST && pts.length && here && haversine(here, pts[0]) > 600; // testspel op een andere plek dan de route
+  if (pts.length && !far) return { points: pts.map(p => ({ lat: p.lat, lng: p.lng, n: p.n })), names: pts.map(p => p.n), from, why: 'vast' };
+  if (!IS_TEST) return { points: [], names: [], from, why: !from ? 'geen' : 'voorbij' };
+  const c = here || act || stops()[0]; if (!c) return { points: [], names: [], from, why: 'geen' };
   const a0 = Math.random() * Math.PI * 2, out = [];
-  for (let i = 0; i < 4; i++) { const a = a0 + i * Math.PI / 2 + (Math.random() - .5) * .6, r = 70 + Math.random() * 70;
+  for (let k = 0; k < 4; k++) { const a = a0 + k * Math.PI / 2 + (Math.random() - .5) * .6, r = 70 + Math.random() * 70;
     out.push({ lat: +(c.lat + (r * Math.cos(a)) / 111320).toFixed(6), lng: +(c.lng + (r * Math.sin(a)) / (111320 * Math.cos(c.lat * Math.PI / 180))).toFixed(6) }); }
-  return out;
+  return { points: out, names: [], from, why: 'test' };
 }
 
 /* ================================================================ overlays: speler en stop bewerken */
