@@ -68,7 +68,7 @@ ok('surprises: stemmen tellen, laatste stem per speler telt', () => {
   assert.ok(BADGES.kruimelaar && BADGES.vonkenvanger && BADGES.jetpack && BADGES.wens);
 });
 
-const { panInit, panMove, panSolved } = await import('../js/surprises.js');
+const { panInit, panMove, panSolved, panSwap, panHint, panRoute } = await import('../js/surprises.js');
 ok('poffertjespan: zelfde seed = zelfde husseling, nooit opgelost aan het begin, zetten kloppen', () => {
   for (const seed of [1, 7, 42, 123456789, 999999999]) {
     const a = panInit(seed), b = panInit(seed);
@@ -80,6 +80,18 @@ ok('poffertjespan: zelfde seed = zelfde husseling, nooit opgelost aan het begin,
     assert.ok(found, 'seed ' + seed);
   }
   const d = panInit(5); assert.equal(panMove(d, d.empty), d); // tik op het lege kuiltje doet niets
+  for (const seed of [1, 7, 42, 123456789, 999999999, 31337]) {
+    // makkelijk: 6 tot 10 zetten van de oplossing; de hulp volgt de kortste route tot hij opgelost is
+    let e = panInit(seed, 'makkelijk'); const len = panRoute(e).length; assert.ok(len >= 6 && len <= 10, `makkelijk seed ${seed}: ${len}`);
+    for (let k = 0; k < len; k++) { const h = panHint(e); e = panMove(e, e.tiles.indexOf(h.tile)); } assert.ok(panSolved(e)); assert.equal(e.moves, len);
+    // wisselen: geen leeg kuiltje, niet opgelost, met de hulp in hooguit 8 wissels klaar
+    let w = panInit(seed, 'wissel'); assert.equal(w.empty, -1); assert.equal(panSolved(w), false); assert.deepEqual(w, panInit(seed, 'wissel'));
+    assert.equal(panMove(w, 3), w); // schuiven doet niets in de wisselstand
+    for (let k = 0; k < 8 && !panSolved(w); k++) { const h = panHint(w); w = panSwap(w, w.tiles.indexOf(h.tile), h.to); } assert.ok(panSolved(w));
+    // gewoon: de hulp lost ook de zware stand op
+    let g = panInit(seed); const r = panRoute(g); assert.ok(r && r.length <= 31); for (const t of r) g = panMove(g, g.tiles.indexOf(t)); assert.ok(panSolved(g));
+  }
+  { const g = panInit(3); assert.equal(panSwap(g, 0, 1), g); } // wisselen doet niets in de schuifstand
   assert.equal(BADGES.pan.id, 'poffertjesbakker');
 });
 

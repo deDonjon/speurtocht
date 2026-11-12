@@ -4,7 +4,7 @@
 //   fork.*         Dubbel signaal: twee kanten op, elke speurder stemt (fork.vote {player_id, choice})
 //   finale.timer   Jetpack oververhit: aftelklok naar huis; thuis aankomen = gered
 //   pan            Poffertjespan (12 nov avond): schuifpuzzel in een poffertjespan, op elke telefoon dezelfde husseling. Geen eigen events:
-//                  de regie zet game.surprise = { kind:'pan', started_at, data:{ seed, image?, nums } } (patchGame) en haalt hem weer weg.
+//                  de regie zet game.surprise = { kind:'pan', started_at, data:{ seed, mode:'wissel'|'makkelijk'|'gewoon', image?, nums } } (patchGame) en haalt hem weer weg.
 //                  image = Mecha-Pof (leeg) of een goedgekeurde tekening (ondertekende link uit de regie).
 //   wish.used      Verjaardagswens: alleen de jarige, één keer (puzzel overslaan, gratis hint of een dansje)
 // De regie (regie.html) stuurt de events; de telefoons tonen ze. De lopende verrassing staat ook in game.surprise,
@@ -45,26 +45,79 @@ export function roundSecondsLeft(startedAt, seconds, now = Date.now()) {
   const end = (startedAt ? Date.parse(startedAt) : now) + (seconds || 0) * 1000;
   return Math.max(0, Math.round((end - now) / 1000));
 }
-/** Poffertjespan: 3×3 schuifpuzzel. panInit(seed) → { tiles, empty, moves } (60 geldige zetten vanaf opgelost: altijd oplosbaar,
-    zelfde seed = zelfde husseling op elke telefoon). panMove(data, i) → nieuwe stand (of dezelfde bij een ongeldige tik). */
+/** Poffertjespan: 3×3 puzzel in drie standen (zelfde seed = zelfde husseling op elke telefoon).
+    panInit(seed, mode) → { tiles, empty, moves }
+      'gewoon'    schuifpuzzel, 60 geldige zetten vanaf opgelost (altijd oplosbaar)
+      'makkelijk' schuifpuzzel, 10 zetten geschud en minstens 6 zetten van de oplossing af
+      'wissel'    negen poffertjes, geen leeg kuiltje (empty = -1): twee aantikken = omwisselen
+    panMove(data, i) schuift, panSwap(data, a, b) wisselt; beide geven dezelfde data terug bij een ongeldige zet.
+    panHint(data) → { tile, to } de volgende goede zet (schuiven: kortste oplossing; wisselen: eerste poffertje dat verkeerd ligt). */
 const panAdj = (a, b) => Math.abs((a / 3 | 0) - (b / 3 | 0)) + Math.abs(a % 3 - b % 3) === 1;
 function panRng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-export function panInit(seed = 1) {
-  const r = panRng(+seed || 1), tiles = [0, 1, 2, 3, 4, 5, 6, 7, 8]; let empty = 8, prev = -1;
-  for (let k = 0; k < 60; k++) {
+export const PAN_MODES = { wissel: 'Wisselen', makkelijk: 'Schuiven, makkelijk', gewoon: 'Schuiven, gewoon' };
+export const panSolved = data => data.tiles.every((t, k) => t === k);
+function panShuffle(r, n) {
+  const tiles = [0, 1, 2, 3, 4, 5, 6, 7, 8]; let empty = 8, prev = -1;
+  for (let k = 0; k < n; k++) {
     const cand = [empty - 3, empty + 3, empty - 1, empty + 1].filter(x => x >= 0 && x < 9 && x !== prev && panAdj(x, empty));
     const pick = cand[Math.floor(r() * cand.length)];
     [tiles[empty], tiles[pick]] = [tiles[pick], tiles[empty]]; prev = empty; empty = pick;
   }
-  if (tiles.every((t, k) => t === k)) { [tiles[7], tiles[8]] = [tiles[8], tiles[7]]; empty = 7; }
   return { tiles, empty, moves: 0 };
 }
+// Kortste oplossing van een schuifstand (breedte-eerst): rij tegelnummers om te tikken; null als het boven `max` zetten zit.
+export function panRoute(data, max = 40) {
+  if (data.empty < 0) return null;
+  if (panSolved(data)) return [];
+  const key = t => t.join(''), seen = new Map([[key(data.tiles), null]]); let q = [{ t: data.tiles, e: data.empty }];
+  for (let depth = 0; depth < max && q.length; depth++) {
+    const nx = [];
+    for (const d of q) for (const i of [d.e - 3, d.e + 3, d.e - 1, d.e + 1]) {
+      if (i < 0 || i > 8 || !panAdj(i, d.e)) continue;
+      const t = d.t.slice(), tile = t[i]; [t[i], t[d.e]] = [t[d.e], t[i]]; const k = key(t);
+      if (seen.has(k)) continue; seen.set(k, { from: key(d.t), tile });
+      if (t.every((x, j) => x === j)) { const path = []; for (let c = k; seen.get(c); c = seen.get(c).from) path.unshift(seen.get(c).tile); return path; }
+      nx.push({ t, e: i });
+    }
+    q = nx;
+  }
+  return null;
+}
+export function panInit(seed = 1, mode = 'gewoon') {
+  const r = panRng(+seed || 1);
+  if (mode === 'wissel') {
+    const tiles = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+    for (let pass = 0; pass < 5; pass++) { // schudden tot er hooguit twee poffertjes toevallig al goed liggen
+      for (let i = 8; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [tiles[i], tiles[j]] = [tiles[j], tiles[i]]; }
+      if (tiles.filter((t, k) => t === k).length <= 2) break;
+    }
+    if (tiles.every((t, k) => t === k)) [tiles[0], tiles[8]] = [tiles[8], tiles[0]];
+    return { tiles, empty: -1, moves: 0 };
+  }
+  if (mode === 'makkelijk') {
+    let d = null;
+    for (let pass = 0; pass < 20; pass++) { d = panShuffle(r, 10); const route = panRoute(d, 10); if (route && route.length >= 6) return d; }
+    return d;
+  }
+  const d = panShuffle(r, 60);
+  if (panSolved(d)) { [d.tiles[7], d.tiles[8]] = [d.tiles[8], d.tiles[7]]; d.empty = 7; }
+  return d;
+}
 export function panMove(data, i) {
-  i |= 0; if (i < 0 || i > 8 || !panAdj(i, data.empty)) return data;
+  i |= 0; if (data.empty < 0 || i < 0 || i > 8 || !panAdj(i, data.empty)) return data;
   const tiles = data.tiles.slice(); [tiles[i], tiles[data.empty]] = [tiles[data.empty], tiles[i]];
   return { tiles, empty: i, moves: data.moves + 1 };
 }
-export const panSolved = data => data.tiles.every((t, k) => t === k);
+export function panSwap(data, a, b) {
+  a |= 0; b |= 0; if (data.empty >= 0 || a === b || a < 0 || b < 0 || a > 8 || b > 8) return data;
+  const tiles = data.tiles.slice(); [tiles[a], tiles[b]] = [tiles[b], tiles[a]];
+  return { tiles, empty: -1, moves: data.moves + 1 };
+}
+export function panHint(data) {
+  if (panSolved(data)) return null;
+  if (data.empty < 0) { const k = data.tiles.findIndex((t, i) => t !== i); return { tile: data.tiles[k], to: data.tiles[k] }; }
+  const route = panRoute(data); return route?.length ? { tile: route[0], to: data.empty } : null;
+}
 const mmss = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function haversine(a, b) { const R = 6371000, r = x => x * Math.PI / 180, dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
@@ -136,6 +189,17 @@ body.sp-storm .pkmon-bubble,body.sp-storm .bubble{display:none!important}
 #sp-ov .sp-pan .pof em{position:absolute;left:3px;top:3px;min-width:22px;height:22px;border-radius:11px;background:#1A1F2A;color:#FFE3A3;font:700 .8rem/22px 'Chakra Petch',ui-monospace,monospace;font-style:normal;text-align:center;box-shadow:0 0 0 2px #D9963A;z-index:1}
 #sp-ov .sp-pan .pof.can b{border-color:#FFD27A;box-shadow:0 0 0 2px #9A5A1C,0 4px 0 #6B3B10,0 0 14px rgba(255,210,122,.6),inset 0 0 10px rgba(154,90,28,.55)}
 #sp-ov .sp-pan .pof.last{animation:sp-pop .4s ease-out}
+#sp-ov .sp-pan .pof.ok b{border-color:#4ADE80;box-shadow:0 0 0 2px #1F8A4C,0 4px 0 #14532D,0 6px 8px rgba(0,0,0,.55),inset 0 0 10px rgba(154,90,28,.4)}
+#sp-ov .sp-pan .pof.sel b{border-color:#7FE8FF;box-shadow:0 0 0 3px #15A4C8,0 4px 0 #0B5F75,0 0 18px rgba(127,232,255,.8)}
+#sp-ov .sp-pan .pof.sel{transform:scale(1.06)}
+#sp-ov .sp-pan .pof.hint b{border-color:#FFF;box-shadow:0 0 0 4px #F2BE62,0 0 24px #FFE98A;animation:sp-hintp .5s ease-in-out 6 alternate}
+#sp-ov .sp-pan .dimple i{display:grid;place-items:center;color:rgba(255,227,163,.38);font:700 1.5rem 'Chakra Petch',ui-monospace,monospace;font-style:normal}
+#sp-ov .sp-panhelp{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%}
+#sp-ov .sp-panhelp figure{margin:0;display:flex;align-items:center;gap:8px;color:#93A0B8;font-weight:700;font-size:.85rem;text-align:left}
+#sp-ov .sp-panhelp figure img{width:64px;height:64px;border-radius:10px;object-fit:cover;background:#F8DC9C;border:2px solid #D9963A}
+#sp-ov .sp-panhelp button{min-height:48px;border-radius:12px;border:2px solid #F2BE62;background:linear-gradient(180deg,#3A4356,#2A3142);color:#FFE3A3;font:800 .95rem Nunito,system-ui,sans-serif;padding:6px 14px;box-shadow:0 3px 0 #10141C}
+#sp-ov .sp-panhelp button[hidden]{display:none}
+@keyframes sp-hintp{from{transform:scale(1)}to{transform:scale(1.08)}}
 #sp-ov .sp-pan.done{box-shadow:inset 0 2px 0 rgba(255,255,255,.14),inset 0 -6px 12px rgba(0,0,0,.6),0 8px 0 #0A0B0E,0 0 34px rgba(242,190,98,.55)}
 #sp-ov .sp-pan .sugar{position:absolute;inset:0;border-radius:30px;pointer-events:none;overflow:hidden}
 #sp-ov .sp-pan .sugar i{position:absolute;top:-6%;width:5px;height:5px;border-radius:50%;background:#fff;opacity:.9;animation:sp-sugar 1.6s ease-in forwards}
@@ -154,7 +218,7 @@ body.sp-storm .pkmon-bubble,body.sp-storm .bubble{display:none!important}
 @keyframes sp-pop{0%{transform:scale(.2)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
 @keyframes sp-flicker{0%{filter:brightness(1)}100%{filter:brightness(1.4)}}
 @keyframes sp-hit{to{transform:scale(1.9);opacity:0}}
-@media (prefers-reduced-motion:reduce){#sp-banner button .led,.sp-thief.now,#sp-wish,#sp-ov .sp-spark{animation:none}#sp-ov .sp-pan .pof{transition:none}#sp-ov .sp-pan .sugar i{animation:none;transform:translateY(var(--y,200px))}}`;
+@media (prefers-reduced-motion:reduce){#sp-banner button .led,.sp-thief.now,#sp-wish,#sp-ov .sp-spark{animation:none}#sp-ov .sp-pan .pof{transition:none}#sp-ov .sp-pan .pof.hint b{animation:none}#sp-ov .sp-pan .sugar i{animation:none;transform:translateY(var(--y,200px))}}`;
 
 export function createSurprises({ mon, state, sync, router, audio, buzz = () => {}, toast = () => {}, lineText, PARTS = {}, TALENTS = {}, hasRole = () => true, confetti = () => {}, isBusy = () => false, now = () => Date.now() } = {}) {
   if (!document.getElementById('sp-css')) { const s = document.createElement('style'); s.id = 'sp-css'; s.textContent = CSS; document.head.appendChild(s); }
@@ -374,38 +438,64 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
       return url.slice(0, k + 1) + encodeURIComponent(svg);
     } catch { return ''; }
   };
-  function panSave() { try { localStorage.setItem(panKey(), JSON.stringify({ tiles: cur.tiles, empty: cur.empty, moves: cur.moves, doneMs: cur.doneMs })); } catch {} }
+  const PAN_HELP_MS = 60_000; // na een minuut mag Mecha-Pof helpen
+  function panSave() { try { localStorage.setItem(panKey(), JSON.stringify({ tiles: cur.tiles, empty: cur.empty, moves: cur.moves, doneMs: cur.doneMs, hints: cur.hints })); } catch {} }
   function panStart(p, startedAt) {
-    const d = panInit(+p.seed || 1);
-    cur = { kind: 'pan', startedAt: startedAt || new Date(now()).toISOString(), image: p.image || panFallback(), eigen: !!p.image, nums: p.nums !== false || !p.image, ...d, doneMs: null, timer: 0 };
-    try { const o = JSON.parse(localStorage.getItem(panKey()) || 'null'); if (o && Array.isArray(o.tiles) && o.tiles.length === 9) Object.assign(cur, { tiles: o.tiles, empty: o.empty, moves: o.moves | 0, doneMs: o.doneMs ?? null }); } catch {}
+    const mode = PAN_MODES[p.mode] ? p.mode : 'gewoon', d = panInit(+p.seed || 1, mode), easy = mode !== 'gewoon';
+    cur = { kind: 'pan', mode, easy, startedAt: startedAt || new Date(now()).toISOString(), image: p.image || panFallback(), eigen: !!p.image, nums: easy || p.nums !== false || !p.image, ...d, doneMs: null, sel: -1, hints: 0, hintTile: -1, hintTile2: -1, timer: 0 };
+    try { const o = JSON.parse(localStorage.getItem(panKey()) || 'null'); if (o && Array.isArray(o.tiles) && o.tiles.length === 9) Object.assign(cur, { tiles: o.tiles, empty: o.empty, moves: o.moves | 0, doneMs: o.doneMs ?? null, hints: o.hints | 0 }); } catch {}
     if (cur.eigen) { const c = cur, im = new Image(); im.onerror = () => { if (cur === c) { c.image = panFallback(); c.eigen = false; refresh(); } }; im.src = cur.image; } // link verlopen of geen bereik: dan Mecha-Pof zelf
     alarm(); refresh(); openOverlay();
-    speak('pan', 'start', { interrupt: true });
-    cur.timer = setInterval(() => { if (cur?.kind !== 'pan') return; const el = ov?.querySelector('#sp-pan-t'); if (el) el.textContent = mmss(panSecs()); }, 1000); timers.add(cur.timer);
+    speak('pan', mode === 'wissel' ? 'startWissel' : 'start', { interrupt: true });
+    cur.timer = setInterval(() => {
+      if (cur?.kind !== 'pan') return;
+      const el = ov?.querySelector('#sp-pan-t'); if (el) el.textContent = mmss(panSecs());
+      const hb = ov?.querySelector('#sp-pan-help'); if (hb && hb.hidden && panHelpOpen()) hb.hidden = false;
+    }, 1000); timers.add(cur.timer);
   }
   const panSecs = () => Math.max(0, Math.round(((cur.doneMs ?? now()) - Date.parse(cur.startedAt)) / 1000));
+  const panHelpOpen = () => cur.doneMs == null && now() - Date.parse(cur.startedAt) >= PAN_HELP_MS;
+  const panPos = i => `left:${(i % 3) * 33.333}%;top:${(i / 3 | 0) * 33.333}%`;
+  function panClasses(t, i) { // class per poffertje: kan schuiven, ligt goed, gekozen (wisselen), hulp
+    const done = cur.doneMs != null, wissel = cur.mode === 'wissel';
+    return ['pof', !done && !wissel && panAdj(i, cur.empty) ? 'can' : '', !done && t === i ? 'ok' : '', !done && wissel && cur.sel === t ? 'sel' : '', !done && (cur.hintTile === t || cur.hintTile2 === t) ? 'hint' : ''].filter(Boolean).join(' ');
+  }
   function panBoard() {
-    const done = cur.doneMs != null, src = esc(cur.image);
-    const pof = (t, i, extra = '') => `<button type="button" class="pof ${!done && panAdj(i, cur.empty) ? 'can' : ''} ${extra}" data-pof="${t}" style="left:${(i % 3) * 33.333}%;top:${(i / 3 | 0) * 33.333}%" aria-label="poffertje ${t + 1}">
+    const done = cur.doneMs != null, src = esc(cur.image), wissel = cur.mode === 'wissel';
+    const pof = (t, i, extra = '') => `<button type="button" class="${panClasses(t, i)} ${extra}" data-pof="${t}" style="${panPos(i)}" aria-label="poffertje ${t + 1}">
       <b>${src ? `<img src="${src}" alt="" style="left:${-(t % 3) * 100}%;top:${-(t / 3 | 0) * 100}%">` : ''}</b>${cur.nums && !done ? `<em>${t + 1}</em>` : ''}</button>`;
     return `<div class="sp-pan ${done ? 'done' : ''}" id="sp-pan"><div class="grid">
-      ${[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => `<span class="dimple" style="left:${(i % 3) * 33.333}%;top:${(i / 3 | 0) * 33.333}%"><i></i></span>`).join('')}
-      ${cur.tiles.map((t, i) => t === 8 ? (done ? pof(8, i, 'last') : '') : pof(t, i)).join('')}</div>
+      ${[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => `<span class="dimple" data-dimple="${i}" style="${panPos(i)}"><i>${cur.easy && !wissel && i < 8 ? i + 1 : ''}</i></span>`).join('')}
+      ${cur.tiles.map((t, i) => t === 8 && !wissel ? (done ? pof(8, i, 'last') : '') : pof(t, i)).join('')}</div>
       ${done ? `<div class="sugar">${Array.from({ length: 34 }, (_, k) => `<i style="left:${(k * 37) % 97 + 1}%;--y:${30 + (k * 53) % 300}px;animation-delay:${(k % 9) * 0.09}s;animation-duration:${1.1 + (k % 5) * 0.22}s"></i>`).join('')}</div>` : ''}</div>`;
   }
   function panHtml() {
-    const done = cur.doneMs != null;
+    const done = cur.doneMs != null, wissel = cur.mode === 'wissel', wat = cur.eigen ? 'de tekening' : 'ik';
+    const uitleg = wissel ? `Mijn poffertjes liggen door elkaar. Tik er twee aan en ze wisselen van kuiltje, tot ${wat} weer klopt.`
+      : `Mijn poffertjes liggen door elkaar. Schuif ze terug tot ${wat} weer klopt. Tik een poffertje naast het lege kuiltje.`;
+    const tip = wissel ? 'Groen randje = dit poffertje ligt goed.' : `${cur.easy ? 'Het cijfer in het kuiltje zegt welk poffertje daar hoort. ' : cur.nums ? 'De cijfers lopen van linksboven naar rechtsonder. ' : ''}Groen randje = ligt goed. Het lege kuiltje hoort rechtsonder.`;
     return `<span class="sp-eye">🥞 Poffertjespan</span><h2>${done ? 'De pan is weer goed!' : 'Wie heeft er geschud?!'}</h2>
-      <p>${done ? `Klaar in <b>${cur.moves}</b> zetten en <b>${mmss(panSecs())}</b>. Poedersuiker erover!` : `Mijn poffertjes liggen door elkaar. Schuif ze terug tot ${cur.eigen ? 'de tekening' : 'ik'} weer klopt. Tik een poffertje naast het lege kuiltje.`}</p>
+      <p>${done ? `Klaar in <b>${cur.moves}</b> zetten en <b>${mmss(panSecs())}</b>${cur.hints ? ` (met ${cur.hints} keer hulp)` : ''}. Poedersuiker erover!` : uitleg}</p>
       ${panBoard()}
       <div class="sp-score"><span>Zetten: <b id="sp-pan-m">${cur.moves}</b></span><span>⏱ <b id="sp-pan-t">${mmss(panSecs())}</b></span></div>
-      ${done ? '<button class="sp-ok" data-a="close">Smullen!</button>' : `<p class="sp-note">${cur.nums ? 'De cijfers lopen van linksboven naar rechtsonder. ' : ''}Het lege kuiltje hoort rechtsonder.</p><button class="sp-close" data-a="close">Even dicht (de pan blijft staan)</button>`}`;
+      ${done ? '<button class="sp-ok" data-a="close">Smullen!</button>' : `<div class="sp-panhelp"><figure>${cur.image ? `<img src="${esc(cur.image)}" alt="">` : ''}<span>Zo moet<br>het worden</span></figure><button type="button" id="sp-pan-help" data-a="panhelp" ${panHelpOpen() ? '' : 'hidden'}>🤖 Mecha-Pof helpt</button></div>
+        <p class="sp-note">${tip}</p><button class="sp-close" data-a="close">Even dicht (de pan blijft staan)</button>`}`;
+  }
+  function panPaint() { // alleen verplaatsen en kleuren (geen nieuwe opbouw): zo glijdt het poffertje naar zijn kuiltje
+    ov?.querySelectorAll('#sp-pan .pof').forEach(b => { const t = +b.dataset.pof, k = cur.tiles.indexOf(t); b.style.left = (k % 3) * 33.333 + '%'; b.style.top = (k / 3 | 0) * 33.333 + '%'; b.className = panClasses(t, k); });
+    const m = ov?.querySelector('#sp-pan-m'); if (m) m.textContent = cur.moves;
+    showBanner(bannerFor());
   }
   function panTap(t) {
     if (cur?.kind !== 'pan' || cur.doneMs != null) return;
-    const i = cur.tiles.indexOf(+t), next = panMove(cur, i); if (next === cur) { buzz(10); return; }
-    Object.assign(cur, next); audio?.play('plop'); buzz(15);
+    const i = cur.tiles.indexOf(+t); let next = cur;
+    if (cur.mode === 'wissel') {
+      if (cur.sel < 0) { cur.sel = +t; audio?.play('plop'); buzz(10); panPaint(); return; } // eerste poffertje gekozen
+      if (cur.sel === +t) { cur.sel = -1; panPaint(); return; }                                               // nog eens = loslaten
+      next = panSwap(cur, cur.tiles.indexOf(cur.sel), i); cur.sel = -1;
+    } else next = panMove(cur, i);
+    if (next === cur) { buzz(10); return; }
+    Object.assign(cur, next); cur.hintTile = cur.hintTile2 = -1; audio?.play('plop'); buzz(15);
     if (panSolved(cur)) {
       cur.doneMs = now(); panSave(); clearInterval(cur.timer);
       confetti(); audio?.play('badge'); buzz([60, 40, 60, 40, 200]);
@@ -413,11 +503,14 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
       refresh(); openOverlay(); speak('pan', 'klaar', { interrupt: true });
       return;
     }
-    panSave();
-    // alleen verplaatsen (geen nieuwe opbouw): zo glijdt het poffertje naar het lege kuiltje
-    ov?.querySelectorAll('.pof').forEach(b => { const k = cur.tiles.indexOf(+b.dataset.pof); b.style.left = (k % 3) * 33.333 + '%'; b.style.top = (k / 3 | 0) * 33.333 + '%'; b.classList.toggle('can', panAdj(k, cur.empty)); });
-    const m = ov?.querySelector('#sp-pan-m'); if (m) m.textContent = cur.moves;
-    showBanner(bannerFor());
+    panSave(); panPaint();
+  }
+  function panHelp() { // laat de volgende goede zet oplichten
+    if (cur?.kind !== 'pan' || cur.doneMs != null) return;
+    const h = panHint(cur); if (!h) return;
+    cur.hints++; cur.hintTile = h.tile; cur.hintTile2 = cur.mode === 'wissel' ? cur.tiles[h.to] : -1; // wisselen: ook het poffertje waarmee het moet ruilen
+    cur.sel = -1; panSave(); audio?.play('hint'); buzz([30, 30, 30]); panPaint();
+    const c = cur, tile = h.tile; later(() => { if (cur === c && c.hintTile === tile) { c.hintTile = c.hintTile2 = -1; panPaint(); } }, 4000);
   }
   function panEnd() { // de regie haalt de pan weg
     if (cur?.kind !== 'pan') return;
@@ -515,7 +608,7 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
       case 'thief': { const d = thiefDist(); return { t: `🍪 De Kruimelaar heeft <b>${esc(PARTS[cur.part]?.label || 'een deel')}</b> · punt ${cur.i + 1}/${cur.points.length || '?'}`, v: d != null ? d + ' m' : '' }; }
       case 'storm': return { t: cur.over ? '⚡ Kortsluiting: telling…' : '⚡ Kortsluiting! Tik de vonken', v: cur.over ? '' : stormLeft() + 's' };
       case 'fork': { const t = forkTally(); return { t: `📡 Dubbel signaal · A ${t.a} · B ${t.b}`, v: cur.result ? (cur.result === 'a' ? 'A' : 'B') : 'stem!' }; }
-      case 'pan': return { t: cur.doneMs != null ? '🥞 Poffertjespan: gelukt!' : '🥞 Poffertjes door elkaar · tik om te schuiven', v: cur.doneMs != null ? '✓' : cur.moves + ' zetten' };
+      case 'pan': return { t: cur.doneMs != null ? '🥞 Poffertjespan: gelukt!' : `🥞 Poffertjes door elkaar · tik om te ${cur.mode === 'wissel' ? 'wisselen' : 'schuiven'}`, v: cur.doneMs != null ? '✓' : cur.moves + ' zetten' };
       case 'finale': return { t: cur.out ? '🔥 Jetpack sist… rustig naar huis' : '🔥 Jetpack oververhit · snel naar huis', v: cur.out ? '' : mmss(timerLeft()) };
       default: return { t: '' };
     }
@@ -527,6 +620,7 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
   function onOverlayClick(e) {
     const a = e.target.closest('[data-a]')?.dataset.a;
     if (a === 'close') { modal = null; closeOverlay(); refresh(); return; }
+    if (a === 'panhelp') { panHelp(); return; }
     const w = e.target.closest('[data-w]')?.dataset.w; if (w) { wishPick(w); return; }
     const pf = e.target.closest('[data-pof]'); if (pf) { panTap(pf.dataset.pof); return; }
     const v = e.target.closest('[data-v]'); if (v) { forkVote(v.dataset.p, v.dataset.v); return; }
@@ -574,7 +668,7 @@ export function createSurprises({ mon, state, sync, router, audio, buzz = () => 
   later(() => syncGame(S().game), 0);
 
   return {
-    get current() { return cur ? { kind: cur.kind, ...(cur.kind === 'storm' ? { taps: cur.taps, over: cur.over } : {}), ...(cur.kind === 'thief' ? { i: cur.i, part: cur.part } : {}), ...(cur.kind === 'fork' ? { result: cur.result } : {}), ...(cur.kind === 'pan' ? { tiles: cur.tiles.slice(), empty: cur.empty, moves: cur.moves, done: cur.doneMs != null } : {}) } : null; },
+    get current() { return cur ? { kind: cur.kind, ...(cur.kind === 'storm' ? { taps: cur.taps, over: cur.over } : {}), ...(cur.kind === 'thief' ? { i: cur.i, part: cur.part } : {}), ...(cur.kind === 'fork' ? { result: cur.result } : {}), ...(cur.kind === 'pan' ? { mode: cur.mode, tiles: cur.tiles.slice(), empty: cur.empty, moves: cur.moves, hints: cur.hints, done: cur.doneMs != null } : {}) } : null; },
     get overlayOpen() { return !!ov; },
     get modal() { return modal; },
     openOverlay: () => openOverlay(),

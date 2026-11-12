@@ -208,6 +208,11 @@ export const LINES = {
       'Bliep! Wie heeft er aan mijn poffertjespan geschud? Schuif ze terug, elke telefoon zijn eigen pan!',
       'O nee, mijn poffertjes zijn gaan wandelen. Schuif ze terug. Wie klaar is, roept: poedersuiker!',
     ],
+    // Stand Wisselen: twee poffertjes aantikken = omwisselen.
+    startWissel: [
+      'Bliep! Wie heeft er aan mijn poffertjespan geschud? Tik er twee aan, dan wisselen ze van kuiltje!',
+      'O nee, mijn poffertjes liggen verkeerd. Tik er twee aan om ze te ruilen. Wie klaar is, roept: poedersuiker!',
+    ],
     klaar: [
       'Poedersuiker erover! De pan klopt weer. Jullie mogen bij mij in de keuken komen werken.',
       'Ja! Elk poffertje in zijn eigen kuiltje. Mijn bakplaat is trots op jullie.',

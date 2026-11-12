@@ -162,6 +162,31 @@ ok('Poffertjespan opgelost: negende poffertje, zetten geteld, badge', (await pag
 if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT + '-pan2.png' });
 await fake(f => f.patchGame({ surprise: null }));
 await sleep(600);
+// stand Makkelijk: weinig geschud, cijfers in de kuiltjes, groen randje, voorbeeld; na een minuut de hulpknop (hier: start 61 s geleden)
+await fake(f => f.patchGame({ surprise: { kind: 'pan', started_at: new Date(Date.now() - 61000).toISOString(), data: { seed: 7, mode: 'makkelijk' } } }));
+await W('#sp-pan', 3000).catch(() => {});
+ok('Makkelijk: cijfers in de kuiltjes, voorbeeldplaatje en hulpknop', (await txt('#sp-pan [data-dimple="0"]')).trim() === '1' && !!(await page.$('.sp-panhelp figure img')) && !!(await page.$('#sp-pan-help:not([hidden])')));
+if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT + '-pan3.png' });
+let helpN = 0;
+for (; helpN < 12 && !(await page.$('#sp-pan.done')); helpN++) { await page.click('#sp-pan-help'); await page.click('#sp-pan .pof.hint'); await sleep(40); }
+ok('Makkelijk: de hulp volgen lost hem in hooguit 10 zetten op', !!(await page.$('#sp-pan.done')) && helpN >= 6 && helpN <= 10, 'zetten ' + helpN);
+await fake(f => f.patchGame({ surprise: null }));
+await sleep(600);
+// stand Wisselen: negen poffertjes, twee aantikken = ruilen
+await fake(f => f.patchGame({ surprise: { kind: 'pan', started_at: new Date(Date.now() - 61000).toISOString(), data: { seed: 7, mode: 'wissel' } } }));
+await W('#sp-pan', 3000).catch(() => {});
+ok('Wisselen: negen poffertjes, geen leeg kuiltje', (await page.$$('#sp-pan .pof')).length === 9 && (await txt('#sp-banner')).includes('wisselen'));
+await page.click('#sp-pan-help'); await sleep(60);
+if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT + '-pan4.png' });
+ok('Wisselen: hulp laat de twee poffertjes oplichten die moeten ruilen', (await page.$$('#sp-pan .pof.hint')).length === 2);
+for (let k = 0; k < 9 && !(await page.$('#sp-pan.done')); k++) {
+  const [tile, at] = await fake((f, pkm) => { const t = pkm.surprises.current.tiles, i = t.findIndex((x, j) => x !== j); return [t[i], t[i]]; }); // poffertje `tile` hoort in kuiltje `tile`; daar ligt nu…
+  const other = await fake((f, pkm, at) => pkm.surprises.current.tiles[at], at);
+  await page.click(`#sp-pan [data-pof="${tile}"]`); await page.click(`#sp-pan [data-pof="${other}"]`); await sleep(40);
+}
+ok('Wisselen opgelost in hooguit 8 wissels', !!(await page.$('#sp-pan.done')) && (await fake((f, pkm) => pkm.surprises.current.moves)) <= 8);
+await fake(f => f.patchGame({ surprise: null }));
+await sleep(600);
 ok('regie haalt de pan weg: overlay en banner dicht', !(await page.$('#sp-ov')) && !(await page.$('#sp-banner')));
 
 // ---- Jetpack oververhit
