@@ -192,7 +192,7 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:75}
 <div id="gate"><div class="panel"><h2>Kern van Mecha-Pof</h2><p class="sub" id="gatemsg">Regiesleutel (één keer op deze laptop).</p>
   <form id="gateform" class="row" style="justify-content:center"><input type="password" id="key" placeholder="sleutel" aria-label="Regiesleutel" style="width:12em"><button type="submit">Aan</button></form>
   <p class="muted" id="gateerr"></p></div></div>
-<div id="tools"><button class="plain" data-t="wake">⏻ Wakker</button><button class="plain" data-t="uitleg">📋 Uitleg</button><button class="plain" data-t="finale">▶ Finale</button><button class="plain" data-t="full">⛶ Volledig scherm</button></div>
+<div id="tools"><button class="plain" data-t="wake">⏻ Wakker</button><button class="plain" data-t="rad">🎡 Rad</button><button class="plain" data-t="uitleg">📋 Uitleg</button><button class="plain" data-t="finale">▶ Finale</button><button class="plain" data-t="full">⛶ Volledig scherm</button></div>
 <div id="conn"></div>
 <div id="flits"></div>
 <canvas id="confetti" hidden></canvas>
@@ -527,6 +527,7 @@ document.addEventListener('click', async e => {
   const t = e.target.closest('[data-t]')?.dataset.t; if (!t) return;
   if (t === 'full') { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch {} }
   if (t === 'wake') wake();
+  if (t === 'rad') router.dispatch({ type: 'roles.shuffle', payload: { loting: true } }); // proef: het talentenrad met de talenten zoals ze nu staan, alleen op dit scherm
   if (t === 'uitleg') speelUitleg();
   if (t === 'finale') { finale.reset(); mon.setParts(Object.keys(PARTS)); finale.start(); }
   if (t === 'foto') { await say(pick(LINES.teamfoto)); confetti(); audio.play('klik'); }
