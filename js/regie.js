@@ -5,6 +5,7 @@ import { state, PARTS, TALENTS } from './state.js';
 import { sync, IS_TEST } from './sync.js';
 import { LINES } from './monster-lines.js?v=20'; // wekzin (chat 7)
 import * as tk from './tekening.js?v=2'; // tab 📸 Tekeningen (12 nov)
+import { stand, seintjes, lagText, TANKSTATION } from './planning.js?v=1'; // blok Stand: schema, verwachte eindtijd, seintjes (12 nov avond)
 
 /* ================================================================ hulpjes */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -192,6 +193,7 @@ function renderBar() {
     ${g ? `<span class="chip phase ${g.phase}">${PHASES[g.phase] || g.phase}</span>` : ''}
     ${act && g?.phase !== 'lobby' && g?.phase !== 'klaar' ? `<span class="chip">📍 ${esc(act.name)}</span>` : ''}
     ${g && g.phase !== 'lobby' ? `<span class="chip" title="stroopdruppels">💧 ${g.drops || 0}</span>` : ''}
+    <span id="standchip">${standChip()}</span>
     <span class="parts">${Object.keys(PARTS).map(k => `<span class="part ${got.includes(k) ? 'got' : ''}" title="${esc(PARTS[k].label)}">${got.includes(k) ? PARTS[k].icon : ''}</span>`).join('')}</span>
     <span class="grow"></span>
     ${loggedIn ? `<button class="iconbtn" data-b="sound" aria-label="Geluid bij gebeurtenissen">${sound ? '🔔' : '🔕'}</button><button class="iconbtn" data-b="reload" aria-label="Opnieuw laden">↻</button><button class="ghost sm onlywide" data-b="logout">Afmelden</button>` : ''}
@@ -220,7 +222,7 @@ function renderLogin() {
 function renderLive() {
   const live = $('#live');
   if (!$('#mapslot', live)) {
-    live.innerHTML = `${hasL ? `<div class="mapwrap"><div id="mapslot"></div><div class="mapbtns"><button class="plain" id="fitbtn" aria-label="Kaart passend maken">🎯</button><button class="plain ${follow ? 'on' : ''}" id="followbtn" aria-label="Kaart volgt het spel">📡</button></div></div>` : '<p class="note">Leaflet laadt niet; geen kaart.</p>'}
+    live.innerHTML = `<div id="stand"></div>${hasL ? `<div class="mapwrap"><div id="mapslot"></div><div class="mapbtns"><button class="plain" id="fitbtn" aria-label="Kaart passend maken">🎯</button><button class="plain ${follow ? 'on' : ''}" id="followbtn" aria-label="Kaart volgt het spel">📡</button></div></div>` : '<p class="note">Leaflet laadt niet; geen kaart.</p>'}
       <div id="cards" class="cards"></div><div id="surprise"></div><div class="page" style="padding-top:20px"><span class="tab">Telefoons</span><div id="devs" class="devs"></div></div>`;
     if (hasL) { $('#mapslot', live).appendChild(mapEl); $('#fitbtn', live).onclick = fitMap; $('#followbtn', live).onclick = () => { follow = !follow; store.set(KEY_FOLLOW, follow); renderMapBtns(); if (follow) fitMap(); }; }
   }
@@ -234,6 +236,7 @@ function renderLive() {
     <div class="card"><span class="k">Online</span><span class="v">${players().filter(p => p.online).length}/${players().length} · ${devices().filter(d => d.online).length} 📱</span></div>
     <div class="card ${g.energy === 1 ? 'bad' : g.energy === 3 ? 'ok' : ''}"><span class="k">Energie · wens</span><span class="v">${g.energy ? '⚡'.repeat(g.energy) : '—'} · ${g.wish_used ? '🎂 gebruikt' : '🎂 vrij'}</span></div>` : '';
   $('#surprise', live).innerHTML = surpriseStatus();
+  renderStand();
   $('#devs', live).innerHTML = devices().map(d => `<div class="dev ${d.online ? '' : 'off'}"><span class="dot ${d.online ? 'on' : ''}"></span><span class="who">${d.players.map(p => `<b>${esc(p.name)}</b>${p.talent ? ' <small class="note">(' + esc(TALENTS[p.talent]?.label || p.talent) + ')</small>' : ''}`).join(' & ')}</span>
       <span class="bat ${d.battery != null && d.battery < 20 ? 'low' : ''}">${d.battery != null ? '🔋' + Math.round(d.battery) + '%' : ''}</span><span class="note">${d.lat != null ? '±' + Math.round(d.acc || 0) + ' m' : 'geen GPS'} · ${ago(d.last)}</span></div>`).join('') || '<p class="note">Nog geen telefoon ingelogd.</p>';
   const offline = players().filter(p => !p.online && p.device_id);
@@ -241,7 +244,12 @@ function renderLive() {
   updateMap();
 }
 function surpriseStatus() {
-  const g = game(), s = g?.surprise; if (!s) return '';
+  const g = game(), s = g?.surprise, park = parkLeft() > 0 ? `<p class="note">🔥 De Jetpack-timer loopt op de achtergrond door (nog ${mmss(parkLeft())}) en komt hierna vanzelf terug op de telefoons.</p>` : '';
+  if (!s) return park ? `<div class="surprise"><span class="k">🔥 Jetpack-timer</span>${park}</div>` : '';
+  if (park && s.kind !== 'finale') return surpriseBody(g, s).replace(/<\/div>$/, park + '</div>');
+  return surpriseBody(g, s);
+}
+function surpriseBody(g, s) {
   const started = s.started_at;
   if (s.kind === 'thief') { const j = eventsAfter('thief.jump', started)[0]; return `<div class="surprise"><span class="k">🍪 De Kruimelaar is actief</span><p>Gestolen: <b>${esc(PARTS[s.data?.part]?.label || s.data?.part || '?')}</b> · nu bij punt ${(j ? +j.payload?.i : 0) + 1} van ${s.data?.points?.length || 0}${s.data?.points?.[j ? +j.payload?.i : 0]?.n ? ` (${esc(s.data.points[j ? +j.payload?.i : 0].n)})` : ''} · ${ago(started)}</p></div>`; }
   const secondsLeft = total => Math.max(0, Math.round((Date.parse(started) + total * 1000 - Date.now()) / 1000));
@@ -260,7 +268,69 @@ function surpriseStatus() {
   if (s.kind === 'finale') { const left = secondsLeft(s.data?.seconds || 0); return `<div class="surprise"><span class="k">🔥 Jetpack oververhit</span><p>${left > 0 ? `<span class="countdown">${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</span> tot de jetpack het begeeft` : 'Tijd om: op de telefoons staat de noodkoeling (samen koel tikken). Stop de timer als ze thuis zijn.'}</p></div>`; }
   return `<div class="surprise"><span class="k">${esc(s.kind)}</span></div>`;
 }
-setInterval(() => { if (loggedIn && game()?.surprise && $('#surprise')) $('#surprise').innerHTML = surpriseStatus(); }, 1000);
+setInterval(() => { if (loggedIn && (game()?.surprise || parked) && $('#surprise')) $('#surprise').innerHTML = surpriseStatus(); if (loggedIn) parkTick(); }, 1000);
+
+/* ---------- Stand: hoe ver, voor of achter op schema, verwachte eindtijd, en seintjes voor wat nu ingezet kan worden (js/planning.js) */
+const mmss = sec => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+const hhmm = t => new Date(t).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+const gameKey = () => game()?.started_at || '-';
+function lastSolvedAt() { const t0 = Date.parse(game()?.started_at || ''); let best = 0;
+  for (const p of [...R.puzzle_states, S().puzzle].filter(Boolean)) { const t = Date.parse(p.solved_at || ''); if (t >= t0 && t > best) best = t; }
+  return best || null; }
+function standNow() { const g = game(); if (!g) return null; const act = activeStop(), pz = activePuzzle();
+  return stand({ phase: g.phase, parts: g.parts || [], activePart: act?.part || '', startedAt: g.started_at, arrivedAt: g.phase === 'puzzel' ? pz?.arrived_at : null, lastSolvedAt: lastSolvedAt(), now: Date.now() }); }
+function usedNow() { // welke verrassingen zijn dit spel al geweest (onthouden op dit toestel, plus het logboek)
+  const key = 'pkm2_regie_used:' + gameKey(), u = store.get(key, {}), g = game(), k = g?.surprise?.kind; let ch = false;
+  if (k && !u[k]) { u[k] = 1; ch = true; }
+  for (const [kind, type] of [['thief', 'thief.start'], ['fork', 'fork.open'], ['storm', 'storm.start'], ['finale', 'finale.timer']]) if (!u[kind] && g?.started_at && eventsAfter(type, g.started_at).length) { u[kind] = 1; ch = true; }
+  if (ch) store.set(key, u); return u; }
+function seintjesNow(st) { const g = game(); if (!g || !st) return [];
+  const c = thiefCenter(), near = c ? haversine(c, TANKSTATION) < 45 : null;
+  return seintjes({ st, phase: g.phase, parts: g.parts || [], used: usedNow(), surprise: g.surprise?.kind || '', nearTank: near, hints: activePuzzle()?.hints || 0,
+    monteur: { armen: players().find(p => p.talent === 'rekenmeester')?.name } }); }
+function standChip() { const st = loggedIn ? standNow() : null; if (!st) return '';
+  const n = Math.round(st.lag), cls = Math.abs(n) < 3 ? '' : n > 0 ? 'achter' : 'voor';
+  return st.klaar ? `<span class="chip">⏱ ${Math.round(st.duur)} min</span>` : `<span class="chip stand ${cls}" title="schema · verwachte eindtijd">⏱ ${Math.abs(n) < 3 ? 'op schema' : (n > 0 ? '+' : '−') + Math.abs(n) + ' min'} · ±${hhmm(st.eta)}</span>`; }
+function standHTML() { const g = game(), st = standNow(); if (!g || !st) return '';
+  const act = activeStop(), n = Math.round(st.lag), cls = Math.abs(n) < 3 ? '' : n > 0 ? 'achter' : 'voor';
+  if (st.klaar) return `<div class="stand"><span class="k">Stand</span><div class="sbig">Compleet in ${Math.round(st.duur)} minuten</div><p class="note">Alle zeven onderdelen zitten vast (${lagText(st.lag)} vergeleken met het schema).</p></div>`;
+  const waar = st.waar === 'puzzel' ? `bij de puzzel van <b>${esc(act?.name || '')}</b>` : st.waar === 'bonus' ? `bij een bonusopdracht` : `onderweg naar <b>${esc(act?.name || '')}</b>`;
+  const tips = seintjesNow(st);
+  return `<div class="stand ${cls}"><span class="k">Stand · ${hhmm(Date.now())}</span>
+    <div class="sbig">${lagText(st.lag)} <small>· klaar ±${hhmm(st.eta)}</small></div>
+    <div class="sbar" aria-hidden="true">${Array.from({ length: st.total }, (_, i) => `<i class="${i < st.done ? 'on' : ''}"></i>`).join('')}</div>
+    <p><b>${st.done} van ${st.total}</b> onderdelen · ${waar} · ${Math.round(st.elapsed)} min op pad · nog ±${Math.max(1, Math.round(st.rest))} min tot alles vastzit</p>
+    ${n >= 5 ? '<p class="note">Achter op schema: sla een verrassing over, geef eerder een hint of keur een plek goed.</p>' : ''}
+    ${tips.map(t => `<div class="sein"><span class="ic">${t.icon}</span><div><b>${esc(t.titel)}</b><p>${esc(t.tekst)}</p></div><button class="led sm" data-tab="${t.tab}" data-sein="1">Open</button></div>`).join('')}</div>`; }
+let seinSeen = null, seinKey = '';
+function renderStand() {
+  const el = $('#stand'); if (el) { const h = standHTML(); if (el.innerHTML !== h) el.innerHTML = h; }
+  const chip = $('#standchip'); if (chip) { const h = standChip(); if (chip.innerHTML !== h) chip.innerHTML = h; }
+  // seintje: een nieuw advies = geluid, trillen en een melding (één keer per spel per advies, ook na herladen)
+  const key = 'pkm2_regie_sein:' + gameKey(); if (seinKey !== key) { seinKey = key; seinSeen = new Set(store.get(key, [])); }
+  const st = standNow(); if (!st || !primed) return;
+  for (const t of seintjesNow(st)) { if (seinSeen.has(t.id)) continue; seinSeen.add(t.id); store.set(key, [...seinSeen]);
+    beep([784, 988, 784, 1175]); try { navigator.vibrate?.([120, 60, 120, 60, 240]); } catch {} toast(`${t.icon} ${t.titel}`, 9000); }
+}
+setInterval(() => { if (loggedIn) renderStand(); }, 10_000);
+
+/* ---------- Jetpack-timer en een andere verrassing: het spel kent één verrassing tegelijk, dus een Kortsluiting zou de timer wissen.
+   De regie onthoudt de lopende timer en zet hem na afloop terug (zelfde starttijd, dus de klok is gewoon doorgelopen). */
+const KEY_PARK = 'pkm2_regie_park' + (IS_TEST ? '_test' : '');
+let parked = store.get(KEY_PARK, null), surpriseGoneAt = 0, parkBusy = false;
+const parkLeft = () => parked && parked.game === gameKey() ? Math.round((Date.parse(parked.started_at) + parked.seconds * 1000 - Date.now()) / 1000) : 0;
+function parkTimer() { const s = game()?.surprise; if (s?.kind === 'finale') { parked = { game: gameKey(), started_at: s.started_at, seconds: +s.data?.seconds || 300 }; store.set(KEY_PARK, parked); } }
+function unpark() { parked = null; store.del(KEY_PARK); }
+function parkTick() {
+  if (!parked) return; const g = game(); if (!g) return;
+  if (parked.game !== gameKey() || !['onderweg', 'puzzel'].includes(g.phase) || parkLeft() <= 5) return unpark();
+  if (g.surprise) { surpriseGoneAt = 0; if (g.surprise.kind === 'finale') unpark(); return; }
+  if (!surpriseGoneAt) { surpriseGoneAt = Date.now(); return; }
+  if (Date.now() - surpriseGoneAt < 9000 || parkBusy) return; // de telefoons tonen nog even de uitslag van de vorige verrassing
+  parkBusy = true; const p = parked;
+  sync.regie.patchGame({ surprise: { kind: 'finale', started_at: p.started_at, data: { seconds: p.seconds } } })
+    .then(() => { unpark(); toast('🔥 Jetpack-timer staat weer op de telefoons'); schedule(loadRegie); }).catch(e => toast('⚠️ Timer terugzetten lukte niet: ' + (e.message || e), 5000, true)).finally(() => { parkBusy = false; surpriseGoneAt = 0; });
+}
 
 /* ---------- tabbladen */
 const TABS = [['spel', '🎮 Spel'], ['monster', '🤖 Mecha-Pof'], ['foto', '📸 Tekeningen'], ['verras', '✨ Verrassingen'], ['bonus', '⭐ Bonus'], ['spelers', '👧 Spelers'], ['stops', '📍 Stops'], ['log', '📜 Logboek']];
@@ -274,7 +344,7 @@ function renderPanel() {
     <div id="tabbody" class="stack">${({ spel: tabSpel, monster: tabMonster, foto: tk.tabHTML, verras: tabVerras, bonus: tabBonus, spelers: tabSpelers, stops: tabStops, log: tabLog }[tab] || tabSpel)()}</div>`;
 }
 document.addEventListener('focusout', () => { if (pendingPanel) setTimeout(() => { if (!$('#panel')?.contains(document.activeElement)) renderPanel(); }, 50); });
-app.addEventListener('click', e => { const t = e.target.closest('[data-tab]')?.dataset.tab; if (t) { tab = t; store.set(KEY_TAB, t); renderPanel(); } });
+app.addEventListener('click', e => { const b = e.target.closest('[data-tab]'), t = b?.dataset.tab; if (t) { tab = t; store.set(KEY_TAB, t); renderPanel(); if (b.dataset.sein) $('#panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
 app.addEventListener('input', e => {
   const k = e.target.dataset.ui; if (!k) return;
   ui[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.type === 'number' || e.target.type === 'range' ? +e.target.value : e.target.value;
@@ -591,22 +661,22 @@ app.addEventListener('click', async e => {
     case 'quick': ui.say = b.dataset.s; renderPanel(); return;
     case 'say': { const text = ui.say.trim(); if (!text) return toast('Typ eerst wat hij moet zeggen.'); if (await busy(() => sync.regie.event('monster.say', { text, ...(ui.mood ? { mood: ui.mood } : {}) }), '🗣️ Gestuurd')) { ui.say = ''; renderPanel(); } return; }
     case 'call': { if (!ui.call) return; const p = { player_id: ui.call, message_id: uid() }; if (ui.callText.trim()) p.text = ui.callText.trim(); return busy(() => sync.regie.event('monster.call', p), `📞 ${playerName(ui.call)} wordt gebeld`); }
-    case 'thief.start': { const part = ui.thiefPart || (g?.parts || [])[0] || (IS_TEST ? Object.keys(PARTS)[0] : null); if (!part) return; const plan = thiefPlan(); if (!plan.points.length) return toast('Hier heeft de Kruimelaar geen vaste punten'); return busy(() => sync.regie.event('thief.start', { part, points: plan.points }), '🍪 De Kruimelaar is los'); }
+    case 'thief.start': { const part = ui.thiefPart || (g?.parts || [])[0] || (IS_TEST ? Object.keys(PARTS)[0] : null); if (!part) return; const plan = thiefPlan(); if (!plan.points.length) return toast('Hier heeft de Kruimelaar geen vaste punten'); parkTimer(); return busy(() => sync.regie.event('thief.start', { part, points: plan.points }), '🍪 De Kruimelaar is los'); }
     case 'thief.jump': { const i = +(eventsAfter('thief.jump', g.surprise.started_at)[0]?.payload?.i ?? 0) + 1; return busy(() => sync.regie.event('thief.jump', { i }), `⏭ Punt ${i + 1}`); }
     case 'thief.caught': return busy(() => sync.regie.event('thief.caught', {}), '🫳 Gevangen!');
     case 'thief.end': return busy(() => sync.regie.event('thief.end', {}), 'Kruimelaar afgebroken');
-    case 'storm.start': return busy(() => sync.regie.event('storm.start', { seconds: +ui.storm || 30 }), '⚡ Kortsluiting!');
+    case 'storm.start': parkTimer(); return busy(() => sync.regie.event('storm.start', { seconds: +ui.storm || 30 }), '⚡ Kortsluiting!');
     case 'storm.end': { const total = eventsAfter('storm.score', g.surprise.started_at).reduce((n, e) => n + (+e.payload?.n || 0), 0); return busy(() => sync.regie.event('storm.end', { total }), `Kortsluiting voorbij: ${total} vonken`); }
-    case 'fork.open': { if (!ui.forkA.trim() || !ui.forkB.trim()) return toast('Vul allebei de keuzes in.'); return busy(() => sync.regie.event('fork.open', { a: ui.forkA.trim(), b: ui.forkB.trim() }), '📡 Dubbel signaal open'); }
+    case 'fork.open': { if (!ui.forkA.trim() || !ui.forkB.trim()) return toast('Vul allebei de keuzes in.'); parkTimer(); return busy(() => sync.regie.event('fork.open', { a: ui.forkA.trim(), b: ui.forkB.trim() }), '📡 Dubbel signaal open'); }
     case 'fork.result': return busy(() => sync.regie.event('fork.result', { choice: b.dataset.c }), 'Keuze ' + b.dataset.c.toUpperCase());
     case 'finale.timer': { const mins = Math.max(1, +ui.timerMin || 5); return busy(() => sync.regie.event('finale.timer', { seconds: mins * 60 }), `🔥 Timer ${mins} min gestart`); }
-    case 'pan.start': return busy(async () => {
+    case 'pan.start': parkTimer(); return busy(async () => {
       let image = null;
       if (ui.panImg) { const rij = (await tk.lijst()).find(r => r.id === ui.panImg && r.status === 'klaar' && r.url); if (!rij) throw new Error('Die tekening is er niet meer; kies een andere of Mecha-Pof.'); image = rij.url; } // verse link (3 uur geldig)
       await sync.regie.patchGame({ surprise: { kind: 'pan', started_at: new Date().toISOString(), data: { seed: 1 + Math.floor(Math.random() * 1e9), mode: ui.panMode || 'makkelijk', nums: !!ui.panNums, ...(image ? { image } : {}) } } });
     }, '🥞 De poffertjespan staat op de telefoons');
     case 'pan.stop': return busy(() => sync.regie.patchGame({ surprise: null }), 'Pan weggehaald');
-    case 'timer.stop': return busy(() => sync.regie.patchGame({ surprise: null }), 'Timer gestopt');
+    case 'timer.stop': unpark(); return busy(() => sync.regie.patchGame({ surprise: null }), 'Timer gestopt');
     case 'wish': return confirmAnd(`Verjaardagswens inzetten voor "${ui.wish}"?`, () => sync.regie.event('wish.used', { for: ui.wish }), '🎂 Wens ingezet');
     case 'editplayer': return editPlayer(b.dataset.id);
     case 'addplayer': return editPlayer(null);
@@ -783,11 +853,16 @@ state.on('event', ev => {
   if (ev.type === 'stop.arrived') beep([660, 880]); else if (ev.type === 'stop.solved') beep([659, 784, 988]); else if (ev.type === 'wish.used') beep([988, 1319]);
   else if (ev.type === 'monster.say' && ev.actor === 'player') { beep([523]); toast(`💬 ${playerName(ev.player_id)}: ${ev.payload?.text || ''}`, 6000); }
   else if (ev.type === 'fork.vote') beep([784]);
+  if (ev.type === 'stop.solved' || ev.type === 'stop.approve') setTimeout(() => { const st = standNow(); if (st && !st.klaar) toast(`⏱ ${st.done} van ${st.total} · ${lagText(st.lag)} · klaar ±${hhmm(st.eta)}`, 8000); }, 2500);
   if (ev.actor !== 'regie') schedule(loadRegie, 1500); // de volledige stand (incl. puzzle_states) bijhalen
 });
 let raf = 0;
 state.on('change', () => { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; if (loggedIn) render(); else renderBar(); }); });
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && booted) { sync.reload().catch(() => {}); loadRegie(); } });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && booted) { sync.reload().catch(() => {}); loadRegie(); keepAwake(); } });
+// Scherm aan houden zolang de regie open staat: op een vergrendelde telefoon komt er geen seintje.
+let wake = null;
+async function keepAwake() { try { if ('wakeLock' in navigator && !wake && loggedIn) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } } catch {} }
+document.addEventListener('click', keepAwake, { passive: true });
 
 /* ================================================================ start */
 async function boot() {
