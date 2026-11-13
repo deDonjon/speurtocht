@@ -535,7 +535,7 @@ function tabBonus() {
     : g.phase === 'onderweg' ? `komt vóór <b>${esc(next?.name || '?')}</b> (waar ze nu naartoe lopen)` : `komt direct na <b>${esc(act?.name || '?')}</b>, vóór ${esc(next?.name || '?')}`;
   const elapsed = g?.started_at ? Math.round((Date.now() - Date.parse(g.started_at)) / 60000) : 0;
   return `<div class="page"><span class="tab">Bonusopdrachten</span>
-      <p class="note">Voor als het team voorloopt op de richttijden (stop 1 15:35 · 2 15:50 · 3 16:05 · 4 16:20 · 5 16:35 · 6 16:50 · thuis 17:05). Een bonus heeft geen onderdeel: geen installatie, wel druppels en een vreugdezin. ${g?.started_at ? `Nu ${elapsed} min onderweg.` : ''}</p>
+      <p class="note">Voor als het team voorloopt op de richttijden (aankomst stop 1 15:36 · 2 15:49 · 3 16:01 · 4 16:14 · 5 16:25 · 6 16:40 · thuis 16:51; zie het blok Stand). Een bonus heeft geen onderdeel: geen installatie, wel druppels en een vreugdezin. ${g?.started_at ? `Nu ${elapsed} min onderweg.` : ''}</p>
       <p class="note">Inzetten: ${where}</p></div>
     ${BONUS.map(b => { const s = bonusStatus(b), d = act ? Math.round(haversine(act, b)) : null;
       const pz = b.puzzle, ans = pz.answer ? ` · antwoord <span class="code">${esc(pz.answer)}</span>` : ' · begeleider/team tikt af';

@@ -10,8 +10,8 @@ export const STOPS = [ // zelfde plekken als in Supabase (stop.seq)
   { n: 3, lat: 51.61309,  lng: 5.56152,  naam: 'Het veldje',         deel: 'neus',  tijd: '16:01', antw: 'driehoek, 3 telefoons' },
   { n: 4, lat: 51.613259, lng: 5.564092, naam: 'De Stadsbrink',      deel: 'mond',  tijd: '16:14', antw: 'walkie: “stadsbrink”' },
   { n: 5, lat: 51.614586, lng: 5.56587,  naam: 'Het groene kastje',  deel: 'armen', tijd: '16:25', antw: 'QR · POF-GARDE-35' },
-  { n: 6, lat: 51.616365, lng: 5.563619, naam: 'Huis met de steen',  deel: 'benen', tijd: '16:35', antw: 'lichtcode, 6 kleuren' },
-  { n: 7, lat: 51.616194, lng: 5.561503, naam: 'Thuis op het erf',   deel: 'hoed',  tijd: '16:46', antw: 'BOTER, 3× tegelijk' },
+  { n: 6, lat: 51.616365, lng: 5.563619, naam: 'Huis met de steen',  deel: 'benen', tijd: '16:40', antw: 'lichtcode, 6 kleuren' },
+  { n: 7, lat: 51.616194, lng: 5.561503, naam: 'Thuis op het erf',   deel: 'hoed',  tijd: '16:51', antw: 'BOTER, 3× tegelijk' },
 ];
 export const DEEL = { lijf: 'Pantser', ogen: 'LED-ogen', neus: 'Aardbei-knop', mond: 'Luidspreker', armen: 'Spatel + garde', benen: 'Zuigerbenen', hoed: 'Boterknop' };
 const EXTRA = { tank: [51.61680, 5.56237], bomen: [51.61577, 5.56512], staal: [51.61599, 5.56485], bank: [51.61381, 5.56441], pad: [51.61343, 5.56168], leeuw: [51.61693, 5.56199] };
