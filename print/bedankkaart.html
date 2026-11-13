@@ -49,6 +49,7 @@ button{font-weight:900;border:0;background:#F2BE62;color:#3A1C06;cursor:pointer;
     <label>Tekst voor de gasten ({naam} en {talent} worden per kaart ingevuld)<textarea id="t-gast"></textarea></label>
     <label>Tekst op Hannahs eigen kaart<textarea id="t-jarig"></textarea></label>
     <div class="rij"><label>Tekening op de kaart<select id="welke"><option value="groep">Het Reparatieteam (teamtekening)</option><option value="feest">De feestplaat</option></select></label>
+      <label>Opmaak<select id="opmaak"><option value="a">Teamfoto en tekening even groot</option><option value="b">Tekening groot, teamfoto klein</option></select></label>
       <label>Van<input id="van" value="Hannah"></label></div>
   </div>
 </div>
@@ -141,7 +142,61 @@ const chip = (x, y, t, kleur = INK, tekst = '#fff') => { meet.font = `700 ${2.3 
   return `<g><rect x="${x}" y="${y}" width="${w.toFixed(1)}" height="4.6" rx="2.3" fill="${kleur}"/><text x="${x + 2}" y="${y + 3.25}" font-family="Chakra Petch" font-weight="700" font-size="2.3" letter-spacing=".32" fill="${tekst}">${esc(t)}</text></g>`; };
 
 let routeSvg = '';
+const pofZin = (p, t) => { const deel = t ? t.deel.replace(/^(de|het) /, '').replace(' en de ', ' en ') : '';
+  return p.is_birthday ? `Bliep! Tien jaar, en jij was de baas van mijn Reparatieteam. Over en sluiten!` : t ? `Bliep! Dankzij jou heb ik mijn ${deel} terug. Over en sluiten!` : 'Bliep! Dankzij jou sta ik weer overeind. Over en sluiten!'; };
+const pofSvg = (opt, px, pb, voet = 143) => `<ellipse cx="${px}" cy="${voet - .8}" rx="${(pb * .32).toFixed(1)}" ry="${(pb * .04).toFixed(1)}" fill="#000" opacity=".13"/>
+  ${opt.monster ? `<svg x="${px - pb / 2}" y="${voet - .88 * pb}" width="${pb}" height="${pb}" ${opt.monster.replace(/^<svg/, '').replace(/xmlns="[^"]*"/, '')}` : ''}`;
+function ballon(tekst, bx, by, bw) { // tekstballon met het puntje links (naar Mecha-Pof)
+  const br = regels(tekst, bw - 3.4, '800', 2.3).slice(0, 7), bh = br.length * 3 + 7, m = Math.min(9, bh / 2);
+  return `<g><path d="M${bx + 2.5} ${by}h${bw - 5}a2.5 2.5 0 0 1 2.5 2.5v${(bh - 5).toFixed(2)}a2.5 2.5 0 0 1-2.5 2.5h-${bw - 5}a2.5 2.5 0 0 1-2.5-2.5v-${(bh - 5 - m).toFixed(2)}l-4.4-.6 4.4-3v-${(m - 3.6).toFixed(2)}a2.5 2.5 0 0 1 2.5-2.5z" fill="#fff" stroke="${INK}" stroke-width=".45" stroke-linejoin="round"/>
+    <text x="${bx + 1.8}" y="${(by + 3.9).toFixed(2)}" font-family="Chakra Petch" font-weight="700" font-size="1.9" letter-spacing=".35" fill="#15A4C8">MECHA-POF:</text>
+    ${br.map((r, i) => `<text x="${bx + 1.8}" y="${(by + 7.4 + i * 3).toFixed(2)}" font-weight="800" font-size="2.3" fill="${INK}">${esc(r)}</text>`).join('')}</g>`;
+}
+const basis = (kop, t, kleur) => `<rect width="${W}" height="${H}" fill="#FFF9EE"/>
+  <circle cx="40" cy="120" r="34" fill="#F6E7C4" opacity=".55"/><circle cx="176" cy="20" r="26" fill="#DDF6FD" opacity=".7"/>
+  <rect x="3.5" y="3.5" width="${W - 7}" height="${H - 7}" rx="4" fill="none" stroke="${INK}" stroke-width="1"/>
+  <rect x="5" y="5" width="${W - 10}" height="${H - 10}" rx="2.8" fill="none" stroke="${GOUD}" stroke-width=".45"/>
+  <text x="10" y="13.2" font-family="Chakra Petch" font-weight="700" font-size="2.7" letter-spacing=".62" fill="#0E6F8A">OPERATIE MECHA-POF · HANNAH 10 JAAR · VEGHEL, 13 NOVEMBER 2026</text>
+  <text x="10.5" y="26.4" font-family="Lilita One" font-size="13" fill="${GOUD}">${esc(kop)}</text>
+  <text x="10" y="25.7" font-family="Lilita One" font-size="13" fill="${INK}">${esc(kop)}</text>
+  ${t ? `<g transform="translate(164 9)"><rect width="37" height="14" rx="3" fill="#fff" stroke="${kleur}" stroke-width=".6"/><svg x="1.5" y="1.5" width="11" height="11" viewBox="-6 -2 112 106">${ICONS[t.part] || ''}</svg>
+    <text x="14" y="6.2" font-family="Chakra Petch" font-weight="700" font-size="2" letter-spacing=".3" fill="#7A5A3A">TALENT</text><text x="14" y="10.6" font-family="Nunito" font-weight="900" font-size="${t.label.length > 12 ? 2.6 : 3.1}" fill="${INK}">${esc(t.label)}</text></g>` : ''}`;
+const stempel = (cx, cy, rot, k = 1) => `<g transform="rotate(${rot} ${cx} ${cy}) translate(${cx} ${cy}) scale(${k})" fill="none" stroke="#E0352B"><rect x="-12.5" y="-4.8" width="25" height="9.6" rx="1.7" fill="#FFF9EE" fill-opacity=".88" stroke-width=".55"/>
+    <text y="-1.4" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="1.4" letter-spacing=".22" fill="#E0352B" stroke="none">MECHA-POF GEREPAREERD</text>
+    <text y="2.9" text-anchor="middle" font-family="Lilita One" font-size="2.75" fill="#E0352B" stroke="none">MISSIE GESLAAGD</text></g>`;
+const route = (x, y, w, h) => `<rect x="${x + .6}" y="${y + .9}" width="${w}" height="${h}" rx="1.6" fill="#000" opacity=".16"/>
+  <svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="${OX} ${OY} ${MAPW} ${MAPH}" preserveAspectRatio="xMidYMid slice"><rect x="${OX}" y="${OY}" width="${MAPW}" height="${MAPH}" fill="#F3E3BB"/>${routeSvg}</svg>
+  <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="1.6" fill="none" stroke="#3B2A1A" stroke-width=".7"/>`;
+
+/** Opmaak B: de tekening groot, de teamfoto klein eroverheen, portret en kaart rechts, Mecha-Pof ertussen. */
+function kaartB(p, d, opt) {
+  const t = TALENT_INFO[p.talent], kleur = PART_COLOR[t?.part] || '#15A4C8', jarig = !!p.is_birthday;
+  const tekst = (jarig ? opt.jarig : opt.gast).replaceAll('{naam}', p.name).replaceAll('{talent}', t?.label || 'monteur');
+  const B = d[opt.welke] || d.groep || d.feest, A = d.teamfoto;
+  const HW = 118, HH = Math.max(66, Math.min(82, B ? HW * B.h / B.w : 78.7)); // de tekening: volle breedte, hoogte volgt het beeld
+  const fw = 45, fh = Math.max(28, Math.min(36, A ? fw * A.h / A.w : 31)), fx = 79, fy = 141 - fh; // teamfoto klein, over de onderrand
+  const lr = regels(tekst, 62, '800', 3.1).slice(0, 6), ty = Math.max(31 + HH + 7.5, 141.5 - (lr.length - 1) * 4.05 - (opt.van && !jarig ? 6 : 0));
+  const ly = ty + lr.length * 4.05 + 1.6;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}mm" height="${H}mm" font-family="Nunito">
+  <defs>__FONTS__</defs>
+  ${basis(jarig ? `Hoera, ${p.name}!` : `Bedankt, ${p.name}!`, t, kleur)}
+  ${lijst(B, 9, 31, HW, HH, { rot: -.5 })}
+  <g transform="rotate(-.5 ${9 + HW / 2} ${31 + HH / 2})">${chip(12, 34, 'ZO TEKENDE MECHA-POF ONS', '#15A4C8')}</g>
+  ${lr.map((r, i) => `<text x="10" y="${(ty + i * 4.05).toFixed(2)}" font-weight="800" font-size="3.1" fill="${BRUIN}">${esc(r)}</text>`).join('')}
+  ${opt.van && !jarig ? `<text x="72" y="${Math.min(142, ly + 1).toFixed(2)}" text-anchor="end" font-family="Lilita One" font-size="4.6" fill="#15A4C8" transform="rotate(-3 72 ${ly.toFixed(2)})">Liefs, ${esc(opt.van)}</text>` : ''}
+  ${lijst(d.portret[p.id], 131, 31, 36, 54, { rot: 1.2, focus: 'xMidYMin' })}
+  <g transform="rotate(1.2 149 58)">${chip(133, 79.3, ('MONTEUR ' + p.name).toUpperCase().slice(0, 22), kleur)}</g>
+  ${route(170.5, 31, 30.5, 49)}
+  ${chip(172, 32.6, 'ONZE ROUTE', '#0E6F8A')}
+  ${lijst(A, fx, fy, fw, fh, { rot: 3, rand: 1.2 })}
+  ${pofSvg(opt, 150, 64)}
+  ${ballon(pofZin(p, t), 176.6, 85, 26)}
+  ${stempel(188.5, 128, -8, 1.02)}
+</svg>`;
+}
+
 function kaartSvg(p, d, opt) {
+  if (opt.opmaak === 'b') return kaartB(p, d, opt);
   const t = TALENT_INFO[p.talent], kleur = PART_COLOR[t?.part] || '#15A4C8', jarig = !!p.is_birthday;
   const kop = jarig ? `Hoera, ${p.name}!` : `Bedankt, ${p.name}!`;
   const tekst = (jarig ? opt.jarig : opt.gast).replaceAll('{naam}', p.name).replaceAll('{talent}', t?.label || 'monteur');
@@ -222,7 +277,7 @@ async function deelOfBewaar(files) {
 
 /* ================================================================ pagina */
 let data = null, svgs = new Map(), monster = '';
-const opties = () => ({ gast: $('t-gast').value.trim() || STD_GAST, jarig: $('t-jarig').value.trim() || STD_JARIG, welke: $('welke').value, van: $('van').value.trim(), monster });
+const opties = () => ({ gast: $('t-gast').value.trim() || STD_GAST, jarig: $('t-jarig').value.trim() || STD_JARIG, welke: $('welke').value, opmaak: $('opmaak').value, van: $('van').value.trim(), monster });
 function teken() {
   if (!data) return; clipN = 0; svgs = new Map();
   $('sheets').innerHTML = data.wie.map(p => { const s = kaartSvg(p, data, opties()); svgs.set(p.id, s);
@@ -243,8 +298,8 @@ async function start(sleutel) {
   } catch (e) { st.textContent = '⚠️ ' + (/401|403|sleutel/i.test(e.message) ? 'Regiesleutel klopt niet.' : e.message || e); st.classList.add('fout'); }
   finally { $('laad').disabled = false; }
 }
-$('t-gast').value = bewaard('gast', STD_GAST); $('t-jarig').value = bewaard('jarig', STD_JARIG); $('van').value = bewaard('van', 'Hannah'); $('welke').value = bewaard('welke', 'groep'); $('papier').value = bewaard('papier', 'a4'); papier();
-for (const [id, k] of [['t-gast', 'gast'], ['t-jarig', 'jarig'], ['van', 'van'], ['welke', 'welke']]) $(id).addEventListener('input', e => { bewaar(k, e.target.value); teken(); });
+$('t-gast').value = bewaard('gast', STD_GAST); $('t-jarig').value = bewaard('jarig', STD_JARIG); $('van').value = bewaard('van', 'Hannah'); $('welke').value = bewaard('welke', 'groep'); $('opmaak').value = new URLSearchParams(location.search).get('opmaak') === 'b' ? 'b' : bewaard('opmaak', 'a'); $('papier').value = bewaard('papier', 'a4'); papier();
+for (const [id, k] of [['t-gast', 'gast'], ['t-jarig', 'jarig'], ['van', 'van'], ['welke', 'welke'], ['opmaak', 'opmaak']]) $(id).addEventListener('input', e => { bewaar(k, e.target.value); teken(); });
 $('papier').addEventListener('change', papier);
 $('druk').addEventListener('click', () => print());
 $('laad').addEventListener('click', () => start($('sleutel').value.trim()));
