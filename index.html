@@ -210,14 +210,28 @@ button.press{min-height:96px;font-size:1.6rem;letter-spacing:.06em}
 .feedback:not(:empty){background:rgba(255,90,78,.14);border:2px solid var(--straw);border-radius:12px;padding:10px 12px;font-size:1.1rem;line-height:1.3}
 .feedback.ok:not(:empty){background:rgba(74,222,128,.14);border-color:var(--ok)}
 .tries:not(:empty)::before{content:'Al geprobeerd:';color:var(--muted);font-size:.85rem;font-weight:800;align-self:center}
-#samen{position:fixed;left:0;right:0;margin:0 auto;top:calc(env(safe-area-inset-top,0px) + 6px);z-index:50;width:min(94vw,460px);display:flex;align-items:center;gap:12px;
-  border-radius:18px;padding:12px 16px;background:#2E2108;border:3px solid var(--gold,#F2BE62);color:#FFF1D2;box-shadow:0 10px 40px rgba(0,0,0,.65),0 0 26px rgba(242,190,98,.4);pointer-events:none;animation:verdict .3s}
-#samen i{font-style:normal;font-size:2rem;line-height:1;flex:none}
-#samen.ring i{animation:shake .5s ease-in-out infinite}
-#samen b{display:block;font-weight:900;font-size:1.12rem;line-height:1.2}
-#samen b b{display:inline;font-size:inherit;color:var(--gold,#F2BE62)}
-#samen small{display:block;font-weight:800;font-size:.98rem;margin-top:3px;opacity:.9}
-@media (prefers-reduced-motion:reduce){#samen,#samen.ring i{animation:none}}
+#samen{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:max(18px,env(safe-area-inset-top,0px)) 16px max(18px,env(safe-area-inset-bottom,0px));
+  background:rgba(8,11,18,.88);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);animation:samenIn .3s}
+#samen .kaart{width:min(94vw,460px);text-align:center;border-radius:28px;padding:28px 20px 22px;background:#2E2108;border:5px solid var(--gold);color:#FFF1D2;
+  box-shadow:0 14px 50px rgba(0,0,0,.7),0 0 40px rgba(242,190,98,.55);animation:samenGlow 1.2s ease-in-out infinite alternate}
+#samen .ic{display:block;font-size:5.5rem;line-height:1;margin-bottom:10px}
+#samen.ring .ic{animation:samenBel .6s ease-in-out infinite}
+#samen .let{display:block;font-family:var(--hud);font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);font-size:1.05rem;margin-bottom:8px}
+#samen .t{display:block;font-family:var(--display);font-size:clamp(1.9rem,8.5vw,2.5rem);line-height:1.1;color:#FFF6E2}
+#samen .wie{display:block;margin:12px 0 4px;font-family:var(--display);font-size:clamp(2.2rem,11vw,3.1rem);line-height:1.05;color:var(--gold);text-shadow:0 3px 0 var(--gold-deep)}
+#samen .s{display:block;font-weight:900;font-size:1.3rem;margin-top:10px}
+#samen .pre{display:block;margin-top:14px;font-weight:900;font-size:1.35rem;color:#FFE3A6}
+#samen .tik{display:block;margin-top:18px;font-weight:800;font-size:.95rem;opacity:.7}
+#samen.klein{inset:auto 0 auto 0;top:calc(env(safe-area-inset-top,0px) + 6px);padding:0;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;pointer-events:none;place-items:start center}
+#samen.klein .kaart{display:flex;align-items:center;gap:12px;text-align:left;padding:10px 14px;border-width:3px;border-radius:18px;animation:none}
+#samen.klein .ic{font-size:2rem;margin:0}#samen.klein .let,#samen.klein .tik{display:none}
+#samen.klein .tx{min-width:0}
+#samen.klein .t,#samen.klein .pre,#samen.klein .wie{display:inline;font-family:var(--body);font-weight:900;font-size:1.05rem;margin:0;text-shadow:none;line-height:1.25}
+#samen.klein .s{font-size:.95rem;margin-top:2px}
+@keyframes samenIn{from{opacity:0;transform:scale(.92)}}
+@keyframes samenGlow{to{box-shadow:0 14px 50px rgba(0,0,0,.7),0 0 70px 8px rgba(242,190,98,.8)}}
+@keyframes samenBel{0%,100%{transform:rotate(0)}20%{transform:rotate(-14deg)}40%{transform:rotate(12deg)}60%{transform:rotate(-8deg)}80%{transform:rotate(6deg)}}
+@media (prefers-reduced-motion:reduce){#samen,#samen .kaart,#samen.ring .ic{animation:none}}
 #verdict{position:fixed;left:0;right:0;margin:0 auto;top:calc(env(safe-area-inset-top,0px) + 74px);z-index:35;width:min(92vw,440px);border-radius:18px;padding:16px 18px;text-align:center;pointer-events:none;box-shadow:0 10px 40px rgba(0,0,0,.65);animation:verdict .3s}
 #verdict b{display:block;font-family:var(--hud);font-size:1.9rem;letter-spacing:.06em;line-height:1.1}
 #verdict span{display:block;font-weight:800;font-size:1.08rem;margin-top:6px}
@@ -559,8 +573,8 @@ router.on('*', (p, ev) => {
 });
 
 /* ================================================================ samen blijven (13 nov)
-   Belt Mecha-Pof op de radiotelefoon, of staat daar de walkie open, dan zien de andere telefoons een gouden balk bovenin:
-   "Mecha-Pof belt bij Hannah & Elin. Kom er allemaal bij staan!" Gaat het via presence (sync.setBusy → state.busyOf):
+   Belt Mecha-Pof op de radiotelefoon, of staat daar de walkie open, dan zien de andere telefoons een groot gouden scherm:
+   "Let op! Mecha-Pof belt! Kijk bij Hannah & Elin. Kom er allemaal bij staan!" Tik = klein balkje bovenin. Gaat het via presence (sync.setBusy → state.busyOf):
    valt de radiotelefoon weg, dan verdwijnt de balk vanzelf. Nieuwe oproep elders = één piepje en trillen (Android). */
 function myBusy() {
   if (ring?.open) return { k: 'ring', ...(ringVoor ? { voor: ringVoor } : {}) };
@@ -568,12 +582,13 @@ function myBusy() {
   return null;
 }
 const seenBusy = new Map(); // device_id → k van de vorige keer, om alleen bij een nieuwe oproep te piepen
+let samenKlein = null; // sleutel (toestel:soort) die met een tik klein is gemaakt; een nieuwe oproep komt weer groot in beeld
 function samenText(b, names) {
-  const bij = names ? `bij <b>${esc(names)}</b>` : 'op een andere telefoon';
+  const wie = names ? esc(names) : 'een andere telefoon';
   const voorMij = b.voor && state.me().find(p => p.id === b.voor);
-  if (b.k === 'ring' && voorMij) return { ic: '📞', t: `Mecha-Pof belt voor jou, ${esc(voorMij.name)}!`, s: `Ren naar de telefoon ${bij} en neem op.` };
-  if (b.k === 'ring') return { ic: '📞', t: `Mecha-Pof belt ${bij}!`, s: 'Kom er allemaal bij staan.' };
-  if (b.k === 'walkie') return { ic: '📻', t: `Mecha-Pof is aan de lijn ${bij}.`, s: 'Kom erbij luisteren!' };
+  if (b.k === 'ring' && voorMij) return { ic: '📞', let: 'Let op!', t: `Mecha-Pof belt voor jou, ${esc(voorMij.name)}!`, pre: 'Ren naar de telefoon van', wie, s: 'en neem op.' };
+  if (b.k === 'ring') return { ic: '📞', let: 'Let op!', t: 'Mecha-Pof belt!', pre: 'Kijk bij', wie, s: 'Kom er allemaal bij staan!' };
+  if (b.k === 'walkie') return { ic: '📻', let: 'Let op!', t: 'Mecha-Pof praat!', pre: 'Kijk bij', wie, s: 'Kom erbij luisteren!' };
   return null;
 }
 function renderSamen() {
@@ -582,12 +597,17 @@ function renderSamen() {
   const list = !sync.isLoggedIn() || naAfloop() || mine ? [] : state.devices().filter(d => d !== S().device.id).map(d => ({ d, b: state.busyOf?.(d) })).filter(x => x.b?.k);
   for (const { d, b } of list) { if (b.k === 'ring' && seenBusy.get(d) !== 'ring') { audio.play('blip'); buzz([200, 100, 200]); } }
   seenBusy.clear(); for (const { d, b } of list) seenBusy.set(d, b.k);
-  const x = list[0] && samenText(list[0].b, namesOnDevice(list[0].d));
-  if (!x) { el?.remove(); return; }
-  if (!el) { el = document.createElement('div'); el.id = 'samen'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
-  const html = `<i>${x.ic}</i><span><b>${x.t}</b><small>${x.s}</small></span>`;
+  const top = list[0], x = top && samenText(top.b, namesOnDevice(top.d));
+  if (!x) { el?.remove(); samenKlein = null; return; }
+  const key = top.d + ':' + top.b.k + ':' + (top.b.voor || '');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'samen'; el.setAttribute('role', 'alert'); document.body.appendChild(el);
+    el.addEventListener('click', () => { samenKlein = el.dataset.key; renderSamen(); }); // tik = klein balkje bovenin, dan kun je verder
+  }
+  el.dataset.key = key;
+  const html = `<div class="kaart"><i class="ic">${x.ic}</i><span class="tx"><span class="let">${x.let}</span><span class="t">${x.t}</span> <span class="pre">${x.pre}</span> <span class="wie">${x.wie}</span><span class="s">${x.s}</span><span class="tik">Tik om dit kleiner te maken</span></span></div>`;
   if (el.innerHTML !== html) el.innerHTML = html;
-  el.className = list[0].b.k;
+  el.className = top.b.k + (samenKlein === key ? ' klein' : '');
 }
 state.on('presence', renderSamen);
 setInterval(() => { sync.setBusy?.(myBusy()); renderSamen(); }, 700);

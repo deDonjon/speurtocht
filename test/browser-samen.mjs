@@ -60,7 +60,8 @@ ok('twee telefoons, geen balk zolang niemand belt', (await page.evaluate(() => w
 await fake(f => f.presence('zzzB', ['p2'], { k: 'ring' }));
 await sleep(900);
 let b = await banner();
-ok('oproep elders → balk "belt bij Elin"', /belt bij/.test(b) && b.includes('Elin') && /allemaal bij staan/.test(b), b);
+ok('oproep elders → groot scherm "Mecha-Pof belt! Kijk bij Elin"', /belt! Kijk bij/.test(b) && b.includes('Elin') && /allemaal bij staan/.test(b), b);
+ok('…schermvullend', (await page.evaluate(() => { const r = document.querySelector('#samen').getBoundingClientRect(); return r.width >= innerWidth - 1 && r.height >= innerHeight - 1; })));
 await page.screenshot({ path: path.join(ROOT, 'test/out/samen.png') }).catch(() => {});
 ok('balk ligt boven overlays (z-index)', (await page.evaluate(() => +getComputedStyle(document.querySelector('#samen')).zIndex)) >= 50);
 
@@ -72,7 +73,14 @@ ok('oproep voor Hannah op de andere telefoon → "belt voor jou, Hannah"', b.inc
 await fake(f => f.presence('zzzB', ['p2'], { k: 'walkie' }));
 await sleep(900);
 b = await banner();
-ok('walkie open elders → "aan de lijn bij Elin"', /aan de lijn bij/.test(b) && /luisteren/.test(b), b);
+ok('walkie open elders → "Mecha-Pof praat! Kijk bij Elin"', /praat! Kijk bij/.test(b) && b.includes('Elin') && /luisteren/.test(b), b);
+await page.click('#samen');
+await sleep(300);
+ok('tik → klein balkje bovenin', await page.evaluate(() => { const e = document.querySelector('#samen'); return e.classList.contains('klein') && e.getBoundingClientRect().height < 200; }));
+await page.screenshot({ path: path.join(ROOT, 'test/out/samen-klein.png') }).catch(() => {});
+await fake(f => f.presence('zzzB', ['p2'], { k: 'ring' }));
+await sleep(900);
+ok('nieuwe oproep → weer groot', await page.evaluate(() => !document.querySelector('#samen').classList.contains('klein')));
 
 await fake(f => f.presence('zzzB', ['p2']));
 await sleep(900);
