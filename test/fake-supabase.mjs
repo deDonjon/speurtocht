@@ -21,6 +21,7 @@ const codes = { '1111': 'p1', '2222': 'p2' };
 if (globalThis.__FAKE_INIT) { const i = globalThis.__FAKE_INIT; for (const k of ['game', 'player', 'stop', 'puzzle_state', 'event']) if (i[k]) db[k] = i[k]; if (i.codes) { for (const k of Object.keys(codes)) delete codes[k]; Object.assign(codes, i.codes); } }
 const REGIE_KEY = 'job';
 const extraPresence = {}; // device_id -> players (andere telefoons; test zet ze via __fake.presence)
+const extraBusy = {}, tracks = []; // busy van andere telefoons (__fake.presence(dev, players, busy)) en wat deze telefoon zelf meldde (channel.track)
 const listeners = []; let presenceCb = null, deviceId = null;
 const rpcLog = [];
 function emit(table, row, eventType = 'INSERT') { for (const fn of listeners) fn({ table, eventType, new: row, old: row }); }
@@ -69,7 +70,7 @@ export function createClient() {
     },
     channel() {
       const ch = { state: 'joined', on(kind, _f, cb) { if (kind === 'postgres_changes') listeners.push(cb); if (kind === 'presence') presenceCb = cb; return ch; },
-        subscribe(cb) { setTimeout(() => cb('SUBSCRIBED'), 0); return ch; }, async track() { presenceCb?.(); }, presenceState() { const o = {}; if (deviceId) o[deviceId] = [{ device_id: deviceId, players: db.player.filter(p => p.device_id === deviceId).map(p => p.id), at: now() }]; for (const [k, v] of Object.entries(extraPresence)) o[k] = [{ device_id: k, players: v, at: now() }]; return o; } };
+        subscribe(cb) { setTimeout(() => cb('SUBSCRIBED'), 0); return ch; }, async track(meta) { tracks.push(meta); presenceCb?.(); }, presenceState() { const o = {}, own = tracks[tracks.length - 1]; if (deviceId) o[deviceId] = [{ device_id: deviceId, players: db.player.filter(p => p.device_id === deviceId).map(p => p.id), at: now(), ...(own?.busy ? { busy: own.busy } : {}) }]; for (const [k, v] of Object.entries(extraPresence)) o[k] = [{ device_id: k, players: v, at: now(), ...(extraBusy[k] ? { busy: extraBusy[k] } : {}) }]; return o; } };
       return ch;
     },
     async removeChannel() {},
@@ -78,7 +79,8 @@ export function createClient() {
 // Regie-knoppen voor de test: window.__fake.regie('thief.start', {...}) zet ook game.surprise, zoals regie_event op de server.
 globalThis.__fake = {
   db, rpcLog, emit, patchGame, codes, rpc: (name, args) => createClient().rpc(name, args),
-  presence(dev, players) { if (players) extraPresence[dev] = players; else delete extraPresence[dev]; presenceCb?.(); },
+  tracks,
+  presence(dev, players, busy) { if (players) extraPresence[dev] = players; else delete extraPresence[dev]; if (busy) extraBusy[dev] = busy; else delete extraBusy[dev]; presenceCb?.(); },
   regie(type, payload = {}) {
     if (['thief.start', 'storm.start', 'fork.open', 'finale.timer'].includes(type)) patchGame({ surprise: { kind: type.split('.')[0], started_at: now(), data: payload } });
     else if (['thief.caught', 'thief.end', 'storm.end', 'fork.result'].includes(type)) patchGame({ surprise: null });

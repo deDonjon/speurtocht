@@ -126,12 +126,16 @@ function onChange(payload) {
 function presenceMap() {
   const raw = channel?.presenceState() || {};
   const out = {};
-  for (const [key, metas] of Object.entries(raw)) { const m = metas[metas.length - 1] || {}; out[key] = { players: m.players || [], at: m.at }; }
+  for (const [key, metas] of Object.entries(raw)) { const m = metas[metas.length - 1] || {}; out[key] = { players: m.players || [], at: m.at, busy: m.busy || null }; }
   return out;
 }
-async function track() {
+// busy: waar deze telefoon nu mee bezig is ({ k:'ring'|'walkie', voor? }), zodat de andere telefoons "kom hier staan" tonen.
+// Alleen busy wijzigen houdt `at` gelijk: `at` beslist in state.devices() wie een speler "wint" en mag daarom niet verspringen.
+let busyNow = null, trackedAt = null;
+async function track({ keepAt = false } = {}) {
   if (!channel || channel.state !== 'joined') return;
-  try { await channel.track({ device_id: state.get().device.id, players: PLAYER_PAGE ? myIds() : [], at: new Date().toISOString() }); } catch {}
+  if (!keepAt || !trackedAt) trackedAt = new Date().toISOString();
+  try { await channel.track({ device_id: state.get().device.id, players: PLAYER_PAGE ? myIds() : [], at: trackedAt, ...(PLAYER_PAGE && busyNow ? { busy: busyNow } : {}) }); } catch {}
 }
 async function subscribe() {
   const c = await client();
@@ -188,6 +192,9 @@ export const sync = {
   },
   logout(playerId) { if (playerId) delete session.codes[playerId]; else session.codes = {}; saveSession(); },
   isLoggedIn() { return myIds().length > 0; },
+
+  /** Meldt via presence waar deze telefoon mee bezig is (null = niets). Gelijk aan de vorige melding = niets doen. */
+  setBusy(b) { const v = b ? { ...b } : null; if (JSON.stringify(v) === JSON.stringify(busyNow)) return; busyNow = v; track({ keepAt: true }); },
 
   setPos(pos) { state.set({ pos: pos ? { ...pos, at: new Date().toISOString() } : null }); },
 

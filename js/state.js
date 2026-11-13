@@ -41,7 +41,7 @@ let s = {
   events: [],
   pos: null,
 };
-const presence = new Map(); // device_id -> { players:[], at }
+const presence = new Map(); // device_id -> { players:[], at, busy }
 const listeners = new Map(); // evt -> Set<fn>
 
 function emit(evt, payload) {
@@ -88,6 +88,8 @@ export const state = {
   },
   /** Spelers die een toestel via presence meldt (ook als device_id in de database leeg is, bv. na een reset). */
   playersOn(deviceId) { return presence.get(deviceId)?.players || []; },
+  /** Waar een ander toestel mee bezig is volgens presence ({ k:'ring'|'walkie', voor? } of null); zie sync.setBusy(). */
+  busyOf(deviceId) { return presence.get(deviceId)?.busy || null; },
   phones() { return Math.max(1, state.devices().length); }, // aantal toestellen online (1, 2 of 3)
   partsMissing() { const have = new Set(s.game?.parts || []); return Object.keys(PARTS).filter(p => !have.has(p)); },
   partsFound() { return s.game?.parts || []; },
@@ -141,7 +143,7 @@ export const state = {
     s = { ...s, game: game || null, players: sortBy((players || []).map(withOnline), 'name'), stops: sortBy(stops || [], 'seq'), puzzle: puzzle || null, events: (events || []).slice(0, EVENTS_MAX) };
     emit('game', s.game); emit('players', s.players); emit('stops', s.stops); emit('puzzle', s.puzzle); emit('event', s.events[0] || null);
   },
-  presence(map) { // map: device_id -> { players, at }
+  presence(map) { // map: device_id -> { players, at, busy }
     presence.clear(); for (const [k, v] of Object.entries(map || {})) presence.set(k, v);
     s = { ...s, players: s.players.map(withOnline) };
     emit('players', s.players); emit('presence', state.phones());

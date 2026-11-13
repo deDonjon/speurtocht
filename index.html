@@ -210,6 +210,14 @@ button.press{min-height:96px;font-size:1.6rem;letter-spacing:.06em}
 .feedback:not(:empty){background:rgba(255,90,78,.14);border:2px solid var(--straw);border-radius:12px;padding:10px 12px;font-size:1.1rem;line-height:1.3}
 .feedback.ok:not(:empty){background:rgba(74,222,128,.14);border-color:var(--ok)}
 .tries:not(:empty)::before{content:'Al geprobeerd:';color:var(--muted);font-size:.85rem;font-weight:800;align-self:center}
+#samen{position:fixed;left:0;right:0;margin:0 auto;top:calc(env(safe-area-inset-top,0px) + 6px);z-index:50;width:min(94vw,460px);display:flex;align-items:center;gap:12px;
+  border-radius:18px;padding:12px 16px;background:#2E2108;border:3px solid var(--gold,#F2BE62);color:#FFF1D2;box-shadow:0 10px 40px rgba(0,0,0,.65),0 0 26px rgba(242,190,98,.4);pointer-events:none;animation:verdict .3s}
+#samen i{font-style:normal;font-size:2rem;line-height:1;flex:none}
+#samen.ring i{animation:shake .5s ease-in-out infinite}
+#samen b{display:block;font-weight:900;font-size:1.12rem;line-height:1.2}
+#samen b b{display:inline;font-size:inherit;color:var(--gold,#F2BE62)}
+#samen small{display:block;font-weight:800;font-size:.98rem;margin-top:3px;opacity:.9}
+@media (prefers-reduced-motion:reduce){#samen,#samen.ring i{animation:none}}
 #verdict{position:fixed;left:0;right:0;margin:0 auto;top:calc(env(safe-area-inset-top,0px) + 74px);z-index:35;width:min(92vw,440px);border-radius:18px;padding:16px 18px;text-align:center;pointer-events:none;box-shadow:0 10px 40px rgba(0,0,0,.65);animation:verdict .3s}
 #verdict b{display:block;font-family:var(--hud);font-size:1.9rem;letter-spacing:.06em;line-height:1.1}
 #verdict span{display:block;font-weight:800;font-size:1.08rem;margin-top:6px}
@@ -307,7 +315,7 @@ import { state, PARTS, TALENTS } from './js/state.js';
 import { sync } from './js/sync.js';
 import { createMap } from './js/map.js?v=5'; // ?v ophogen bij elke wijziging: GitHub Pages en Safari bewaren oude bestanden
 import { createMonster, monsterImage, lineText } from './js/monster.js?v=33'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
-import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole } from './js/roles.js?v=2'; // radio / kaart / werkbank, roterend per stop
+import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole, namesOnDevice } from './js/roles.js?v=2'; // radio / kaart / werkbank, roterend per stop
 import { createInstall } from './js/install.js?v=6'; // installatieritueel: monteur schudt, deel klikt vast
 import { openWalkie, incomingCall, callGreeting, arrivalCall } from './js/walkie.js?v=34'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
 import { createNavVoice } from './js/navvoice.js?v=1'; // gesproken navigatie zodra de LED-ogen terug zijn (radiotelefoon)
@@ -507,10 +515,12 @@ function startWalkie() {
 const seenCalls = new Set();
 let lastBrief = null; // { stopId, text }: de briefing van deze plek, om op het puzzelscherm nog eens te laten horen
 const callRinging = () => !!ring?.open;
-function ringCall({ greeting, title = 'Mecha-Pof belt!', sub = '', zeg = '', gemist = '' }) {
+let ringVoor = null; // player_id voor wie de oproep is (monster.call), voor de melding op de andere telefoons
+function ringCall({ greeting, title = 'Mecha-Pof belt!', sub = '', zeg = '', gemist = '', voor = null }) {
   if (!greeting || !sync.isLoggedIn() || !hasRole('radio')) return false;
   if (walkie?.open) { walkie.update(greeting); return true; }
   if (ring?.open) ring.close();
+  ringVoor = voor;
   ring = incomingCall({ mon, context: walkieContext, greeting, title, sub, zeg, gemist, tools: walkieTools(),
     onAnswer: w => { walkie = w; ring = null; },
     onMissed: text => { ring = null; placeMonster(); toast('📵 Gemiste oproep van Mecha-Pof'); say(text, { ms: 14000 }); },
@@ -528,7 +538,7 @@ router.on('monster.call', p => {
   if (!p.message_id || seenCalls.has(p.message_id)) return; seenCalls.add(p.message_id);
   const pl = state.player(p.player_id), naam = pl?.name || '';
   const elders = pl?.device_id && pl.device_id !== S().device.id && pl.online;
-  ringCall({ greeting: callGreeting({ naam, text: p.text }), sub: naam ? `Voor ${naam}${elders ? ` · geef de telefoon even aan ${naam}` : ''}` : '' });
+  ringCall({ greeting: callGreeting({ naam, text: p.text }), sub: naam ? `Voor ${naam}${elders ? ` · geef de telefoon even aan ${naam}` : ''}` : '', voor: p.player_id || null });
 });
 // Wat er in het spel gebeurt, hoort het monster ook (zonder dat het hoeft te antwoorden).
 router.on('*', (p, ev) => {
@@ -547,6 +557,40 @@ router.on('*', (p, ev) => {
   }[ev.type];
   if (t) walkie.update(t());
 });
+
+/* ================================================================ samen blijven (13 nov)
+   Belt Mecha-Pof op de radiotelefoon, of staat daar de walkie open, dan zien de andere telefoons een gouden balk bovenin:
+   "Mecha-Pof belt bij Hannah & Elin. Kom er allemaal bij staan!" Gaat het via presence (sync.setBusy → state.busyOf):
+   valt de radiotelefoon weg, dan verdwijnt de balk vanzelf. Nieuwe oproep elders = één piepje en trillen (Android). */
+function myBusy() {
+  if (ring?.open) return { k: 'ring', ...(ringVoor ? { voor: ringVoor } : {}) };
+  if (walkie?.open) return { k: 'walkie' };
+  return null;
+}
+const seenBusy = new Map(); // device_id → k van de vorige keer, om alleen bij een nieuwe oproep te piepen
+function samenText(b, names) {
+  const bij = names ? `bij <b>${esc(names)}</b>` : 'op een andere telefoon';
+  const voorMij = b.voor && state.me().find(p => p.id === b.voor);
+  if (b.k === 'ring' && voorMij) return { ic: '📞', t: `Mecha-Pof belt voor jou, ${esc(voorMij.name)}!`, s: `Ren naar de telefoon ${bij} en neem op.` };
+  if (b.k === 'ring') return { ic: '📞', t: `Mecha-Pof belt ${bij}!`, s: 'Kom er allemaal bij staan.' };
+  if (b.k === 'walkie') return { ic: '📻', t: `Mecha-Pof is aan de lijn ${bij}.`, s: 'Kom erbij luisteren!' };
+  return null;
+}
+function renderSamen() {
+  let el = $('#samen');
+  const mine = myBusy();
+  const list = !sync.isLoggedIn() || naAfloop() || mine ? [] : state.devices().filter(d => d !== S().device.id).map(d => ({ d, b: state.busyOf?.(d) })).filter(x => x.b?.k);
+  for (const { d, b } of list) { if (b.k === 'ring' && seenBusy.get(d) !== 'ring') { audio.play('blip'); buzz([200, 100, 200]); } }
+  seenBusy.clear(); for (const { d, b } of list) seenBusy.set(d, b.k);
+  const x = list[0] && samenText(list[0].b, namesOnDevice(list[0].d));
+  if (!x) { el?.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'samen'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+  const html = `<i>${x.ic}</i><span><b>${x.t}</b><small>${x.s}</small></span>`;
+  if (el.innerHTML !== html) el.innerHTML = html;
+  el.className = list[0].b.k;
+}
+state.on('presence', renderSamen);
+setInterval(() => { sync.setBusy?.(myBusy()); renderSamen(); }, 700);
 
 /* ================================================================ gesproken navigatie (js/navvoice.js) en verrassingen (js/surprises.js) */
 const busy = () => !!(walkie?.open || ring?.open || install.busy || surprises?.overlayOpen);
