@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="fonts/fonts.css">
 <style>
 /* Bedankkaart (13 nov, na het feest). Per meid één kaart op A5 liggend: de teamfoto, de teamtekening van Mecha-Pof, haar eigen
-   stripportret en de spelkaart met de gelopen route. De foto's komen met de regiesleutel uit de PRIVÉ-bucket (functies monster-foto
+   stripportret, de spelkaart met de gelopen route en Mecha-Pof zelf met een zin voor haar. De foto's komen met de regiesleutel uit de PRIVÉ-bucket (functies monster-foto
    en monster-origineel); er staat niets van de kinderen in de repo. Elke kaart is één SVG: die drukt scherp af en kan ook als
    afbeelding (PNG) bewaard worden om te versturen. Proberen zonder foto's: ?demo=1 */
 *{box-sizing:border-box}html,body{margin:0}
@@ -145,6 +145,9 @@ function kaartSvg(p, d, opt) {
   const t = TALENT_INFO[p.talent], kleur = PART_COLOR[t?.part] || '#15A4C8', jarig = !!p.is_birthday;
   const kop = jarig ? `Hoera, ${p.name}!` : `Bedankt, ${p.name}!`;
   const tekst = (jarig ? opt.jarig : opt.gast).replaceAll('{naam}', p.name).replaceAll('{talent}', t?.label || 'monteur');
+  const deel = t ? t.deel.replace(/^(de|het) /, '').replace(' en de ', ' en ') : '';
+  const pof = jarig ? `Bliep! Tien jaar en mijn boterknop zit er weer op. Jij was de baas van mijn Reparatieteam. Over en sluiten!`
+    : t ? `Bliep! Dankzij jou heb ik mijn ${deel} terug. Zonder jou was ik nog een pratend doosje. Over en sluiten!` : 'Bliep! Dankzij jou sta ik weer overeind. Over en sluiten!';
   // middenkolom: teamfoto boven, tekening onder; de hoogte volgt de verhouding van de beelden
   const A = d.teamfoto, B = d[opt.welke] || d.groep || d.feest, MX = 63, MW = 83, MY = 31, MH = 110, GAP = 4;
   const nat = b => b ? MW * b.h / b.w : MH / 2; let hA = nat(A), hB = nat(B); const k = (MH - GAP) / (hA + hB); hA = Math.max(40, Math.min(MH - GAP - 40, hA * k)); hB = MH - GAP - hA;
@@ -160,8 +163,7 @@ function kaartSvg(p, d, opt) {
   <text x="10" y="13.2" font-family="Chakra Petch" font-weight="700" font-size="2.7" letter-spacing=".62" fill="#0E6F8A">OPERATIE MECHA-POF · HANNAH 10 JAAR · VEGHEL, 13 NOVEMBER 2026</text>
   <text x="10.5" y="26.4" font-family="Lilita One" font-size="13" fill="${GOUD}">${esc(kop)}</text>
   <text x="10" y="25.7" font-family="Lilita One" font-size="13" fill="${INK}">${esc(kop)}</text>
-  ${opt.monster ? `<svg x="181" y="5.5" width="23" height="23" ${opt.monster.replace(/^<svg/, '').replace(/xmlns="[^"]*"/, '')}` : ''}
-  ${t ? `<g transform="translate(${opt.monster ? 142 : 164} 9)"><rect width="37" height="14" rx="3" fill="#fff" stroke="${kleur}" stroke-width=".6"/><svg x="1.5" y="1.5" width="11" height="11" viewBox="-6 -2 112 106">${ICONS[t.part] || ''}</svg>
+  ${t ? `<g transform="translate(164 9)"><rect width="37" height="14" rx="3" fill="#fff" stroke="${kleur}" stroke-width=".6"/><svg x="1.5" y="1.5" width="11" height="11" viewBox="-6 -2 112 106">${ICONS[t.part] || ''}</svg>
     <text x="14" y="6.2" font-family="Chakra Petch" font-weight="700" font-size="2" letter-spacing=".3" fill="#7A5A3A">TALENT</text><text x="14" y="10.6" font-family="Nunito" font-weight="900" font-size="${t.label.length > 12 ? 2.6 : 3.1}" fill="${INK}">${esc(t.label)}</text></g>` : ''}
 
   ${lijst(d.portret[p.id], 11, 31, 46, 69, { rot: -1.2, focus: 'xMidYMin' })}
@@ -174,15 +176,19 @@ function kaartSvg(p, d, opt) {
   ${lijst(B, MX, MY + hA + GAP, MW, hB, { rot: -.5 })}
   <g transform="rotate(-.5 ${MX + MW / 2} ${MY + hA + GAP + hB / 2})">${chip(MX + 3, MY + hA + GAP + hB - 7, 'ZO TEKENDE MECHA-POF ONS', '#15A4C8')}</g>
 
-  <rect x="151.6" y="31.9" width="50" height="80.3" rx="1.6" fill="#000" opacity=".16"/>
-  <svg x="151" y="31" width="50" height="80.3" viewBox="${OX} ${OY} ${MAPW} ${MAPH}" preserveAspectRatio="xMidYMid slice"><rect x="${OX}" y="${OY}" width="${MAPW}" height="${MAPH}" fill="#F3E3BB"/>${routeSvg}</svg>
-  <rect x="151" y="31" width="50" height="80.3" rx="1.6" fill="none" stroke="#3B2A1A" stroke-width=".7"/>
-  <text x="176" y="116.6" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="2.5" letter-spacing=".5" fill="#0E6F8A">DE ROUTE VAN ONS TEAM</text>
-  <text x="176" y="120.6" text-anchor="middle" font-weight="800" font-size="2.15" fill="#7A5A3A">1 pantser · 2 ogen · 3 neus · 4 mond</text>
-  <text x="176" y="123.7" text-anchor="middle" font-weight="800" font-size="2.15" fill="#7A5A3A">5 armen · 6 benen · 7 boterknop</text>
-  <g transform="rotate(7 176 133.5)" fill="none" stroke="#E0352B" opacity=".9"><rect x="156" y="127" width="40" height="13" rx="2.2" stroke-width=".7"/><rect x="157.1" y="128.1" width="37.8" height="10.8" rx="1.4" stroke-width=".25"/>
-    <text x="176" y="132" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="2" letter-spacing=".4" fill="#E0352B" stroke="none">MECHA-POF GEREPAREERD</text>
-    <text x="176" y="137.6" text-anchor="middle" font-family="Lilita One" font-size="4.1" fill="#E0352B" stroke="none">MISSIE GESLAAGD</text></g>
+  <rect x="155.6" y="31.9" width="42" height="67.4" rx="1.6" fill="#000" opacity=".16"/>
+  <svg x="155" y="31" width="42" height="67.4" viewBox="${OX} ${OY} ${MAPW} ${MAPH}" preserveAspectRatio="xMidYMid slice"><rect x="${OX}" y="${OY}" width="${MAPW}" height="${MAPH}" fill="#F3E3BB"/>${routeSvg}</svg>
+  <rect x="155" y="31" width="42" height="67.4" rx="1.6" fill="none" stroke="#3B2A1A" stroke-width=".7"/>
+  ${chip(157, 33, 'ONZE ROUTE', '#0E6F8A')}
+  <g transform="rotate(-8 183 90.5)" fill="none" stroke="#E0352B"><rect x="170.5" y="85.6" width="25" height="9.6" rx="1.7" fill="#FFF9EE" fill-opacity=".88" stroke-width=".55"/>
+    <text x="183" y="89" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="1.4" letter-spacing=".22" fill="#E0352B" stroke="none">MECHA-POF GEREPAREERD</text>
+    <text x="183" y="93.3" text-anchor="middle" font-family="Lilita One" font-size="2.75" fill="#E0352B" stroke="none">MISSIE GESLAAGD</text></g>
+  <ellipse cx="176" cy="141.4" rx="9.5" ry="1.6" fill="#000" opacity=".1"/>
+  ${opt.monster ? `<svg x="161.75" y="117" width="28.5" height="28.5" ${opt.monster.replace(/^<svg/, '').replace(/xmlns="[^"]*"/, '')}` : ''}
+  ${(() => { const br = regels(pof, 47, '800', 2.35).slice(0, 4), bh = br.length * 3.05 + 6.6, by = 101.5;
+    return `<g><path d="M152.5 ${by}h47a2.5 2.5 0 0 1 2.5 2.5v${(bh - 5).toFixed(2)}a2.5 2.5 0 0 1-2.5 2.5h-19.5l-2.6 3-.9-3h-24a2.5 2.5 0 0 1-2.5-2.5v-${(bh - 5).toFixed(2)}a2.5 2.5 0 0 1 2.5-2.5z" fill="#fff" stroke="${INK}" stroke-width=".45" stroke-linejoin="round"/>
+      <text x="153" y="${(by + 3.9).toFixed(2)}" font-family="Chakra Petch" font-weight="700" font-size="1.9" letter-spacing=".35" fill="#15A4C8">MECHA-POF AAN ${esc(p.name.toUpperCase())}</text>
+      ${br.map((r, i) => `<text x="153" y="${(by + 7.5 + i * 3.05).toFixed(2)}" font-weight="800" font-size="2.35" fill="${INK}">${esc(r)}</text>`).join('')}</g>`; })()}
 </svg>`;
 }
 
@@ -230,9 +236,9 @@ async function start(sleutel) {
     seed(13); routeSvg = kaart(true, true);
     await Promise.all(['400 10px "Lilita One"', '700 10px "Chakra Petch"', '800 10px Nunito', '900 10px Nunito'].map(f => document.fonts.load(f))).catch(() => {});
     $('inlog').hidden = true; $('tekst').hidden = false; $('druk').disabled = $('alles').disabled = false;
-    teken();
-    // Mecha-Pof in de hoek: alleen als hij binnen een paar tellen geladen is (hij komt van buiten de pagina)
-    import('./print.js').then(m => Promise.race([m.monsterSvg(['lijf', 'ogen', 'neus', 'mond', 'armen', 'benen', 'hoed']), new Promise((_, nee) => setTimeout(nee, 6000))])).then(s => { monster = s; teken(); }).catch(() => {}).finally(() => { window.__ready = true; });
+    // Mecha-Pof staat groot op de kaart: even op hem wachten (hij komt van buiten de pagina); lukt het niet, dan zonder
+    monster = await Promise.race([import('./print.js').then(m => m.monsterSvg(['lijf', 'ogen', 'neus', 'mond', 'armen', 'benen', 'hoed'])), new Promise(ok => setTimeout(() => ok(''), 8000))]).catch(() => '');
+    teken(); window.__ready = true;
   } catch (e) { st.textContent = '⚠️ ' + (/401|403|sleutel/i.test(e.message) ? 'Regiesleutel klopt niet.' : e.message || e); st.classList.add('fout'); }
   finally { $('laad').disabled = false; }
 }
