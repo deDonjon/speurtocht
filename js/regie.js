@@ -287,9 +287,10 @@ function usedNow() { // welke verrassingen zijn dit spel al geweest (onthouden o
   for (const [kind, type] of [['thief', 'thief.start'], ['fork', 'fork.open'], ['storm', 'storm.start'], ['finale', 'finale.timer']]) if (!u[kind] && g?.started_at && eventsAfter(type, g.started_at).length) { u[kind] = 1; ch = true; }
   if (ch) store.set(key, u); return u; }
 function seintjesNow(st) { const g = game(); if (!g || !st) return [];
-  const c = thiefCenter(), near = c ? haversine(c, TANKSTATION) < 45 : null;
-  return seintjes({ st, phase: g.phase, parts: g.parts || [], used: usedNow(), surprise: g.surprise?.kind || '', nearTank: near, hints: activePuzzle()?.hints || 0,
-    monteur: { armen: players().find(p => p.talent === 'rekenmeester')?.name } }); }
+  const c = thiefCenter(), near = c ? haversine(c, TANKSTATION) < 45 : null, regen = regenOn();
+  const out = seintjes({ st, phase: g.phase, parts: g.parts || [], used: usedNow(), surprise: g.surprise?.kind || '', nearTank: regen ? null : near, hints: activePuzzle()?.hints || 0,
+    monteur: { armen: players().find(p => p.talent === 'rekenmeester')?.name } });
+  return regen ? out.filter(t => !['thief', 'fork'].includes(t.id) && !t.id.startsWith('bonus')) : out; } // regenplan: thuis geen route-verrassingen; Kortsluiting zonder GPS-voorwaarde
 function standChip() { const st = loggedIn ? standNow() : null; if (!st) return '';
   const n = Math.round(st.lag), cls = Math.abs(n) < 3 ? '' : n > 0 ? 'achter' : 'voor';
   return st.klaar ? `<span class="chip">⏱ ${Math.round(st.duur)} min</span>` : `<span class="chip stand ${cls}" title="schema · verwachte eindtijd">⏱ ${Math.abs(n) < 3 ? 'op schema' : (n > 0 ? '+' : '−') + Math.abs(n) + ' min'} · ±${hhmm(st.eta)}</span>`; }
@@ -420,7 +421,54 @@ function tabSpel() {
       </div></details>`;
   // Vóór de start: klaarzetten bovenaan. Tijdens het spel: alleen wat je onderweg nodig hebt; starten, reset en instellingen zitten ingeklapt.
   if (!started) return `${kernPanel()}${spel}<details class="adv" data-d="voor" ${open.voor ? 'open' : ''}><summary>Voorpret, instellingen en noodknoppen</summary><div class="stack" style="margin-top:12px">${teaserPanel()}${inst}${loten}${nood}</div></details>`;
-  return `${stop}${planb}<details class="adv" data-d="beheer" ${open.beheer ? 'open' : ''}><summary>Beheer: reset naar lobby, opnieuw starten, instellingen</summary><div class="stack" style="margin-top:12px">${spel}${inst}${loten}${nood}</div></details>`;
+  const regen = regenSafe(), regenTop = regenOn();
+  return `${regenTop ? regen : ''}${stop}${planb}${regenTop ? '' : regen}<details class="adv" data-d="beheer" ${open.beheer ? 'open' : ''}><summary>Beheer: reset naar lobby, opnieuw starten, instellingen</summary><div class="stack" style="margin-top:12px">${spel}${inst}${loten}${nood}</div></details>`;
+}
+/* ---------- 🌧 Regenplan (13 nov ochtend): halverwege naar huis en de rest van de plekken binnen spelen.
+   Alleen de regie verandert. Aan/uit staat in game.settings.regen (de telefoons doen er niets mee), zodat elk regiescherm het ziet.
+   Starten = Mecha-Pof legt het uit + geplande bonussen uit de route. Daarna opent Job thuis elke volgende puzzel zelf met
+   "Volgende puzzel openen" (= hetzelfde als 📡 GPS overslaan), pas als het onderdeel op de telefoons is vastgeklikt. */
+const REGEN_TEKST = 'Alarm! Er vallen druppels op mijn sensoren. Water en robots, dat is gevaarlijk! Plan Paraplu: we gaan terug naar de basis. De rest van mijn onderdelen laat ik naar huis bezorgen. Let niet op de kaart, die is ook nat geworden. Bliep!';
+const REGEN_TIP = { // wat te doen als deze plek thuis gespeeld wordt
+  lijf: 'Palenrij (code): binnen niet te tellen. Geef het antwoord als hint (23) of keur goed.',
+  ogen: 'Sokjesbord (slot): binnen niet af te lezen. Geef de stand als eigen hint of keur goed.',
+  neus: 'Veldje (formatie): de GPS-driehoek werkt binnen niet. Keur goed met ✅.',
+  mond: 'Stadsbrink (wachtwoord): laat jouw foto van het bord zien; ze zeggen "Stadsbrink" via de walkie. Lukt de walkie niet: "Typ de code" op de werkbank.',
+  armen: 'Groene kastje (QR): hang het A6-reservekaartje (qr-kaartje.html, jaszak) thuis op en laat ze scannen.',
+  benen: 'Huis met de steen (licht): werkt binnen gewoon, het mooist met het licht uit. Daarna seintje Jetpack-timer; de Kortsluiting start je zelf.',
+  hoed: 'Thuis (boterknop): zoals gepland, de finale volgt vanzelf.',
+};
+const regenOn = () => { const r = game()?.settings?.regen; return !!(r && r.game && r.game === game()?.started_at); };
+function regenSafe() { try { return regenPanel(); } catch (e) { console.warn('[regen]', e); return ''; } } // een fout hier mag tabblad Spel niet breken
+function regenPanel() {
+  const g = game(), act = activeStop(); if (!g || !['onderweg', 'puzzel', 'finale'].includes(g.phase)) return '';
+  if (ui.regenText == null) ui.regenText = REGEN_TEKST;
+  if (!regenOn()) return `<div class="page"><span class="tab">🌧 Regenplan</span>
+      <p class="note">Slecht weer? Halverwege naar huis en de rest van de plekken binnen spelen. Mecha-Pof legt het uit op alle telefoons; geplande bonussen gaan uit de route. Alle andere knoppen blijven werken.</p>
+      <details class="adv" data-d="regentekst" ${open.regentekst ? 'open' : ''}><summary>Wat Mecha-Pof zegt (aan te passen)</summary><textarea data-ui="regenText" style="margin-top:8px">${esc(ui.regenText)}</textarea></details>
+      <button class="danger wide" data-a="regen-on">🌧 Regenplan starten: terug naar huis</button></div>`;
+  const tip = act ? (act.part ? REGEN_TIP[act.part] : 'Bonusopdracht: keur goed met ✅ of sla hem over.') : '';
+  const kan = g.phase === 'onderweg';
+  return `<div class="page warn"><span class="tab">🌧 Regenplan staat aan</span>
+      <p><b>1.</b> Loop de kortste weg naar huis. De kaart op de telefoons blijft naar ${esc(act?.name || 'de volgende plek')} wijzen: negeren.</p>
+      <p><b>2.</b> Thuis: wacht tot het onderdeel op de telefoons is vastgeklikt, tik dan hieronder. Bij elke volgende plek opnieuw.</p>
+      <button class="ok wide" data-a="regen-next" ${kan ? '' : 'disabled'}>▶ Volgende puzzel openen${act ? ': ' + esc(act.name) : ''}</button>
+      <p class="note">${kan ? 'Opent de puzzel op de telefoons, waar ze ook zijn (= 📡 GPS overslaan).' : g.phase === 'puzzel' ? 'De puzzel staat al open.' : 'Nu niets te openen.'}</p>
+      ${tip ? `<p><b>Hier:</b> ${esc(tip)}</p>` : ''}
+      <p class="note">De Kruimelaar en het Dubbel signaal horen bij de route: geen seintjes meer. De Kortsluiting start je thuis zelf (tab Verrassingen).</p>
+      <button class="ghost sm" data-a="regen-off">Regenplan uitzetten (weer gewoon buiten verder)</button></div>`;
+}
+async function regenStart() {
+  const g = game(); if (!g?.started_at) return;
+  if (!confirm('Regenplan starten? Mecha-Pof zegt op alle telefoons dat jullie naar huis gaan.')) return;
+  const ord = g.stop_order || [], ai = g.active_index || 0;
+  const isBonus = id => { const s = stops().find(x => x.id === id); return s && !s.part && !s.key; };
+  const order = ord.filter((id, i) => i <= ai || !isBonus(id)); // geplande bonussen na de actieve plek eruit
+  const text = (ui.regenText || '').trim() || REGEN_TEKST;
+  await busy(async () => {
+    await sync.regie.patchGame({ settings: { regen: { game: g.started_at, at: new Date().toISOString() } }, ...(order.length !== ord.length ? { stop_order: order } : {}) });
+    await sync.regie.event('monster.say', { text });
+  }, '🌧 Regenplan aan: op naar huis');
 }
 /* ---------- thuis: het kernscherm (kern.html op de laptop), de wekknop en de loting met animatie (chat 7) */
 const WEKZIN = LINES.wek?.[0] || 'Bzzzt... wie maakt mij wakker?';
@@ -664,6 +712,9 @@ app.addEventListener('click', async e => {
       return confirmAnd('Talenten opnieuw loten voor alle speurders?', () => sync.regie.event('roles.shuffle', { talents }), '🎲 Talenten verdeeld'); }
     case 'planb': { const d = ui.planb || devices()[0]?.id; return confirmAnd('Plan B: de app verdeelt de talenten van de uitgevallen telefoon opnieuw. Doorgaan?', () => sync.regie.event('plan_b', { dropped_device: d }), '🪫 Plan B gestuurd'); }
     case 'force': { const phase = $('#phasesel').value, idx = +$('#actsel').value; return confirmAnd(`Fase op "${PHASES[phase]}" en actieve stop op ${isNaN(idx) ? '(ongewijzigd)' : idx + 1} zetten?`, () => sync.regie.patchGame({ phase, ...(isNaN(idx) ? {} : { active_index: idx }) }), 'Gezet'); }
+    case 'regen-on': return regenStart();
+    case 'regen-off': return confirmAnd('Regenplan uitzetten en weer buiten verder?', () => sync.regie.patchGame({ settings: { regen: null } }), 'Regenplan uit');
+    case 'regen-next': return busy(() => sync.regie.event('gps.skip', { stop_id: act?.id }), `▶ ${act?.name || 'Puzzel'} staat open op de telefoons`);
     case 'bonus-in': return bonusIn(BONUS.find(x => x.id === b.dataset.b));
     case 'bonus-out': return bonusOut(BONUS.find(x => x.id === b.dataset.b));
     case 'bonus-call': { const x = BONUS.find(y => y.id === b.dataset.b), kh = players().find(p => p.talent === 'sleutelbewaarder') || players()[0]; if (!kh) return;
