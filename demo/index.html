@@ -1,0 +1,1196 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<!-- DEMO: gemaakt door demo/build.mjs uit ../index.html. Alles hieronder is de echte app; alleen deze drie regels zijn anders. -->
+<base href="../">
+<script src="demo/prelude.js?v=1"></script>
+<script type="importmap">{ "imports": { "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm": "./demo/fake-supabase.js?v=1" } }</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#141A26">
+<title>Mecha-Pof · demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
+<link rel="stylesheet" href="print/fonts/fonts.css"><!-- zelfde letters lokaal, voor als Google Fonts traag is -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* Mecha-Pof-stijl: donkere werkplaats met rasterlijnen, gietijzeren panelen met klinknagels, cyaan LED-licht, pannenkoekgoud voor de knoppen.
+   Eén vaste balk bovenin, daaronder één scherm dat horizontaal inschuift.
+   Schermen: boot, login, lobby, nav (onderweg), puz (puzzel/finale), klaar. Overlays: viering, missie, begeleider. */
+:root{
+  --bg:#141A26; --bg2:#1C2433; --grid:rgba(60,74,102,.45);
+  --panel:#252C3A; --panel2:#1A1F2A; --line:#3C4A66; --line2:#4E5D7E;
+  --steel:#C9D3E0; --steel-dark:#8E979F;
+  --visor:#0E1B2E; --led:#7FE8FF; --led-dark:#15A4C8; --led-soft:rgba(127,232,255,.16);
+  --gold:#F2BE62; --gold-dark:#C9792C; --gold-deep:#9A5419;
+  --ink:#EAF2FF; --muted:#93A0B8; --straw:#FF5A4E; --ok:#4ADE80; --ok-dark:#1F8A4C; --flame:#F59E2E;
+  --acc:var(--led);
+  --display:'Lilita One','Arial Rounded MT Bold','Arial Black',sans-serif;
+  --body:'Nunito','Segoe UI',system-ui,sans-serif;
+  --hud:'Chakra Petch',ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important} /* anders wint .row{display:flex} van hidden (formulieren in de puzzels) */
+html,body{height:100%}
+html{background:var(--bg)}
+body{margin:0;background:transparent;color:var(--ink);font-family:var(--body);font-weight:600;font-size:17px;line-height:1.45;-webkit-text-size-adjust:100%;overscroll-behavior:none;overflow-x:hidden}
+/* werkplaats: vaste achtergrond (iOS kent geen background-attachment:fixed) */
+body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(var(--grid) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/40px 40px,
+    radial-gradient(120% 90% at 50% 25%,#33405A 0%,var(--bg) 70%)}
+h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:.01em;line-height:1.1;margin:0;color:var(--ink);text-wrap:balance}
+h1{font-size:2.2rem;color:var(--gold);text-shadow:0 3px 0 var(--gold-deep),0 0 24px rgba(242,190,98,.25)}h2{font-size:1.6rem}h3{font-size:1.15rem;color:var(--led);font-family:var(--hud);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:.95rem}
+p{margin:0}
+b,strong{color:#fff}
+button{font:inherit;font-weight:900;cursor:pointer;border:0;border-radius:14px;min-height:56px;padding:12px 18px;color:#3A1C06;
+  background:linear-gradient(180deg,#FCE3A6 0%,var(--gold) 45%,#E0A548 100%);
+  box-shadow:0 4px 0 var(--gold-deep),inset 0 1px 0 rgba(255,255,255,.6);transition:transform .08s,box-shadow .08s;touch-action:manipulation}
+button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--gold-deep),inset 0 1px 0 rgba(255,255,255,.6)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--led);outline-offset:2px}
+button:disabled{opacity:.5;cursor:default}
+button.ok{background:linear-gradient(180deg,#86F0AE 0%,var(--ok) 50%,#2FBF66 100%);color:#062814;box-shadow:0 4px 0 var(--ok-dark),0 0 18px rgba(74,222,128,.25),inset 0 1px 0 rgba(255,255,255,.5)}
+button.ok:active{box-shadow:0 1px 0 var(--ok-dark)}
+button.berry{background:linear-gradient(180deg,#C8F6FF 0%,var(--led) 50%,#3FC9EA 100%);color:var(--visor);box-shadow:0 4px 0 #0E6F8A,0 0 18px rgba(127,232,255,.3),inset 0 1px 0 rgba(255,255,255,.6)}
+button.berry:active{box-shadow:0 1px 0 #0E6F8A}
+button.plain{background:linear-gradient(180deg,#3A4356,#2A3142);color:var(--ink);border:2px solid var(--line2);box-shadow:0 3px 0 #10141C,inset 0 1px 0 rgba(255,255,255,.08)}
+button.plain:active{box-shadow:0 1px 0 #10141C}
+button.ghost{background:transparent;box-shadow:none;color:var(--muted);text-decoration:underline;min-height:44px;padding:8px 10px;font-weight:800}
+button.ghost:active{transform:none}
+button.danger{background:var(--panel2);color:var(--straw);border:2px solid #7A2A26;box-shadow:0 3px 0 #10141C}
+button.wide{width:100%}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.row>*{min-width:0}.grow{flex:1}
+.center{text-align:center}
+.note{font-size:.88rem;color:var(--muted)}
+.eyebrow{font-family:var(--hud);font-size:.78rem;letter-spacing:.16em;text-transform:uppercase;color:var(--led);font-weight:700}
+input.big{font:inherit;font-family:var(--hud);font-weight:700;font-size:1.8rem;text-align:center;letter-spacing:.3em;width:100%;min-height:60px;border:2px solid var(--led-dark);border-radius:14px;padding:8px 12px;
+  background:linear-gradient(180deg,var(--visor),#1E3352);color:var(--led);text-shadow:0 0 10px rgba(127,232,255,.6);box-shadow:inset 0 2px 8px rgba(0,0,0,.5)}
+input.big::placeholder{letter-spacing:.08em;font-family:var(--body);font-weight:800;font-size:1.05rem;color:#4F6A8C;text-shadow:none}
+input.big:focus{border-color:var(--led);box-shadow:inset 0 2px 8px rgba(0,0,0,.5),0 0 0 4px var(--led-soft)}
+
+/* ---------- balk */
+#bar{position:sticky;top:0;z-index:10;background:rgba(20,26,38,.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:2px solid var(--line);
+  box-shadow:0 1px 0 rgba(127,232,255,.18);
+  padding:calc(env(safe-area-inset-top,0px) + 8px) max(14px,env(safe-area-inset-right,0px)) 8px max(14px,env(safe-area-inset-left,0px))}
+#bar .in{max-width:540px;margin:0 auto;display:flex;align-items:center;gap:8px}
+#bar .chips{display:flex;gap:6px;flex:1;min-width:0;overflow:hidden}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--panel2);color:var(--ink);border:2px solid var(--acc);border-radius:999px;padding:3px 10px 3px 4px;font-weight:900;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  box-shadow:0 0 10px color-mix(in srgb,var(--acc) 25%,transparent)}
+.chip i{font-style:normal;width:24px;height:24px;border-radius:50%;background:var(--acc);display:grid;place-items:center;font-size:13px;flex:none}
+.drops{font-family:var(--hud);font-weight:700;color:var(--gold);font-size:1.05rem;white-space:nowrap}
+.conn{width:16px;height:20px;flex:none}
+.walkiebtn{min-height:40px;padding:0 13px 0 10px;border-radius:999px;background:linear-gradient(180deg,#FFE3A6 0%,var(--gold) 55%,var(--gold-dark) 100%);color:#2B1606;border:0;box-shadow:0 3px 0 var(--gold-deep),0 0 14px rgba(242,190,98,.45);font-family:var(--display);font-size:1rem;letter-spacing:.02em;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.walkiebtn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--gold-deep)}
+.walkiebtn.wijs{animation:wijs .5s ease-in-out 4 alternate}
+@keyframes wijs{to{transform:scale(1.12);box-shadow:0 3px 0 var(--gold-deep),0 0 28px 6px rgba(242,190,98,.85)}}
+.roles .role.wijs{animation:led .4s steps(1) 6}
+.iconbtn{min-height:40px;width:40px;padding:0;border-radius:12px;background:linear-gradient(180deg,#3A4356,#2A3142);color:var(--ink);border:2px solid var(--line2);box-shadow:none;font-size:18px;display:grid;place-items:center}
+.parts{display:flex;gap:5px;justify-content:center;max-width:540px;margin:6px auto 0}
+.part{width:30px;height:30px;border-radius:50%;background:var(--visor);border:2px dashed var(--line2);display:grid;place-items:center;font-size:15px}
+.part.got{background:radial-gradient(circle at 40% 35%,#1E3352,var(--visor));border:2px solid var(--led);box-shadow:0 0 10px rgba(127,232,255,.55);animation:pop .45s}
+
+/* ---------- schermen */
+#screen{max-width:540px;margin:0 auto;padding:14px max(16px,env(safe-area-inset-right,0px)) calc(28px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.scr{display:flex;flex-direction:column;gap:16px}
+.slide-in{animation:slidein .32s cubic-bezier(.2,.8,.2,1)}
+@keyframes slidein{from{transform:translateX(28px);opacity:0}to{transform:none;opacity:1}}
+@keyframes pop{0%{transform:scale(.4)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
+@keyframes led{0%,55%{opacity:1}56%,100%{opacity:.3}}
+/* paneel van gietijzer met vier klinknagels; het tabje is een HUD-label */
+.page{position:relative;color:var(--ink);border:2px solid var(--line);border-radius:18px;padding:26px 18px 18px;display:flex;flex-direction:column;gap:12px;margin-top:14px;
+  background:
+    radial-gradient(circle at 12px 12px,#9AA3AD 0 2.5px,#4A5058 3px,transparent 3.6px),
+    radial-gradient(circle at calc(100% - 12px) 12px,#9AA3AD 0 2.5px,#4A5058 3px,transparent 3.6px),
+    radial-gradient(circle at 12px calc(100% - 12px),#9AA3AD 0 2.5px,#4A5058 3px,transparent 3.6px),
+    radial-gradient(circle at calc(100% - 12px) calc(100% - 12px),#9AA3AD 0 2.5px,#4A5058 3px,transparent 3.6px),
+    linear-gradient(160deg,var(--panel) 0%,var(--panel2) 100%);
+  box-shadow:0 6px 0 #0B0E15,0 14px 30px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.07)}
+.page>.tab{position:absolute;top:-14px;left:18px;background:var(--visor);color:var(--led);font-family:var(--hud);font-weight:700;font-size:.74rem;letter-spacing:.16em;text-transform:uppercase;
+  padding:4px 12px 4px 26px;border:2px solid var(--led-dark);border-radius:8px;box-shadow:0 0 12px rgba(127,232,255,.25)}
+.page>.tab::before{content:'';position:absolute;left:10px;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok);animation:led 1.4s steps(1) infinite}
+.page.acc{border-left:8px solid var(--acc)}
+.stamp{position:absolute;top:12px;right:16px;transform:rotate(8deg);border:3px solid var(--straw);color:var(--straw);font-family:var(--hud);font-weight:700;font-size:.9rem;letter-spacing:.14em;padding:1px 8px;border-radius:6px;opacity:.9;text-shadow:0 0 8px rgba(255,90,78,.5)}
+.monster{display:flex;justify-content:center}
+.monster svg{width:min(66vw,250px);height:auto}
+.monster.lg svg{width:min(80vw,320px)}
+.monster.md svg{width:min(62vw,240px)}
+.mslot{display:flex;justify-content:center;min-height:40px;position:relative}
+.mslot[data-size=md],.mslot[data-size=lg]{background:radial-gradient(closest-side,rgba(127,232,255,.14),transparent 70%)}
+.monster.sm svg{width:110px}
+.monster.sleep svg{filter:grayscale(1) opacity(.7)}
+
+/* ---------- lobby */
+.guards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.guard{--acc:var(--line);background:var(--visor);border:2px solid var(--line);border-left:6px solid var(--acc);border-radius:12px;padding:8px 10px;display:flex;gap:8px;align-items:center;min-height:56px}
+.guard.mine{border-color:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 30%,transparent),0 0 16px color-mix(in srgb,var(--acc) 30%,transparent)}
+.guard .ic{font-size:1.4rem;flex:none}
+.guard b{display:block;font-weight:900;line-height:1.15}
+.guard small{display:block;color:var(--muted);font-size:.78rem;line-height:1.2}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#4A5058;margin-left:5px;vertical-align:middle}
+.dot.on{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.howto{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:8px}.howto li::marker{font-family:var(--hud);color:var(--led);font-weight:700}
+.rolrij{display:grid;gap:6px;margin:8px 0}.rolrij span{display:grid;grid-template-columns:7.2em 1fr;gap:8px;align-items:baseline;background:var(--visor);border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:.92rem;line-height:1.25}.rolrij b{white-space:nowrap}
+.talent{background:var(--visor);border:1px solid var(--line);border-left:4px solid var(--led);border-radius:12px;padding:10px 12px}
+
+/* ---------- onderweg */
+.clue{font-size:1.2rem;font-weight:800;line-height:1.38}
+.dist{font-family:var(--hud);font-weight:700;font-size:3.4rem;color:var(--led);line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 0 16px rgba(127,232,255,.55)}
+.dist small{font-size:1.15rem;color:var(--muted);font-family:var(--hud);font-weight:700;text-shadow:none}
+.meter{position:relative;height:20px;border-radius:999px;background:var(--visor);overflow:hidden;border:2px solid var(--line2);box-shadow:inset 0 2px 6px rgba(0,0,0,.5)}
+.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--led-dark),var(--led) 40%,var(--flame) 75%,var(--straw));border-radius:999px;transition:width .6s;box-shadow:0 0 12px rgba(127,232,255,.5)}
+.meter::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 14px,rgba(14,27,46,.75) 14px 17px);pointer-events:none}
+.status{font-size:.9rem;color:var(--muted);font-weight:800}
+.status.bad{color:var(--straw)}
+.mapwrap{position:relative;border-radius:14px;overflow:hidden;border:2px solid var(--led-dark);background:var(--visor);box-shadow:0 0 18px rgba(127,232,255,.18)}
+.mapbtn{position:absolute;right:10px;bottom:24px;z-index:2;width:46px;min-height:46px;border-radius:50%;padding:0;font-size:20px}
+.mapbtn.b3d{bottom:78px;font-size:13px;font-family:var(--hud);letter-spacing:.04em}
+.bordslot{height:min(56vh,440px)}
+
+/* ---------- puzzels (gedeeld door js/puzzles/*.js) */
+.question{font-size:1.25rem;font-weight:900;line-height:1.35}
+.feedback{font-weight:900;color:var(--straw);min-height:1.4em}
+.feedback.ok{color:var(--ok);text-shadow:0 0 10px rgba(74,222,128,.4)}
+.tries{margin:0;padding:0;list-style:none;display:flex;gap:6px;flex-wrap:wrap}
+.tries li{background:rgba(255,90,78,.14);color:var(--straw);border-radius:8px;padding:2px 8px;font-size:.85rem;text-decoration:line-through}
+.choices{display:grid;gap:10px}
+.choices button{background:var(--visor);color:var(--ink);box-shadow:0 3px 0 #0B0E15;border:2px solid var(--line2);text-align:left}
+.choices button.wrong{border-color:var(--straw);color:var(--straw);opacity:1;animation:shake .4s}
+.choices button.right{border-color:var(--ok);background:rgba(74,222,128,.14);opacity:1;box-shadow:0 0 14px rgba(74,222,128,.3)}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.pimg{width:100%;max-height:260px;object-fit:cover;border-radius:12px;border:2px solid var(--line2);cursor:zoom-in}
+.memo{display:grid;gap:8px}
+.mcard{aspect-ratio:1;min-height:0;padding:0;border-radius:12px;font-size:1.8rem;display:grid;place-items:center}
+.mcard .face{transition:transform .25s;transform:scale(.6);opacity:.5;filter:grayscale(1)}
+.mcard.up{background:var(--visor);border:2px solid var(--led-dark);box-shadow:0 3px 0 #0B0E15,0 0 12px rgba(127,232,255,.25)}
+.mcard.up .face{transform:none;opacity:1;filter:none}
+.mcard.done{background:rgba(74,222,128,.14);border-color:var(--ok);box-shadow:0 3px 0 #0B0E15,0 0 12px rgba(74,222,128,.3)}
+.slide{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;width:min(100%,300px);margin:0 auto;aspect-ratio:1;background:var(--visor);border:2px solid var(--line2);padding:4px;border-radius:12px}
+.slide.solved{gap:0;border-color:var(--ok);box-shadow:0 0 18px rgba(74,222,128,.35)}
+.stile{min-height:0;padding:0;border-radius:8px;background-size:300% 300%;background-color:#FFF4DF;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+.stile.empty{background:#0A1322;box-shadow:inset 0 2px 6px rgba(0,0,0,.6)}
+.big-btn{min-height:64px;font-size:1.15rem}
+/* rollen (js/roles.js): radio, kaart, werkbank */
+.roles{display:flex;gap:10px;justify-content:center;align-items:baseline;max-width:540px;margin:6px auto 0;flex-wrap:wrap}
+.roles .k{font-family:var(--hud);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.role{font-family:var(--hud);font-size:.72rem;letter-spacing:.06em;color:var(--muted);white-space:nowrap;opacity:.7}
+.role.mine{color:var(--led);opacity:1;font-weight:700;text-shadow:0 0 8px rgba(127,232,255,.35)}
+/* installatieritueel (js/install.js): schudmeter */
+.shake{height:14px;border-radius:999px;background:var(--visor);border:2px solid var(--line2);overflow:hidden;width:100%}
+.shake i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--led-dark),var(--led));transition:width .15s;box-shadow:0 0 10px rgba(127,232,255,.5)}
+/* splits: stukken van het signaal */
+.piece-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px}
+.piece{min-height:76px;padding:8px 6px;border-radius:12px;background:var(--visor);border:2px dashed var(--line2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--ink);text-align:center}
+.piece small{font-size:.68rem;color:var(--muted);font-family:var(--hud);letter-spacing:.04em;line-height:1.2}
+.piece b{font-family:var(--hud);font-size:1.5rem;letter-spacing:.08em;color:var(--led);text-shadow:0 0 10px rgba(127,232,255,.5)}
+.piece.open{border-style:solid;border-color:var(--led-dark);box-shadow:0 0 14px rgba(127,232,255,.25)}
+.piece.seen:not(.open) b{color:var(--muted);text-shadow:none}
+button.piece{box-shadow:none;font-weight:800}
+/* slot: draaischijven */
+.dials{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:10px}
+.dial{background:var(--visor);border:2px solid var(--line2);border-radius:14px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.dial.mine{border-color:var(--led-dark);box-shadow:0 0 14px rgba(127,232,255,.22)}
+.dial.ok{border-color:var(--ok);box-shadow:0 0 14px rgba(74,222,128,.3)}
+.dial small{font-size:.68rem;color:var(--muted);font-family:var(--hud);letter-spacing:.04em;line-height:1.2;min-height:2.4em}
+.dial .sym{font-family:var(--hud);font-size:2.6rem;line-height:1.1;color:var(--gold);text-shadow:0 0 12px rgba(242,190,98,.4);padding:4px 0}
+.dial .turn{min-height:44px;width:100%;padding:0;font-size:1.1rem;display:block}
+.dial span.turn{min-height:44px}
+.dial-clue{font-size:.82rem;color:var(--ink);font-weight:700;line-height:1.25}
+/* sync: lichtbalk (één telefoon) en lampje op de maat (meer telefoons) */
+.sweep{position:relative;height:36px;border-radius:999px;background:var(--visor);border:2px solid var(--line2);overflow:hidden}
+.sweep .zone{position:absolute;top:0;bottom:0;background:rgba(74,222,128,.35);border-left:2px solid var(--ok);border-right:2px solid var(--ok)}
+.sweep .light{position:absolute;top:4px;bottom:4px;width:14px;margin-left:-7px;border-radius:999px;background:var(--led);box-shadow:0 0 14px var(--led)}
+.beat{display:flex;align-items:center;gap:12px;background:var(--visor);border:2px solid var(--line2);border-radius:14px;padding:10px 12px}
+.beat .lamp{flex:none;width:34px;height:34px;border-radius:50%;background:#2A3142;animation:beat 2s steps(1) infinite}
+@keyframes beat{0%,34%{background:var(--ok);box-shadow:0 0 18px var(--ok)}35%,100%{background:#2A3142;box-shadow:none}}
+button.press{min-height:96px;font-size:1.6rem;letter-spacing:.06em}
+.hint{background:var(--visor);border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:12px;padding:10px 12px;font-weight:800}
+.submit{border-top:2px dashed var(--line2);padding-top:12px;display:flex;flex-direction:column;gap:8px}
+/* goed / fout duidelijk (12 nov): vak om de melding, banner bovenin op elke telefoon, groene kaart bij opgelost */
+.feedback:not(:empty){background:rgba(255,90,78,.14);border:2px solid var(--straw);border-radius:12px;padding:10px 12px;font-size:1.1rem;line-height:1.3}
+.feedback.ok:not(:empty){background:rgba(74,222,128,.14);border-color:var(--ok)}
+.tries:not(:empty)::before{content:'Al geprobeerd:';color:var(--muted);font-size:.85rem;font-weight:800;align-self:center}
+#samen{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:max(18px,env(safe-area-inset-top,0px)) 16px max(18px,env(safe-area-inset-bottom,0px));
+  background:rgba(8,11,18,.88);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);animation:samenIn .3s}
+#samen .kaart{width:min(94vw,460px);text-align:center;border-radius:28px;padding:28px 20px 22px;background:#2E2108;border:5px solid var(--gold);color:#FFF1D2;
+  box-shadow:0 14px 50px rgba(0,0,0,.7),0 0 40px rgba(242,190,98,.55);animation:samenGlow 1.2s ease-in-out infinite alternate}
+#samen .ic{display:block;font-size:5.5rem;line-height:1;margin-bottom:10px}
+#samen.ring .ic{animation:samenBel .6s ease-in-out infinite}
+#samen .let{display:block;font-family:var(--hud);font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);font-size:1.05rem;margin-bottom:8px}
+#samen .t{display:block;font-family:var(--display);font-size:clamp(1.9rem,8.5vw,2.5rem);line-height:1.1;color:#FFF6E2}
+#samen .wie{display:block;margin:12px 0 4px;font-family:var(--display);font-size:clamp(2.2rem,11vw,3.1rem);line-height:1.05;color:var(--gold);text-shadow:0 3px 0 var(--gold-deep)}
+#samen .s{display:block;font-weight:900;font-size:1.3rem;margin-top:10px}
+#samen .pre{display:block;margin-top:14px;font-weight:900;font-size:1.35rem;color:#FFE3A6}
+#samen .tik{display:block;margin-top:18px;font-weight:800;font-size:.95rem;opacity:.7}
+#samen.klein{inset:auto 0 auto 0;top:calc(env(safe-area-inset-top,0px) + 6px);padding:0;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;pointer-events:none;place-items:start center}
+#samen.klein .kaart{display:flex;align-items:center;gap:12px;text-align:left;padding:10px 14px;border-width:3px;border-radius:18px;animation:none}
+#samen.klein .ic{font-size:2rem;margin:0}#samen.klein .let,#samen.klein .tik{display:none}
+#samen.klein .tx{min-width:0}
+#samen.klein .t,#samen.klein .pre,#samen.klein .wie{display:inline;font-family:var(--body);font-weight:900;font-size:1.05rem;margin:0;text-shadow:none;line-height:1.25}
+#samen.klein .s{font-size:.95rem;margin-top:2px}
+@keyframes samenIn{from{opacity:0;transform:scale(.92)}}
+@keyframes samenGlow{to{box-shadow:0 14px 50px rgba(0,0,0,.7),0 0 70px 8px rgba(242,190,98,.8)}}
+@keyframes samenBel{0%,100%{transform:rotate(0)}20%{transform:rotate(-14deg)}40%{transform:rotate(12deg)}60%{transform:rotate(-8deg)}80%{transform:rotate(6deg)}}
+@media (prefers-reduced-motion:reduce){#samen,#samen .kaart,#samen.ring .ic{animation:none}}
+#verdict{position:fixed;left:0;right:0;margin:0 auto;top:calc(env(safe-area-inset-top,0px) + 74px);z-index:35;width:min(92vw,440px);border-radius:18px;padding:16px 18px;text-align:center;pointer-events:none;box-shadow:0 10px 40px rgba(0,0,0,.65);animation:verdict .3s}
+#verdict b{display:block;font-family:var(--hud);font-size:1.9rem;letter-spacing:.06em;line-height:1.1}
+#verdict span{display:block;font-weight:800;font-size:1.08rem;margin-top:6px}
+#verdict small{display:block;opacity:.85;margin-top:4px;font-size:.88rem}
+#verdict.bad{background:#3A1210;border:3px solid var(--straw);color:#FFD9D6;animation:verdict .3s,shake .4s .3s}
+#verdict.good{background:#0E2E1C;border:3px solid var(--ok);color:#D9FFE7;box-shadow:0 0 34px rgba(74,222,128,.45)}
+@keyframes verdict{from{transform:translateY(-26px) scale(.85);opacity:0}}
+.solvedbox{background:rgba(74,222,128,.14);border:2px solid var(--ok);border-radius:14px;padding:12px;text-align:center;display:flex;flex-direction:column;gap:4px}
+.solvedbox b{color:var(--ok);font-family:var(--hud);font-size:1.4rem;letter-spacing:.05em}
+.solvedbox span{font-weight:800}.solvedbox span b{color:var(--gold);font-family:inherit;font-size:1.1em;letter-spacing:0}
+.callkey{font-size:1.15rem;font-weight:800;text-align:center;background:var(--visor);border:2px solid var(--gold);border-radius:14px;padding:12px;animation:pulsekey 1.4s infinite}
+#dosubmit:not(:disabled){animation:pulsekey 1.4s infinite}
+@keyframes pulsekey{50%{box-shadow:0 4px 0 var(--ok-dark),0 0 26px rgba(242,190,98,.7)}}
+/* stroopmeter (js/stroop.js): tikbaar in de balk, uitleg + per onderdeel */
+/* stroop (12 nov laat): echte stroopdruppel in plaats van de waterdruppel, de teller loopt vol, en bij nieuwe druppels druipt de stroop over het scherm.
+   Poedersuiker = de snelheidsbonus (+3): dan sneeuwt het er poedersuiker overheen. */
+:root{--syr1:#5A2C08;--syr2:#8A4A12;--syr3:#C9792C;--syr4:#F2BE62}
+.sd{display:inline-block;width:.72em;height:.9em;vertical-align:-.1em;margin-right:.18em;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 30'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%237A3E0C'/%3E%3Cstop offset='.45' stop-color='%23D9882E'/%3E%3Cstop offset='1' stop-color='%238A4A12'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M12 1C8.5 9 3 14 3 19.5a9 9 0 0 0 18 0C21 14 15.5 9 12 1z' fill='url(%23g)' stroke='%235A2C08' stroke-width='1'/%3E%3Cellipse cx='8.6' cy='18' rx='2' ry='4' fill='%23FFE3A6' opacity='.85' transform='rotate(18 8.6 18)'/%3E%3C/svg%3E") center/contain no-repeat;font-style:normal}
+.drops{position:relative;cursor:pointer;border:2px solid var(--syr3);border-radius:999px;padding:2px 10px 2px 8px;color:#FFE9B8;text-shadow:0 1px 0 var(--syr1);
+  background:linear-gradient(0deg,var(--syr3) 0,var(--syr2) var(--f,0%),rgba(90,44,8,.35) var(--f,0%));box-shadow:inset 0 1px 0 rgba(255,227,166,.35),0 0 10px rgba(201,121,44,.35)}
+.drops::after{content:'';position:absolute;left:58%;top:100%;width:7px;height:0;border-radius:0 0 7px 7px;background:linear-gradient(90deg,var(--syr2),var(--syr3),var(--syr2));pointer-events:none}
+.drops.bump{animation:dropbump .9s}.drops.bump::after{animation:chipdrip 1.6s ease-in-out}
+@keyframes dropbump{30%{transform:scale(1.55);box-shadow:0 0 26px rgba(242,190,98,.95)}}
+@keyframes chipdrip{0%{height:0}45%{height:26px}70%{height:30px}100%{height:0}}
+#drip{position:fixed;inset:0;z-index:45;pointer-events:none;overflow:hidden;transition:transform 1s cubic-bezier(.55,0,.9,.45)}
+#drip.weg{transform:translateY(108%)}
+#drip .pool{position:absolute;left:-6%;right:-6%;top:0;height:9vh;border-radius:0 0 50% 50%/0 0 70% 70%;background:linear-gradient(180deg,var(--syr1),var(--syr2) 55%,var(--syr3));box-shadow:0 8px 24px rgba(90,44,8,.6),inset 0 -6px 10px rgba(255,227,166,.25);transform-origin:top;animation:poolin .45s cubic-bezier(.2,.9,.3,1.3) both}
+@keyframes poolin{from{transform:scaleY(0)}}
+#drip i{position:absolute;top:4vh;height:0;border-radius:0 0 999px 999px;background:linear-gradient(90deg,var(--syr1),var(--syr2) 22%,var(--syr3) 42%,var(--syr4) 50%,var(--syr3) 60%,var(--syr2) 80%,var(--syr1));box-shadow:0 0 16px rgba(201,121,44,.55),inset 0 -10px 14px rgba(255,227,166,.25);animation:dripdown 1.5s cubic-bezier(.35,.05,.25,1) forwards}
+@keyframes dripdown{to{height:var(--len)}}
+#drip i u{position:absolute;left:50%;bottom:0;width:78%;aspect-ratio:1/1.25;border-radius:50% 50% 50% 50%/38% 38% 62% 62%;background:radial-gradient(circle at 35% 40%,var(--syr4),var(--syr3) 45%,var(--syr2));transform:translateX(-50%);opacity:0;animation:dripfall .9s ease-in forwards}
+@keyframes dripfall{0%{opacity:1;transform:translate(-50%,0)}100%{opacity:1;transform:translate(-50%,75vh)}}
+#drip .gain{position:absolute;left:0;right:0;top:30%;text-align:center;font-family:var(--hud);font-weight:700;font-size:min(30vw,8rem);line-height:1;color:#FFF3D6;text-shadow:0 5px 0 var(--syr1),0 0 40px rgba(242,190,98,.9),0 0 90px rgba(201,121,44,.8);animation:gainpop .7s .25s cubic-bezier(.2,1.6,.4,1) both}
+#drip .gain small{display:block;font-family:inherit;font-size:.2em;letter-spacing:.08em;margin-top:.3em;text-transform:uppercase}
+#drip .gain em{display:block;font-style:normal;font-size:.14em;letter-spacing:.02em;margin-top:.5em;color:#fff;text-shadow:0 2px 0 #6b7a99,0 0 18px #fff}
+@keyframes gainpop{from{transform:scale(.2) rotate(-8deg);opacity:0}}
+#suiker{position:fixed;inset:0;z-index:46;pointer-events:none;width:100%;height:100%}
+.stack.syr i:last-child{position:relative;background:linear-gradient(180deg,var(--syr2),var(--syr3));border-bottom-color:var(--syr1)}
+.stack.syr i:last-child::before,.stack.syr i:last-child::after{content:'';position:absolute;top:60%;width:9px;border-radius:0 0 9px 9px;background:var(--syr2);animation:stackdrip 2.4s ease-in-out infinite}
+.stack.syr i:last-child::before{left:14%;height:18px}.stack.syr i:last-child::after{right:22%;height:30px;animation-delay:.8s}
+@keyframes stackdrip{50%{transform:scaleY(1.5)}}.stack.syr i:last-child::before,.stack.syr i:last-child::after{transform-origin:top}
+.dropgain{margin:0;font-weight:900;font-size:1.25rem;color:var(--gold);text-shadow:0 0 12px rgba(242,190,98,.4)}
+.dropgain small{display:block;font-size:.8rem;color:var(--ink);font-weight:800;text-shadow:none}
+.stroop{align-items:stretch!important}.stroop>*{text-align:center}
+.droprules{margin:0;padding:0;list-style:none;display:grid;gap:6px;text-align:left!important}
+.droprules li{background:var(--visor);border-radius:10px;padding:7px 10px;font-weight:800;display:flex;justify-content:space-between;gap:10px}
+.droprules li em{font-style:normal;color:var(--gold);white-space:nowrap}
+.droplist{display:grid;gap:6px;text-align:left!important}
+.droprow{display:flex;align-items:center;gap:10px;background:var(--visor);border:1px solid var(--line2);border-radius:10px;padding:6px 10px}
+.droprow i{font-style:normal;font-size:1.4rem;flex:none}.droprow span{flex:1;min-width:0}.droprow b{display:block}.droprow small{display:block;color:var(--muted);font-size:.8rem}
+.droprow em{font-style:normal;font-weight:900;color:var(--gold);white-space:nowrap}.droprow.todo{opacity:.55}.droprow.todo em{color:var(--muted);font-weight:700;font-size:.85rem}
+
+/* ---------- overlays */
+.overlay{position:fixed;inset:0;z-index:30;background:rgba(8,11,18,.82);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;padding:max(20px,env(safe-area-inset-top,0px)) 18px max(20px,env(safe-area-inset-bottom,0px));overflow:auto}
+.overlay .page{margin:auto;width:100%;max-width:420px;align-items:center;text-align:center;animation:pop .45s}
+.overlay .page.left{align-items:stretch;text-align:left}
+.bubble{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 92px);transform:translateX(-50%);z-index:25;width:min(92vw,460px);background:var(--visor);color:var(--ink);border:2px solid var(--led);
+  border-radius:18px 18px 18px 4px;padding:12px 14px 12px 56px;font-weight:800;box-shadow:0 0 20px rgba(127,232,255,.3),0 8px 24px rgba(0,0,0,.4);animation:slidein .3s}
+.bubble::before{content:'🤖';position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:30px}
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);transform:translateX(-50%);z-index:40;display:flex;flex-direction:column;gap:8px;width:min(92vw,440px);pointer-events:none}
+#toast div{background:var(--visor);color:var(--ink);border:1px solid var(--led-dark);border-radius:12px;padding:10px 14px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4);animation:slidein .25s}
+.zoomov{position:fixed;inset:0;background:rgba(8,11,18,.95);z-index:45;display:grid;place-items:center;padding:12px}
+.zoomov img{max-width:100%;max-height:100%;border-radius:10px}
+.stack{display:flex;flex-direction:column-reverse;align-items:center;gap:2px;margin:6px 0}
+.stack i{display:block;height:12px;border-radius:50%;background:var(--gold);border-bottom:3px solid var(--gold-dark);box-shadow:0 0 10px rgba(242,190,98,.25);animation:pop .4s backwards}
+.tray section{display:flex;flex-direction:column;gap:8px;width:100%}
+.tray .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tray button{min-height:50px;font-size:.95rem}
+.tray label{display:flex;gap:10px;align-items:center;font-weight:800}
+.tray input[type=checkbox]{width:24px;height:24px;accent-color:var(--led)}
+.stoprow{display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding:8px 0}
+.stoprow .num{width:28px;height:28px;border-radius:50%;background:var(--visor);border:2px solid var(--led-dark);color:var(--led);display:grid;place-items:center;font-family:var(--hud);font-weight:700;flex:none}
+.stoprow small{display:block;color:var(--muted);font-size:.78rem}
+.stoprow button{min-height:46px;padding:8px 10px;white-space:nowrap}
+canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:35}
+/* foto met Mecha-Pofs LED-uitlezing erover (stop 4: kijk-en-vergelijk) */
+.pimgwrap{position:relative;border-radius:12px;overflow:hidden}
+.pimgwrap .pimg{display:block}
+.ledover{position:absolute;left:4%;right:4%;top:42%;transform:translateY(-50%);text-align:center;pointer-events:none;font-family:var(--hud);font-weight:700;font-size:clamp(1.3rem,8vw,2.3rem);letter-spacing:.12em;
+  color:var(--led);background:rgba(14,27,46,.72);border:2px solid var(--led-dark);border-radius:10px;padding:6px 8px;text-shadow:0 0 10px var(--led),0 0 22px rgba(127,232,255,.7),2px 0 0 rgba(255,90,78,.55),-2px 0 0 rgba(74,222,128,.4);
+  box-shadow:0 0 18px rgba(127,232,255,.35);animation:glitch 2.6s steps(1) infinite}
+.ledover::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0 2px,transparent 2px 4px);border-radius:8px}
+@keyframes glitch{0%,86%,100%{transform:translateY(-50%)}88%{transform:translate(3px,-52%);opacity:.8}90%{transform:translate(-3px,-48%)}92%{transform:translateY(-50%);opacity:.6}94%{opacity:1}}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header id="bar"></header>
+<main id="screen" aria-live="polite"></main>
+<div id="toast" role="status"></div>
+<canvas id="confetti" hidden></canvas>
+<script type="module">
+import { state, PARTS, TALENTS } from './js/state.js';
+import { sync } from './js/sync.js';
+import { createMap } from './js/map.js?v=5'; // ?v ophogen bij elke wijziging: GitHub Pages en Safari bewaren oude bestanden
+import { createMonster, monsterImage, lineText } from './js/monster.js?v=33'; // ook ophogen bij wijzigingen in monster-lines.js / audio.js (en dan ook de ?v in monster.js)
+import { ROLES, ROLE_INFO, myRoles, hasRole, whoHas, deviceWithRole, namesOnDevice } from './js/roles.js?v=2'; // radio / kaart / werkbank, roterend per stop
+import { createInstall } from './js/install.js?v=6'; // installatieritueel: monteur schudt, deel klikt vast
+import { openWalkie, incomingCall, callGreeting, arrivalCall } from './js/walkie.js?v=34'; // walkietalkie met het live monster + inkomende oproepen (ElevenLabs, zie MONSTER-AGENT.md)
+import { createNavVoice } from './js/navvoice.js?v=1'; // gesproken navigatie zodra de LED-ogen terug zijn (radiotelefoon)
+import { createSurprises } from './js/surprises.js?v=9'; // Kruimelaar, Kortsluiting, Dubbel signaal, Jetpack oververhit, Verjaardagswens
+import { audio } from './js/audio.js?v=12'; // zelfde ?v als in monster.js, anders laadt audio.js twee keer
+import { teaserActive, mountTeaser } from './js/teaser.js?v=3'; // voorpret vóór het feest (game.settings.teaser)
+import { createFinale, endCards, END_CSS, CHECK_MS, TAART_HTML, slideHTML } from './js/finale.js?v=20'; // finale thuis: Mega 1-2-3, vers, confetti, eindscherm met badges (chat 7)
+import { stackOf, nextAt, loadDropLog, dropsByPlayer } from './js/stroop.js?v=1'; // stroopmeter: uitleg en stapel (teamstand); per monteur alleen op haar eigen eindkaart
+
+/* ================================================================ hulpjes */
+const $ = (sel, root = document) => root.querySelector(sel);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+const qs = new URLSearchParams(location.search);
+if (qs.has('test')) store.set('pkm2_test', qs.get('test') !== '0');
+let test = store.get('pkm2_test', false);
+let muted = store.get('pkm2_muted', false);
+const S = () => state.get();
+function haversine(a, b) { const R = 6371000, r = x => x * Math.PI / 180, dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(s)); }
+function guard(p) { // naam, deel, talent en kleur van een bewaker
+  const t = TALENTS[p?.talent], part = p?.part || t?.part;
+  return { talent: t?.label || null, part, icon: PARTS[part]?.icon || (p?.is_birthday ? '🎂' : '🕵️'), color: p?.color || PARTS[part]?.color || '#5B6680' };
+}
+const stopNo = st => { const r = state.route().filter(x => x.part || x.key); return { n: r.findIndex(x => x.id === st.id) + 1, total: r.length }; }; // bonusstops (zonder deel) tellen niet mee
+const isBonus = st => !!st && !st.part && !st.key;
+const stopTab = st => st.key === 'home' ? 'Laatste plek' : isBonus(st) ? '⭐ Bonusopdracht' : (({ n, total }) => `Plek ${n} van ${total}`)(stopNo(st));
+const radiusOf = st => st.radius || S().game?.settings?.radius || 20;
+const keyHolder = () => S().players.find(p => p.talent === 'sleutelbewaarder');
+const canSubmit = () => state.hasTalent('sleutelbewaarder') || !!S().game?.settings?.any_can_submit;
+const birthday = () => S().players.find(p => p.is_birthday);
+const naAfloop = () => { const g = S().game, t = Date.parse(g?.finished_at || ''); return g?.phase === 'klaar' && !!t && Date.now() - t > 2 * 3600_000; }; // feest voorbij: alleen nog de score
+
+/* ================================================================ geluid, trilling, toast, ballon
+   Geluid: js/audio.js (audio.play('naam'); ontgrendelt zelf bij de eerste tik en volgt de dempknop pkm2_muted).
+   Het monster praat en tekent zijn eigen ballon: js/monster.js. */
+// Trillen: Android heeft navigator.vibrate; Safari op iPhone niet. Daar geeft een verborgen schakelaar (iOS 18+) een tikje,
+// maar alleen direct na een tik van het kind zelf. Een patroon wordt een reeks tikjes.
+function haptic() {
+  try { const l = document.createElement('label'); l.ariaHidden = 'true'; l.style.display = 'none';
+    const i = document.createElement('input'); i.type = 'checkbox'; i.setAttribute('switch', ''); l.appendChild(i);
+    document.head.appendChild(l); l.click(); l.remove(); } catch {}
+}
+addEventListener('click', e => { if (e.isTrusted && e.target.closest('button') && !navigator.vibrate) haptic(); }, { capture: true }); // tikje bij elke knop
+function buzz(p) {
+  if (navigator.vibrate) { try { navigator.vibrate(p); } catch {} return; }
+  const n = Array.isArray(p) ? Math.ceil(p.length / 2) : 1;
+  for (let k = 0; k < Math.min(n, 4); k++) setTimeout(haptic, k * 140);
+}
+function toast(text, ms = 3200) { const d = document.createElement('div'); d.textContent = text; $('#toast').appendChild(d); setTimeout(() => d.remove(), ms); }
+function bubble(text, ms = 6000) { // tekstballon bovenin (reserve als het monster zelf geen ballon tekent)
+  document.querySelector('.bubble')?.remove();
+  const b = document.createElement('div'); b.className = 'bubble'; b.textContent = text; b.onclick = () => b.remove();
+  document.body.appendChild(b); setTimeout(() => b.remove(), ms); audio.play('brom');
+}
+const say = (text, opts) => mon.say(text, opts); // het monster praat; zie het monster-blok hieronder
+function confetti() {
+  const c = $('#confetti'), ctx = c.getContext('2d'); c.hidden = false; c.width = innerWidth; c.height = innerHeight;
+  const cols = ['#F2BE62', '#7FE8FF', '#FF5A4E', '#FFE98A', '#4ADE80'];
+  const ps = Array.from({ length: 140 }, () => ({ x: Math.random() * c.width, y: -20 - Math.random() * c.height, r: 4 + Math.random() * 6, s: 2 + Math.random() * 3, c: cols[Math.random() * 5 | 0], a: Math.random() * 6 }));
+  let t = 0; const step = () => { ctx.clearRect(0, 0, c.width, c.height); ps.forEach(p => { p.y += p.s; p.a += .1; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillStyle = p.c; ctx.fillRect(-p.r, -p.r / 2, p.r * 2, p.r); ctx.restore(); });
+    if (++t < 260) requestAnimationFrame(step); else c.hidden = true; }; requestAnimationFrame(step);
+}
+
+/* ================================================================ monster (js/monster.js: Zdog, stemmingen, landen, praten) */
+const monsterUrl = () => monsterImage(); // stilstaand plaatje van het complete monster, voor de schuifpuzzel
+
+/* Het monster-contract (js/monster.js levert precies deze vorm):
+     createMonster() → { el,                          // één element; de app verhuist het tussen de schermen
+       setParts(parts, { land }),                     // land = deel dat net gevonden is → landingsanimatie
+       setMood(mood),                                 // 'slaap' | 'wakker' | 'nieuwsgierig' | 'brutaal' | 'compleet'
+       setSize(size),                                 // 'sm' | 'md' | 'lg'
+       say(text, { ms, voice }) → Promise,            // ballon + stem + bewegende mond
+       react(kind),                                   // 'start' | 'goed' | 'fout' | 'hint' | 'tik'
+       destroy() }
+     monsterImage(parts?) → data-URL                 // stilstaand plaatje, voor de schuifpuzzel
+   Schermen zetten alleen <div class="mslot" data-size="sm|md|lg"></div> neer; placeMonster() hangt het monster in de bovenste. */
+const mon = createMonster();
+let walkie = null; // open walkietalkie (js/walkie.js) of null
+let ring = null;   // inkomende oproep die overgaat (js/walkie.js incomingCall) of null
+const install = createInstall({ mon, sync, state, PARTS, TALENTS, audio, buzz, confetti, overlay: (...a) => overlay(...a), closeOverlay: () => closeOverlay(), mslot: (...a) => mslot(...a), esc });
+const kernOnline = () => { const t = S().game?.settings?.kern_at; return !!t && Date.now() - Date.parse(t) < 3 * 60_000; }; // kern.html staat thuis aan
+const finale = createFinale({ mon, state, audio, confetti, voice: () => kernOnline() ? false : undefined, music: () => !kernOnline() && hasRole('radio'), // muziek alleen waar Mecha-Pof praat
+  onStage: st => { if (st === 'check' || st === 'mega') { install.dismiss(); if ($('#ov .install')) closeOverlay(); } cur.update?.(); refresh(); } });
+document.head.insertAdjacentHTML('beforeend', `<style>${END_CSS}</style>`); // kaarten van het eindscherm
+function moodFor() {
+  const g = S().game, n = g?.parts?.length || 0;
+  if (!g || g.phase === 'lobby') return 'slaap';
+  if (g.phase === 'klaar') return 'compleet';
+  return n <= 2 ? 'wakker' : n <= 4 ? 'nieuwsgierig' : 'brutaal';
+}
+function placeMonster() {
+  if (walkie?.open || ring?.open) return; // de walkietalkie (of de rinkelende telefoon) heeft het monster even te leen
+  const slot = $('#ov .mslot') || $('#screen .mslot');
+  if (!slot) { mon.el.remove(); return; }
+  if (mon.el.parentNode !== slot) slot.appendChild(mon.el);
+  mon.setSize(slot.dataset.size || 'md');
+  if (!slot.dataset.parts) { mon.setParts(S().game?.parts || []); mon.setMood(moodFor()); }
+}
+const mslot = (size = 'md', extra = '') => `<div class="mslot" data-size="${size}" ${extra}></div>`;
+// Foto bij een puzzel, met optioneel Mecha-Pofs (foute) uitlezing in LED-letters eroverheen (config.overlay; stop 4, chat 7).
+const pimgHtml = cfg => !cfg?.image ? '' : !cfg.overlay ? `<img class="pimg" src="${esc(cfg.image)}" alt="">`
+  : `<div class="pimgwrap"><img class="pimg" src="${esc(cfg.image)}" alt=""><span class="ledover" style="${cfg.overlay_y != null ? `top:${+cfg.overlay_y}%` : ''}">${esc(cfg.overlay)}</span></div>`;
+
+/* ================================================================ event-router
+   Elk event uit de tabel `event` dat binnenkomt ná het laden gaat één keer langs de handlers.
+   Latere modules (surprises.js, badges.js, monster.js) haken in met pkm.router.on(type, fn). */
+const handlers = {}, seen = new Set(); let primed = false;
+const router = {
+  on(type, fn) { (handlers[type] ||= []).push(fn); return () => handlers[type] = handlers[type].filter(f => f !== fn); },
+  dispatch(ev) { for (const fn of [...(handlers[ev.type] || []), ...(handlers['*'] || [])]) { try { fn(ev.payload || {}, ev); } catch (e) { console.error('[router]', ev.type, e); } } },
+};
+state.on('event', ev => { if (!ev || seen.has(ev.id)) return; seen.add(ev.id); if (primed) router.dispatch(ev); });
+
+router.on('game.start', () => { overlay(`<div class="page"><span class="tab">Systeem opgestart</span>${mslot('lg')}<h2>Mecha-Pof wordt wakker…</h2><p>Zoek de eerste plek. Het monster kijkt mee.</p></div>`, 2600); mon.setMood('wakker'); mon.react('start'); audio.play('start'); buzz([80, 60, 120]); });
+router.on('game.reset', () => { closeOverlay(); dropLog = new Map(); toast('Het spel is opnieuw klaargezet.'); });
+router.on('stop.arrived', () => { audio.play('aankomst'); buzz([80, 40, 80]); });
+router.on('stop.solved', p => {
+  const st = state.stop(p.stop_id);
+  audio.play('ok'); buzz([60, 40, 60]); verdict(null);
+  if (p.stop_id) dropLog.set(p.stop_id, { part: p.part || null, drops: +p.drops || 0 }); // stroopmeter per onderdeel
+  stroopDrip(+p.drops || 0, { sugar: (+p.drops || 0) > 10 }); // de stroop druipt over het scherm; snel = poedersuiker erbij
+  if (!p.part) { bonusDone(st, p); return; } // bonusopdracht: geen onderdeel, geen ritueel
+  install.start({ part: p.part, stop_id: p.stop_id, by: p.by, last: st?.key === 'home', drops: +p.drops || 0 }); // monteur schudt, deel klikt vast
+});
+function bonusDone(st, p) {
+  overlay(`<div class="page"><span class="tab">Bonus gelukt</span><div style="font-size:3.4rem;line-height:1">⭐</div>
+    <h2>${esc(st?.name || 'Bonusopdracht')}</h2><p>+${p.drops ?? 0} stroopdruppels voor het Reparatieteam!</p>${mslot('md')}
+    <button class="ok wide big-btn" data-x="close">Op naar de volgende plek ▶</button></div>`, 9000);
+  $('#ov [data-x=close]')?.addEventListener('click', closeOverlay);
+  mon.react('goed'); const l = lineText('bonus', { sub: 'gevonden' }); if (l) say(l, { auto: true });
+}
+router.on('hint.given', p => { audio.play('hint'); if (p.text) say(p.text, 9000); else toast('💡 Er is een hint vrijgegeven.'); });
+router.on('monster.say', p => { if (p.kern && kernOnline()) return; say(p.text || '…'); }); // kern:true (wekzin) = alleen de laptop praat, als die aan staat
+router.on('roles.shuffle', p => { if (p.loting && kernOnline()) return; say('Ik heb de rollen geschud. Kijk maar eens wat je nu kunt.'); buzz([40, 40, 40]); }); // loting met animatie: de kern praat
+router.on('plan_b', () => say('Eén telefoon is in slaap gevallen. Ik verdeel de talenten opnieuw.'));
+router.on('gps.skip', p => { if (p.stop_id === state.activeStop()?.id && sync.isLoggedIn()) arrive(p.stop_id); });
+router.on('badge.awarded', p => { if (install.onBadge(p.badge)) return; const me = state.me().find(x => x.id === p.player_id); if (me) toast(`🏅 ${me.name} krijgt de badge ${surprises.badgeLabel(p.badge)}!`); });
+
+/* ================================================================ walkietalkie (js/walkie.js)
+   Per groep één walkietalkie: alleen de radiotelefoon (rol `radio`, js/roles.js; die praat ook hardop) krijgt de knop. */
+const speakerNames = () => whoHas('radio');
+// De monteur van een deel (speelster met het talent van dat deel) heeft op haar plek de leiding; Mecha-Pof spreekt haar aan als "Tijdbewaker Elin".
+function monteurOf(part) {
+  const t = Object.keys(TALENTS).find(k => TALENTS[k].part === part); if (!t) return null;
+  const pl = (S().players || []).find(p => p.talent === t);
+  return { talent: TALENTS[t].label, name: pl?.name || '', aanspreek: [TALENTS[t].label, pl?.name].filter(Boolean).join(' ') };
+}
+function walkieContext() {
+  const g = S().game || {}, st = state.activeStop(), route = state.route(), got = g.parts || [];
+  const cfg = st?.puzzles?.[S().puzzle?.variant ?? 0] || st?.puzzles?.[0] || {};
+  return {
+    jarige: birthday()?.name || 'de jarige',
+    spelers: (S().players || []).map(p => p.name).join(', '),
+    fase: { lobby: 'nog niet begonnen (voorstelronde)', onderweg: 'onderweg naar de volgende plek', puzzel: 'bij een puzzel', finale: 'bijna thuis, de finale', klaar: 'klaar, alles gevonden (hou het kort: nu eerst taart versieren, daarna pannenkoeken eten)' }[g.phase] || g.phase || '',
+    stop_naam: (st?.name || '') + (st && monteurOf(st.part)?.name ? ` (hier heeft ${monteurOf(st.part).name}, de ${monteurOf(st.part).talent}, de leiding: spreek haar bij naam aan en laat haar verdelen wie wat doet)` : st?.part === 'lijf' ? ' (eerste klus: iedereen samen)' : ''), stop_nummer: st ? route.indexOf(st) + 1 : '', stops_totaal: route.length || '',
+    aanwijzing: st?.clue || '',
+    puzzel_vraag: g.phase === 'puzzel' ? (cfg.question || '') : '',
+    puzzel_hint: g.phase === 'puzzel' ? (cfg.hint || '') : '',
+    delen_gevonden: got.map(k => PARTS[k]?.label || k).join(', ') || 'nog niks',
+    delen_nog: Object.keys(PARTS).filter(k => !got.includes(k)).map(k => PARTS[k].label).join(', ') || 'niks meer',
+    hints_gebruikt: g.hints ?? 0,
+    wachtwoord: g.phase === 'puzzel' && cfg.type === 'wachtwoord' ? String(cfg.password || '').split('|')[0] : '', // alleen op een wachtwoordstop
+    talenten: (S().players || []).filter(p => p.talent).map(p => `${p.name}: ${TALENTS[p.talent]?.label} (${PARTS[TALENTS[p.talent]?.part]?.label || '-'})`).join('; ') || 'nog niet geloot', // voorstelronde (chat 7)
+  };
+}
+const normWord = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+const dropsFor = p => Math.max(2, 10 - 3 * (p?.hints || 0)) + (p?.arrived_at && Date.now() - Date.parse(p.arrived_at) < 4 * 60_000 ? 3 : 0);
+/* Client tools van de agent (ElevenLabs → Tools → Client; zie MONSTER-AGENT.md "Client tool unlock_stop").
+   unlock_stop { wachtwoord }: de kinderen zeiden het wachtwoord van deze stop via de walkie → zet {t:'unlock'} (elke telefoon ziet het slot
+   opengaan) en dien in met sync.solve(). Lukt indienen niet (geen Sleutelbewaarder op deze telefoon), dan dient zij in op de werkbank. */
+function walkieTools() {
+  return {
+    unlock_stop: async ({ wachtwoord = '', password = '' } = {}) => {
+      const g = S().game, st = state.activeStop(), p = S().puzzle;
+      if (!st || !['puzzel', 'finale'].includes(g?.phase)) return 'Er is nu geen puzzel open. Dit is geen wachtwoordplek.';
+      const cfg = st.puzzles?.[p?.variant ?? 0] || st.puzzles?.[0] || {};
+      if (cfg.type !== 'wachtwoord') return 'Deze plek heeft geen wachtwoord; de puzzel wordt op de werkbank gemaakt.';
+      const word = String(wachtwoord || password || '').trim();
+      const ok = !cfg.password || String(cfg.password).split('|').map(normWord).includes(normWord(word));
+      sync.move({ t: 'unlock', v: word }, st.id).catch(() => {});
+      if (!ok) return `Fout wachtwoord: "${word}" is het niet. Zeg dat het niet klopt en laat ze verder zoeken.`;
+      try { await sync.solve(dropsFor(p), st.id); return 'Wachtwoord goed! Het slot is open en het onderdeel is binnen. Zeg dat het gelukt is.'; }
+      catch (e) { return 'Wachtwoord goed! Het slot staat open, maar alleen de Sleutelbewaarder kan het op de werkbank indienen. Zeg dat ze dat even moet doen.'; }
+    },
+  };
+}
+function startWalkie() {
+  if (walkie?.open || naAfloop()) return;
+  ring?.close();
+  const afscheid = S().game?.phase === 'klaar'; // na de finale: korte eigen begroeting, en "Over en sluiten" groot in beeld
+  walkie = openWalkie({ mon, context: walkieContext, tools: walkieTools(), sub: afscheid ? 'Afscheid van het Reparatieteam' : S().game?.phase === 'lobby' ? 'Kern · thuisbasis' : state.activeStop()?.name ? 'Plek: ' + state.activeStop().name : '', ...(afscheid ? { greeting: lineText('walkie', { sub: 'afscheid' }), zeg: 'Over en sluiten' } : {}), onClose: () => { walkie = null; placeMonster(); } });
+}
+/* ---------- inkomende oproepen: alleen de radiotelefoon gaat over (belgeluid, knop Opnemen); opnemen = walkie met `greeting` als {{begroeting}}.
+   stop.arrived → briefing van het onderdeel van die plek (walkie.briefing.<deel>). monster.call {player_id, message_id, text?} → eigen tekst of
+   walkie.oproep met {naam}. Is de walkie al open, dan krijgt de agent de tekst als context. Niet opgenomen (40 s) → Mecha-Pof zegt de tekst zelf. */
+const seenCalls = new Set();
+let lastBrief = null; // { stopId, text }: de briefing van deze plek, om op het puzzelscherm nog eens te laten horen
+const callRinging = () => !!ring?.open;
+let ringVoor = null; // player_id voor wie de oproep is (monster.call), voor de melding op de andere telefoons
+function ringCall({ greeting, title = 'Mecha-Pof belt!', sub = '', zeg = '', gemist = '', voor = null }) {
+  if (!greeting || !sync.isLoggedIn() || !hasRole('radio')) return false;
+  if (walkie?.open) { walkie.update(greeting); return true; }
+  if (ring?.open) ring.close();
+  ringVoor = voor;
+  ring = incomingCall({ mon, context: walkieContext, greeting, title, sub, zeg, gemist, tools: walkieTools(),
+    onAnswer: w => { walkie = w; ring = null; },
+    onMissed: text => { ring = null; placeMonster(); toast('📵 Gemiste oproep van Mecha-Pof'); say(text, { ms: 14000 }); },
+    onClose: () => { ring = null; placeMonster(); } });
+  return true;
+}
+router.on('stop.arrived', p => {
+  const st = state.stop(p.stop_id); if (!st) return;
+  const cfg = st.puzzles?.[S().puzzle?.stop_id === st.id ? S().puzzle.variant ?? 0 : 0] || st.puzzles?.[0] || {};
+  const call = arrivalCall({ part: st.part || 'bonus', type: cfg.type, monteur: monteurOf(st.part)?.aanspreek }); // briefing + duidelijk slot: wat nu, en wat ze terugzeggen
+  lastBrief = { stopId: st.id, text: call.gemist || call.greeting };
+  setTimeout(() => { if (state.activeStop()?.id === st.id) ringCall({ ...call, sub: `Signaal van ${st.name}` }); }, 300); // vóór de aankomstzin van monster.js (600 ms), die dan zwijgt
+});
+router.on('monster.call', p => {
+  if (!p.message_id || seenCalls.has(p.message_id)) return; seenCalls.add(p.message_id);
+  const pl = state.player(p.player_id), naam = pl?.name || '';
+  const elders = pl?.device_id && pl.device_id !== S().device.id && pl.online;
+  ringCall({ greeting: callGreeting({ naam, text: p.text }), sub: naam ? `Voor ${naam}${elders ? ` · geef de telefoon even aan ${naam}` : ''}` : '', voor: p.player_id || null });
+});
+// Wat er in het spel gebeurt, hoort het monster ook (zonder dat het hoeft te antwoorden).
+router.on('*', (p, ev) => {
+  if (!walkie?.open) return;
+  const t = {
+    'stop.arrived': () => `De kinderen zijn aangekomen bij ${state.stop(p.stop_id)?.name || 'de volgende plek'}. Er staat nu een puzzel klaar.`,
+    'stop.solved': () => `De kinderen hebben de puzzel opgelost en ${PARTS[p.part]?.label || 'een deel'} gevonden!`,
+    'hint.given': () => `Er is een hint gegeven${p.text ? ': ' + p.text : ''}.`,
+    'game.start': () => 'Het spel is net begonnen.',
+    'thief.start': () => `De Kruimelaar heeft net ${PARTS[p.part]?.label || 'een onderdeel'} gestolen; de kinderen zien hem op de kaart.`,
+    'thief.caught': () => 'De Kruimelaar is gevangen.', 'thief.end': () => 'De Kruimelaar is ontsnapt (het onderdeel ligt in het reservelaatje).',
+    'storm.start': () => `Kortsluiting: de kinderen tikken ${p.seconds || 30} seconden vonken weg.`, 'storm.end': () => `De kortsluiting is voorbij: ${p.total ?? 0} vonken weggetikt.`,
+    'fork.open': () => `Dubbel signaal: de kinderen stemmen tussen "${p.a}" en "${p.b}".`, 'fork.result': () => `Het dubbele signaal is beslist: ${String(p.choice || '').toUpperCase()}.`,
+    'finale.timer': () => `De jetpack raakt oververhit: ze moeten binnen ${Math.round((p.seconds || 0) / 60)} minuten thuis zijn.`,
+    'wish.used': () => `${birthday()?.name || 'De jarige'} heeft haar Verjaardagswens gebruikt: ${p.for || ''}.`,
+  }[ev.type];
+  if (t) walkie.update(t());
+});
+
+/* ================================================================ samen blijven (13 nov)
+   Belt Mecha-Pof op de radiotelefoon, of staat daar de walkie open, dan zien de andere telefoons een groot gouden scherm:
+   "Let op! Mecha-Pof belt! Kijk bij Hannah & Elin. Kom er allemaal bij staan!" Tik = klein balkje bovenin. Gaat het via presence (sync.setBusy → state.busyOf):
+   valt de radiotelefoon weg, dan verdwijnt de balk vanzelf. Nieuwe oproep elders = één piepje en trillen (Android). */
+function myBusy() {
+  if (ring?.open) return { k: 'ring', ...(ringVoor ? { voor: ringVoor } : {}) };
+  if (walkie?.open) return { k: 'walkie' };
+  return null;
+}
+const seenBusy = new Map(); // device_id → k van de vorige keer, om alleen bij een nieuwe oproep te piepen
+let samenKlein = null; // sleutel (toestel:soort) die met een tik klein is gemaakt; een nieuwe oproep komt weer groot in beeld
+function samenText(b, names) {
+  const wie = names ? esc(names) : 'een andere telefoon';
+  const voorMij = b.voor && state.me().find(p => p.id === b.voor);
+  if (b.k === 'ring' && voorMij) return { ic: '📞', let: 'Let op!', t: `Mecha-Pof belt voor jou, ${esc(voorMij.name)}!`, pre: 'Ren naar de telefoon van', wie, s: 'en neem op.' };
+  if (b.k === 'ring') return { ic: '📞', let: 'Let op!', t: 'Mecha-Pof belt!', pre: 'Kijk bij', wie, s: 'Kom er allemaal bij staan!' };
+  if (b.k === 'walkie') return { ic: '📻', let: 'Let op!', t: 'Mecha-Pof praat!', pre: 'Kijk bij', wie, s: 'Kom erbij luisteren!' };
+  return null;
+}
+function renderSamen() {
+  let el = $('#samen');
+  const mine = myBusy();
+  const list = !sync.isLoggedIn() || naAfloop() || mine ? [] : state.devices().filter(d => d !== S().device.id).map(d => ({ d, b: state.busyOf?.(d) })).filter(x => x.b?.k);
+  for (const { d, b } of list) { if (b.k === 'ring' && seenBusy.get(d) !== 'ring') { audio.play('blip'); buzz([200, 100, 200]); } }
+  seenBusy.clear(); for (const { d, b } of list) seenBusy.set(d, b.k);
+  const top = list[0], x = top && samenText(top.b, namesOnDevice(top.d));
+  if (!x) { el?.remove(); samenKlein = null; return; }
+  const key = top.d + ':' + top.b.k + ':' + (top.b.voor || '');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'samen'; el.setAttribute('role', 'alert'); document.body.appendChild(el);
+    el.addEventListener('click', () => { samenKlein = el.dataset.key; renderSamen(); }); // tik = klein balkje bovenin, dan kun je verder
+  }
+  el.dataset.key = key;
+  const html = `<div class="kaart"><i class="ic">${x.ic}</i><span class="tx"><span class="let">${x.let}</span><span class="t">${x.t}</span> <span class="pre">${x.pre}</span> <span class="wie">${x.wie}</span><span class="s">${x.s}</span><span class="tik">Tik om dit kleiner te maken</span></span></div>`;
+  if (el.innerHTML !== html) el.innerHTML = html;
+  el.className = top.b.k + (samenKlein === key ? ' klein' : '');
+}
+state.on('presence', renderSamen);
+setInterval(() => { sync.setBusy?.(myBusy()); renderSamen(); }, 700);
+
+/* ================================================================ gesproken navigatie (js/navvoice.js) en verrassingen (js/surprises.js) */
+const busy = () => !!(walkie?.open || ring?.open || install.busy || surprises?.overlayOpen);
+const nav = createNavVoice({ mon, state, hasRole, lineText, isBusy: busy });
+const surprises = createSurprises({ mon, state, sync, router, audio, buzz, toast, lineText, PARTS, TALENTS, hasRole, confetti, isBusy: busy });
+// Wachtwoordstop: een zet {t:'unlock'} (via de walkie-tool op de radiotelefoon) laat de andere telefoons Mecha-Pof reageren.
+let lastUnlock = null;
+state.on('puzzle', ps => {
+  const mv = ps?.moves?.slice().reverse().find(m => m.t === 'unlock'); if (!mv || mv.id === lastUnlock || mv.by === state.me()[0]?.id) return; lastUnlock = mv.id;
+  const st = state.stop(ps.stop_id), cfg = st?.puzzles?.[ps.variant ?? 0] || st?.puzzles?.[0]; if (cfg?.type !== 'wachtwoord') return;
+  const ok = !cfg.password || String(cfg.password).split('|').map(normWord).includes(normWord(mv.v));
+  const l = lineText('wachtwoord', { sub: ok ? 'goed' : 'fout' }); if (l) say(l, { auto: true });
+  audio.play(ok ? 'ok' : 'fout');
+});
+
+/* ================================================================ overlays */
+let ovTimer = null;
+function overlay(html, ms) {
+  closeOverlay(); const o = document.createElement('div'); o.className = 'overlay'; o.id = 'ov'; o.innerHTML = html; document.body.appendChild(o);
+  if (ms) ovTimer = setTimeout(closeOverlay, ms); placeMonster(); return o;
+}
+function closeOverlay() { clearTimeout(ovTimer); $('#ov')?.remove(); placeMonster(); }
+/* Banner bovenin: GOED of NIET GOED, op elke telefoon tegelijk (screens.puz roept hem aan). verdict(null) = weg. */
+let verdictT = null;
+function verdict(kind, html, ms = 3400) {
+  clearTimeout(verdictT); $('#verdict')?.remove(); if (!kind) return;
+  const d = document.createElement('div'); d.id = 'verdict'; d.className = kind; d.setAttribute('role', 'alert'); d.innerHTML = html;
+  document.body.appendChild(d); verdictT = setTimeout(() => d.remove(), ms);
+}
+/* Stroop druipt over het scherm als er druppels bijkomen (elke telefoon, bij stop.solved). Met de snelheidsbonus sneeuwt er poedersuiker overheen.
+   Raakt niets aan: pointer-events uit, na 3,7 s weg. Bij "verminder beweging" alleen de sprong in de balk. */
+function stroopDrip(n, { sugar = false } = {}) {
+  $('#drip')?.remove(); if (!(n > 0) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const d = document.createElement('div'); d.id = 'drip'; d.setAttribute('aria-hidden', 'true');
+  const cols = Math.max(7, Math.round(innerWidth / 38)), w = innerWidth / cols; let h = '<b class="pool"></b>';
+  for (let i = 0; i < cols; i++) {
+    const wd = 12 + Math.random() * Math.min(34, w), x = i * w + Math.random() * Math.max(1, w - wd), len = 22 + Math.random() * 70, dl = .15 + Math.random() * .55, dur = 1 + Math.random() * 1.1;
+    h += `<i style="left:${x.toFixed(0)}px;width:${wd.toFixed(0)}px;--len:${len.toFixed(0)}vh;animation-delay:${dl.toFixed(2)}s;animation-duration:${dur.toFixed(2)}s">${Math.random() < .6 ? `<u style="animation-delay:${(dl + dur * .85).toFixed(2)}s"></u>` : ''}</i>`;
+  }
+  h += `<div class="gain">+${n}<small>stroopdruppels</small>${sugar ? '<em>❄ met poedersuiker: zo snel! ❄</em>' : ''}</div>`;
+  d.innerHTML = h; document.body.appendChild(d); audio.play('spetter'); buzz([40, 30, 40, 30, 200]);
+  if (sugar) setTimeout(poedersuiker, 600);
+  setTimeout(() => d.classList.add('weg'), 2600); setTimeout(() => d.remove(), 3700);
+}
+function poedersuiker(ms = 3000) {
+  $('#suiker')?.remove(); const c = document.createElement('canvas'); c.id = 'suiker'; c.width = innerWidth; c.height = innerHeight; document.body.appendChild(c);
+  const ctx = c.getContext('2d'), t0 = performance.now();
+  const ps = Array.from({ length: 320 }, () => ({ x: Math.random() * c.width, y: -Math.random() * c.height * .8, r: .7 + Math.random() * 2.4, s: 2.5 + Math.random() * 4.5, a: Math.random() * 6, o: .5 + Math.random() * .5 }));
+  const step = now => { const t = now - t0, fade = t > ms - 600 ? Math.max(0, (ms - t) / 600) : 1; ctx.clearRect(0, 0, c.width, c.height);
+    for (const p of ps) { p.y += p.s; p.a += .05; p.x += Math.sin(p.a) * .9; if (p.y > c.height) { p.y = -5; p.x = Math.random() * c.width; }
+      ctx.globalAlpha = p.o * fade; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.3); ctx.fill(); }
+    if (t < ms) requestAnimationFrame(step); else c.remove(); };
+  requestAnimationFrame(step); audio.play('giggle');
+  [0, 650, 1300, 1950].forEach(t => setTimeout(() => buzz([25, 45, 25, 45, 25, 45, 25, 45]), t)); // poedersuiker ritselt: korte tikjes zolang het sneeuwt
+}
+/* Stroopmeter: tik op 💧 in de balk. Uitleg en de pannenkoekenstapel tot nu toe: de teamstand. Druppels per monteur staan alleen op haar eigen eindkaart. */
+let dropLog = new Map(); // stop_id → { part, drops }
+const partStops = () => state.route().filter(x => x.part).length || 7;
+const stackHtml = n => `<div class="stack syr">${Array.from({ length: n }, (_, i) => `<i style="width:${150 - i * 6}px;animation-delay:${i * .08}s"></i>`).join('')}</div>`;
+function openStroop() {
+  if (busy()) return;
+  const g = S().game || {}, d = g.drops || 0, stops = partStops(), stack = stackOf(d, stops), nxt = nextAt(d, stops);
+  overlay(`<div class="page stroop"><span class="tab">Stroopmeter</span>
+    <h2><i class="sd"></i>${d} stroopdruppels</h2>
+    <p>Stroop is de brandstof van Mecha-Pof. Jullie sparen hem <b>samen</b>: hoe meer druppels, hoe hoger de pannenkoekenstapel aan het eind.</p>
+    ${stackHtml(stack)}
+    <p><b>${stack} van de 10 pannenkoeken hoog</b>${nxt ? `<br><span class="note">Nog ${nxt} druppel${nxt === 1 ? '' : 's'} tot de volgende pannenkoek.</span>` : '<br><span class="note">De stapel is vol. Mega!</span>'}</p>
+    <ul class="droprules">
+      <li>🔩 Onderdeel terug <em>+10</em></li>
+      <li>⚡ Binnen 4 minuten opgelost <em>+3 poedersuiker</em></li>
+      <li>💡 Hint gevraagd <em>3 minder</em></li>
+      <li>✗ Fout antwoord <em>kost niks</em></li></ul>
+    <p class="note">De druppels verdienen jullie met z'n allen.</p>
+    <button class="ok wide" data-x="close">Verder ▶</button></div>`);
+  $('#ov [data-x=close]')?.addEventListener('click', closeOverlay);
+}
+function showMission(m, name) {
+  const text = typeof m === 'string' ? m : (m?.text || m?.mission || JSON.stringify(m));
+  let n = 10;
+  const o = overlay(`<div class="page left"><span class="tab">Strikt geheim · ${esc(name)}</span><span class="stamp">GEHEIM</span>
+    <h2>Jouw geheime opdracht</h2><p class="clue">${esc(text)}</p><p class="note">Onthoud hem goed. Dit bericht vernietigt zichzelf over <b id="mcount">10</b> s.</p></div>`);
+  const t = setInterval(() => { n--; const c = $('#mcount', o); if (c) c.textContent = n; if (n <= 0 || !o.isConnected) { clearInterval(t); if (o.isConnected) closeOverlay(); } }, 1000);
+}
+document.addEventListener('click', e => { // foto's inzoomen, overal
+  const img = e.target.closest('img.pimg'); if (!img) return;
+  const z = document.createElement('div'); z.className = 'zoomov'; z.innerHTML = `<img src="${esc(img.getAttribute('src'))}" alt="">`; z.onclick = () => z.remove(); document.body.appendChild(z);
+});
+
+/* ================================================================ begeleider (regiesleutel)
+   De ⚙︎-lade doet alleen nog: inloggen met de regiesleutel en Plekken vastleggen (GPS van deze telefoon naar een stop).
+   Alle andere regie (start, reset, hint, GPS overslaan, goedkeuren, Mecha-Pof, verrassingen, spelers, stops) zit in regie.html (chat 4). */
+function openTray() {
+  if (!sync.regie.restore()) {
+    const o = overlay(`<div class="page left tray"><span class="tab">Begeleider</span><h2>Regiesleutel</h2>
+      <form class="row" autocomplete="off"><input class="big grow" type="password" placeholder="sleutel" aria-label="Regiesleutel" style="letter-spacing:.05em;font-size:1.2rem"><button class="berry" type="submit">OK</button></form>
+      <p class="feedback"></p><button class="ghost">Sluiten</button></div>`);
+    $('input', o).focus();
+    $('button.ghost', o).onclick = closeOverlay;
+    $('form', o).onsubmit = async e => { e.preventDefault(); try { await sync.regie.login($('input', o).value.trim()); openTray(); } catch (err) { $('.feedback', o).textContent = err.message || 'Verkeerde sleutel'; } };
+    return;
+  }
+  const g = S().game || {}, act = state.activeStop();
+  const o = overlay(`<div class="page left tray"><span class="tab">Begeleider</span>
+    <h2>Begeleider</h2><p class="note">Fase: <b>${esc(g.phase)}</b>${act ? ` · actieve stop: <b>${esc(act.name)}</b>` : ''} · telefoons online: ${state.phones()}</p>
+    <section><a class="plain" href="demo/" onclick="window.__demo&&window.__demo.panel.show(true);return false" style="display:grid;place-items:center;min-height:56px;border-radius:14px;text-decoration:none;color:var(--ink);font-weight:900;background:linear-gradient(180deg,#3A4356,#2A3142);border:2px solid var(--line2);box-shadow:0 3px 0 #10141C">🎛️ Open het regiescherm (regie.html)</a>
+      <p class="note">Start, reset, hints, goedkeuren, Mecha-Pof laten praten of bellen, verrassingen, spelers en stops: dat zit allemaal daar.</p></section>
+    <section><h3>Deze telefoon</h3>
+      <label><input type="checkbox" data-r="test" ${test ? 'checked' : ''}> Testmodus (teleportknop, geen GPS)</label></section>
+    <section><h3>Plekken vastleggen</h3>
+      <p class="note">Sta op de plek, wacht tot de GPS rustig is en tik op 📍. Opeenvolgende plekken liefst ${g.settings?.min_gap || 150} m uit elkaar.</p>
+      <div id="stoplist">${stopRows()}</div></section>
+    <div class="row"><button class="ghost" data-r="logout">Regie afmelden</button><span class="grow"></span><button class="plain" data-r="close">Sluiten</button></div></div>`);
+  o.addEventListener('click', async e => {
+    const r = e.target.closest('[data-r]')?.dataset.r; if (!r || e.target.type === 'checkbox') return;
+    if (r === 'close') closeOverlay();
+    else if (r === 'logout') { sync.regie.logout(); closeOverlay(); }
+    else if (r === 'here') await placeStop(e.target.closest('[data-id]').dataset.id, o);
+    else if (r === 'edit') await editStop(e.target.closest('[data-id]').dataset.id, o);
+  });
+  o.addEventListener('change', e => {
+    if (e.target.dataset.r === 'test') { test = e.target.checked; store.set('pkm2_test', test); if (test) stopGps(); else if (inGame()) startGps(); refresh(true); }
+  });
+}
+
+/* ---------- plekken vastleggen: huidige GPS naar de stop (regie_upsert_stop stuurt de hele stop mee) */
+function stopRows() {
+  const all = S().stops, gap = S().game?.settings?.min_gap || 150;
+  return all.map(st => {
+    const near = all.filter(x => x.id !== st.id).map(x => ({ x, d: haversine(st, x) })).sort((a, b) => a.d - b.d)[0];
+    const warn = near && near.d < gap && st.key !== 'home' && near.x.key !== 'home';
+    return `<div class="stoprow" data-id="${st.id}"><span class="num">${st.key === 'home' ? '🏠' : st.key === 'start' ? 'S' : st.seq}</span>
+      <div class="grow"><b>${esc(st.name)}</b> ${PARTS[st.part]?.icon || ''}<small>${near ? `${warn ? '⚠️ ' : ''}${Math.round(near.d)} m tot ${esc(near.x.name)}` : ''}</small></div>
+      <button class="plain" data-r="edit" aria-label="Naam en aanwijzing">✏️</button><button class="ok" data-r="here">📍 Hier</button></div>`;
+  }).join('');
+}
+function gpsOnce() {
+  return new Promise((res, rej) => navigator.geolocation ? navigator.geolocation.getCurrentPosition(p => res(p.coords), e => rej(new Error(e.code === 1 ? 'Locatie geweigerd' : 'Geen GPS-fix, probeer het buiten nog eens')), { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }) : rej(new Error('Geen GPS')));
+}
+async function placeStop(id, o) {
+  const st = state.stop(id); if (!st) return;
+  const btn = $(`[data-id="${id}"] [data-r=here]`, o); btn.disabled = true; btn.textContent = '…';
+  try {
+    const c = await gpsOnce();
+    if (c.accuracy > 25 && !confirm(`De GPS is nog onnauwkeurig (±${Math.round(c.accuracy)} m). Toch opslaan? (Even wachten en opnieuw proberen geeft vaak beter.)`)) return;
+    const moved = haversine(st, { lat: c.latitude, lng: c.longitude });
+    await sync.regie.upsertStop({ ...st, lat: +c.latitude.toFixed(7), lng: +c.longitude.toFixed(7) });
+    toast(`📍 ${st.name} vastgelegd (±${Math.round(c.accuracy)} m, ${Math.round(moved)} m verschoven)`); audio.play('ok');
+  } catch (e) { toast('⚠️ ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = '📍 Hier'; setTimeout(() => { const l = $('#stoplist', o); if (l) l.innerHTML = stopRows(); }, 800); }
+}
+async function editStop(id, o) {
+  const st = state.stop(id); if (!st) return;
+  const name = prompt('Naam van de plek', st.name); if (name === null) return;
+  const clue = prompt('Aanwijzing (wat de kinderen lezen om de plek te vinden)', st.clue); if (clue === null) return;
+  try { await sync.regie.upsertStop({ ...st, name: name.trim() || st.name, clue: clue.trim() }); toast('✏️ Opgeslagen'); setTimeout(() => { const l = $('#stoplist', o); if (l) l.innerHTML = stopRows(); }, 800); }
+  catch (e) { toast('⚠️ ' + e.message); }
+}
+
+/* ================================================================ GPS en aankomst */
+let watchId = null, gpsError = '', lastDist = null, arriving = false;
+const inGame = () => sync.isLoggedIn() && ['onderweg', 'puzzel', 'finale'].includes(S().game?.phase);
+function startGps() {
+  if (watchId != null || test) return;
+  if (!navigator.geolocation) { gpsError = 'Deze telefoon geeft geen locatie door.'; return; }
+  watchId = navigator.geolocation.watchPosition(p => {
+    gpsError = ''; sync.setPos({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy || 30 }); checkArrival();
+  }, e => {
+    gpsError = e.code === 1 ? 'Locatie geweigerd. iPhone: Instellingen → Privacy → Locatievoorzieningen → Safari-websites → "Bij gebruik". Of tik op AA in de adresbalk → Website-instellingen → Locatie → Toestaan.' : 'GPS zoekt nog… loop even de open lucht in.';
+    stopGps(); refresh(true);
+  }, { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 });
+}
+function stopGps() { if (watchId != null) navigator.geolocation?.clearWatch(watchId); watchId = null; }
+function checkArrival() {
+  const st = state.activeStop(), pos = S().pos;
+  if (!st || !pos || S().game?.phase !== 'onderweg' || arriving) return;
+  if (haversine(pos, st) <= radiusOf(st) + Math.min(pos.acc || 0, 12)) arrive(st.id);
+}
+async function arrive(stopId = state.activeStop()?.id) {
+  if (arriving || !stopId) return; arriving = true;
+  try { await sync.arrive(stopId); } catch (e) { if (!/actieve stop|loopt niet/.test(e.message)) toast('⚠️ ' + e.message); }
+  finally { setTimeout(() => arriving = false, 2500); }
+}
+let wake = null;
+async function keepAwake() { try { if ('wakeLock' in navigator && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => wake = null); } } catch {} }
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (inGame()) keepAwake();
+  if (booted) sync.reload().catch(() => {}); // iOS laat de websocket op de achtergrond vallen: stand opnieuw ophalen
+});
+
+/* ================================================================ kaart (js/map.js: wonderlandstijl, stroopspoor, avondkaart) */
+const wmap = createMap(); // null zonder Leaflet
+const hasL = !!wmap;
+function updateMap(st, seesTarget) {
+  if (!wmap || !st) return;
+  const g = S().game, r = state.route();
+  const found = r.slice(0, g?.active_index || 0).filter(x => x.part).map(x => ({ id: x.id, lat: x.lat, lng: x.lng, icon: PARTS[x.part]?.icon || '⭐' }));
+  wmap.update({ stop: st, pos: test ? null : S().pos, gameKey: g?.started_at || 'x', seesTarget, found, meIds: S().device.players,
+    players: S().players.map(p => ({ ...p, color: guard(p).color })) });
+}
+const fitMap = () => wmap?.fit();
+/* ---------- 3D-speelbord (js/board.js): de standaardweergave van de kaart. 'Kaart' wisselt naar Leaflet, maar die keuze
+   wordt niet meer onthouden: bij elke nieuwe stop (en na herladen) begint de kaarttelefoon weer op het speelbord.
+   Alleen als het bord op dit toestel echt niet laadt, blijft het (tot herladen) de gewone kaart. */
+let board = null, boardP = null, bordOn = true, bordKapot = false, bordStop = null;
+try { localStorage.removeItem('pkm2_bord'); } catch {} // oude onthouden keuze opruimen
+async function ensureBoard(slot) {
+  if (board) { if (board.el.parentNode !== slot) slot.appendChild(board.el); return board; }
+  if (!boardP) boardP = import('./js/board.js?v=3').then(m => m.createBoard(slot, { mode: 'spel' })).then(b => (board = b)).catch(e => { console.warn('[bord]', e); boardP = null; bordOn = false; bordKapot = true; toast('Het 3D-bord laadt niet op deze telefoon; de gewone kaart blijft.', 3600); return null; });
+  return boardP;
+}
+function updateBoard() {
+  if (!board || !bordOn) return;
+  const g = S().game;
+  board.update({ stops: state.route(), activeIndex: g?.active_index ?? 0, phase: g?.phase, pos: test ? null : S().pos, meIds: S().device.players,
+    players: S().players.map(p => ({ ...p, color: guard(p).color })) });
+}
+
+/* ================================================================ schermen
+   Elk scherm heeft een sleutel; verandert die, dan schuift een nieuw scherm in. Anders roept refresh() alleen update() aan. */
+const screens = {};
+let cur = { key: null }, booted = false, bootError = '', wantLogin = false;
+function screenKey() {
+  if (!booted) return 'boot';
+  const g = S().game; if (!g) return 'boot';
+  if (teaserActive(g) && !sync.isLoggedIn() && !sync.regie.restore()) return 'teaser'; // vóór het feest: aftellen, nog niet inloggen
+  if (!sync.isLoggedIn() || wantLogin) return 'login';
+  if (g.phase === 'lobby') return 'lobby';
+  if (g.phase === 'klaar') return 'klaar';
+  const st = state.activeStop(); if (!st) return 'lobby';
+  return (g.phase === 'onderweg' ? 'nav:' + st.id + ':' + (hasRole('kaart') ? 'k' : '-') : 'puz:' + st.id + ':' + (hasRole('werkbank') ? 'w' : '-'));
+}
+function mount(key) {
+  cur.destroy?.();
+  const [name, id] = key.split(':');
+  const el = document.createElement('div'); el.className = 'scr slide-in'; // vers element per scherm: geen oude listeners
+  $('#screen').replaceChildren(el);
+  cur = { key, ...(screens[name](el, id) || {}) };
+  placeMonster();
+  scrollTo({ top: 0 });
+}
+let raf = 0;
+function refresh(force) {
+  if (raf && !force) return;
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(() => { raf = 0; const k = screenKey(); if (k !== cur.key || force === 'remount') mount(k); else cur.update?.(); placeMonster(); renderBar(); syncGps(); });
+}
+function syncGps() { if (inGame() && !test) startGps(); else if (!inGame()) stopGps(); if (inGame()) keepAwake(); }
+
+/* ---------- balk */
+const conn = c => `<svg class="conn" viewBox="0 0 16 20" aria-label="${c === 'online' ? 'verbonden' : 'geen verbinding'}"><path d="M8 1C5 6 2 9.5 2 13a6 6 0 0 0 12 0c0-3.5-3-7-6-12z" fill="${c === 'online' ? '#4ADE80' : c === 'connecting' ? '#F2BE62' : '#5B6680'}"/></svg>`;
+function rolesHtml() { // rollen van deze telefoon bij de huidige stop, plus wie de andere heeft
+  const mine = myRoles();
+  return ROLES.map(r => { const own = mine.includes(r), who = own ? '' : whoHas(r);
+    return `<span class="role ${own ? 'mine' : ''}${r === 'radio' && !own && Date.now() < wijsUntil ? ' wijs' : ''}" title="${esc(ROLE_INFO[r].short)}">${own ? '✓ ' : ''}${ROLE_INFO[r].icon} ${own ? ROLE_INFO[r].label : esc(who || 'ander')}</span>`; }).join('');
+}
+let lastDrops = null, bumpAt = 0;
+function renderBar() {
+  const g = S().game, me = state.me(), got = g?.parts || [];
+  const dNow = g?.drops || 0, bump = lastDrops !== null && dNow > lastDrops && Date.now() - bumpAt > 1000; if (bump) bumpAt = Date.now();
+  const stillBump = Date.now() - bumpAt < 900; lastDrops = dNow; // de balk wordt vaak opnieuw getekend: de sprong moet blijven staan
+  $('#bar').innerHTML = `<div class="in">
+    <div class="chips">${me.map(p => { const x = guard(p); return `<span class="chip" style="--acc:${x.color}"><i>${x.icon}</i>${esc(p.name)}</span>`; }).join('') || '<span class="eyebrow">Mecha-Pof</span>'}</div>
+    ${g && g.phase !== 'lobby' ? `<span class="drops ${bump || stillBump ? 'bump' : ''}" data-b="drops" style="--f:${Math.min(100, Math.round(dNow / (partStops() * 10) * 100))}%" role="button" tabindex="0" title="Stroopmeter: tik voor uitleg" aria-label="Stroopmeter: ${g.drops || 0} stroopdruppels, tik voor uitleg"><i class="sd"></i>${g.drops || 0}</span>` : ''}
+    ${conn(S().conn)}${sync.outboxSize() ? `<span class="note">${sync.outboxSize()}</span>` : ''}
+    ${me.length && g && !naAfloop() ? (hasRole('radio') ? `<button class="walkiebtn${Date.now() < wijsUntil ? ' wijs' : ''}" data-b="walkie" aria-label="Walkietalkie met het monster">📻 Walkie</button>` : !['lobby', 'klaar'].includes(g.phase) ? '' : `<span class="note" title="De walkietalkie zit op de radiotelefoon">📻 bij ${esc(speakerNames() || 'een ander')}</span>`) : ''}
+    <button class="iconbtn" data-b="mute" aria-label="Geluid">${muted ? '🔇' : '🔊'}</button>
+    <button class="iconbtn" data-b="tray" aria-label="Begeleider">⚙︎</button></div>
+    ${g && g.phase !== 'lobby' ? `<div class="parts">${Object.keys(PARTS).map(k => `<span class="part ${got.includes(k) ? 'got' : ''}" title="${esc(PARTS[k].label)}">${got.includes(k) ? PARTS[k].icon : ''}</span>`).join('')}</div>` : ''}
+    ${me.length && g && g.phase !== 'lobby' && g.phase !== 'klaar' ? `<div class="roles"><span class="k">Rollen</span>${rolesHtml()}</div>` : ''}`;
+}
+$('#bar').addEventListener('click', e => {
+  const b = e.target.closest('[data-b]')?.dataset.b;
+  if (b === 'mute') { muted = !muted; store.set('pkm2_muted', muted); renderBar(); }
+  if (b === 'tray') openTray();
+  if (b === 'walkie') startWalkie();
+  if (b === 'drops') openStroop();
+});
+
+/* ---------- boot */
+screens.boot = el => {
+  el.innerHTML = `<div class="center" style="margin-top:12vh">${mslot('md')}</div>
+    <div class="page center"><span class="tab">Verbinden</span><p id="bootmsg">${bootError ? '⚠️ ' + esc(bootError) : 'Het dossier wordt opgehaald…'}</p>
+    ${bootError ? '<button class="wide" id="retry">Opnieuw proberen</button>' : ''}</div>`;
+  const r = $('#retry', el); if (r) r.onclick = () => { bootError = ''; refresh('remount'); boot(); };
+};
+
+/* ---------- teaser: voorpret, nog niet inloggen (js/teaser.js) */
+screens.teaser = el => mountTeaser(el, { game: S().game, mon, esc, mslot, birthday: birthday()?.name, deviceId: S().device.id, say: text => say(text, { voice: true, ms: 16000 }) });
+
+/* ---------- login met de code van de uitnodiging */
+screens.login = el => {
+  const extra = sync.isLoggedIn();
+  el.innerHTML = `${extra ? '' : `<div class="center"><span class="eyebrow">Het feest van ${esc(birthday()?.name || 'de jarige')}</span><h1>${esc(S().game?.title || 'Mecha-Pof')}</h1></div>${mslot('md')}`}
+    <div class="page"><span class="tab">${extra ? 'Tweede monteur' : 'Geheim dossier'}</span><span class="stamp">GEHEIM</span>
+      <h2>${extra ? 'Wie loopt er met deze telefoon mee?' : 'Wie ben jij?'}</h2>
+      <p>Tik de code van vier cijfers van je <b>monteurspas</b> in.</p>
+      <form class="row" autocomplete="off"><input class="big grow" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="code" aria-label="Code"><button class="ok" type="submit">Open</button></form>
+      <p class="feedback"></p>
+      ${extra ? '<button class="ghost" id="back">← Terug</button>' : '<p class="note">Jullie delen een telefoon met z’n tweeën: log daarna ook de tweede monteur in op deze telefoon.</p>'}
+    </div>`;
+  const inp = $('input', el), fb = $('.feedback', el);
+  inp.addEventListener('input', () => { inp.value = inp.value.replace(/\D/g, '').slice(0, 4); if (inp.value.length === 4) $('form', el).requestSubmit(); });
+  $('form', el).onsubmit = async e => {
+    e.preventDefault(); if (inp.value.length !== 4) return; fb.textContent = 'Even kijken…';
+    try {
+      const res = await sync.login(inp.value); wantLogin = false; audio.play('login');
+      if (res.mission) showMission(res.mission, res.player.name);
+      refresh();
+    } catch (err) { fb.textContent = err.code === 'offline' ? 'Geen verbinding. Probeer het zo nog eens.' : 'Die code kennen we niet. Kijk nog eens goed.'; inp.value = ''; buzz(120); }
+  };
+  const b = $('#back', el); if (b) b.onclick = () => { wantLogin = false; refresh(); };
+  if (!('ontouchstart' in window)) inp.focus();
+};
+
+/* ---------- lobby: wie is er, wie ben jij */
+screens.lobby = el => {
+  el.innerHTML = `<div class="center"><span class="eyebrow">Het verjaardagsfeest van ${esc(birthday()?.name || 'de jarige')}</span><h1>Operatie Mecha-Pof</h1></div>
+    ${mslot('md')}<div id="mine"></div>
+    <div class="page"><span class="tab">De monteurs</span><div class="guards" id="guards"></div>
+      <p class="note center" id="lnote"></p></div>
+    <div class="row"><button class="plain grow" id="add">+ Tweede monteur op deze telefoon</button></div>`;
+  $('#add', el).onclick = () => { wantLogin = true; refresh(); };
+  el.addEventListener('click', e => { const id = e.target.closest('[data-out]')?.dataset.out; if (id && confirm('Afmelden op deze telefoon?')) { sync.logout(id); refresh(); } });
+  const update = () => {
+    const ps = S().players, mine = new Set(S().device.players);
+    $('#mine', el).innerHTML = state.me().map(p => { const x = guard(p); return `<div class="page acc" style="--acc:${x.color}"><span class="tab">Jouw dossier</span>
+      <div class="row"><span style="font-size:2.4rem">${x.icon}</span><div class="grow"><h2>${esc(p.name)}</h2>
+      <p>${x.part ? 'Monteur van ' + esc(PARTS[x.part].label) : 'Je talent wordt nog geloot…'}</p></div></div>
+      ${x.talent ? `<div class="talent">Talent: <b>${esc(x.talent)}</b></div>` : ''}
+      <button class="ghost" data-out="${p.id}">Afmelden op deze telefoon</button></div>`; }).join('')
+      + (state.me().length ? `<div class="page"><span class="tab">Het feest van ${esc(birthday()?.name || 'de jarige')}</span>
+        <p><b>Welkom, monteur!</b> Mecha-Pof, de keukenrobot, wilde voor het feest van ${esc(birthday()?.name || 'de jarige')} de grootste verjaardagspannenkoek ooit bakken. Hij deed er een beetje te veel stroop bij en toen… <b>POF.</b></p>
+        <p>Nu ligt hij in zeven stukken door de buurt. Jullie zijn vanmiddag zijn reparatieteam: zoek zijn onderdelen, los de puzzels op en zet hem weer in elkaar. Daarna vieren we het thuis, met taart en pannenkoeken.</p></div>
+        <div class="page"><span class="tab">Drie telefoons, drie taken</span><p>Jullie lopen met drie telefoons, en elke telefoon kan iets anders. Jullie hebben elkaar dus nodig.</p>
+        <p class="rolrij"><span><b>🗺️ Kaart</b>wijst de weg en telt de meters af</span><span><b>📻 Radio</b>hier belt en praat Mecha-Pof</span><span><b>🔧 Werkbank</b>hier staat de puzzel</span></p>
+        <p>Bij elke plek schuiven de taken een telefoon door. Bovenaan je scherm staat steeds wat jouw telefoon is. Bij de eerste plek is dat: <b>${myRoles().map(r => ROLE_INFO[r].icon + ' ' + ROLE_INFO[r].label).join(', ') || '…'}</b>.</p></div>
+        <div class="page"><span class="tab">Zo werkt het</span><ol class="howto">
+          <li><b>Loop naar de volgende plek.</b> De kaart-telefoon wijst de weg, de rest loopt mee.</li>
+          <li><b>Mecha-Pof belt de radio.</b> Luister tot hij klaar is en zeg dan samen wat groot in beeld staat. Niet verstaan? Tik op <b>↻ Herhaal</b>.</li>
+          <li><b>Los samen de puzzel op.</b> Hij staat op de werkbank, maar iedereen denkt mee. Is hij goed? Dan dient de Sleutelbewaarder hem in en schudt de monteur het onderdeel vast.</li>
+          <li><b><i class="sd"></i>Spaar stroopdruppels.</b> Elk onderdeel levert er 10 op. Snel klaar? 3 extra, met poedersuiker. Een hint kost er 3. Fout antwoord kost niks. Hoe meer druppels, hoe hoger de pannenkoekenstapel aan het eind. Tik onderweg op de stroopmeter bovenaan om te kijken.</li>
+          ${birthday() ? `<li><b>🎂 Cadeautje voor ${esc(birthday().name)}.</b> Zij heeft één verjaardagswens: de taart linksonder op haar telefoon. Een puzzel overslaan, een gratis hint, een robotdans of een gekke opdracht voor haar papa. Het kan maar één keer!</li>` : ''}
+          <li><b>Blijf bij elkaar.</b> Oversteken doen we alleen samen met de begeleider.</li></ol></div>` : '');
+    $('#guards', el).innerHTML = ps.map(p => { const x = guard(p); return `<div class="guard ${mine.has(p.id) ? 'mine' : ''}" style="--acc:${x.color}"><span class="ic">${x.icon}</span>
+      <div><b>${esc(p.name)}<span class="dot ${p.online ? 'on' : ''}"></span></b><small>${esc(x.talent || 'nog geen talent')}</small></div></div>`; }).join('');
+    const on = ps.filter(p => p.online).length;
+    $('#lnote', el).textContent = `${on} van ${ps.length} online · ${state.phones()} telefoon${state.phones() > 1 ? 's' : ''}. De begeleider start het spel zodra iedereen er is.`;
+  };
+  update(); return { update };
+};
+
+/* ---------- onderweg naar de actieve stop
+   Alleen de kaarttelefoon (rol `kaart`) toont de kaart, de afstand en warmer/kouder; de andere telefoons zien de aanwijzing
+   en wie de kaart heeft. Elke telefoon blijft wel zelf de aankomst controleren (GPS), zodat de puzzel opengaat zodra één toestel er is. */
+screens.nav = (el, id) => {
+  const st = state.stop(id), kaart = hasRole('kaart');
+  lastDist = null;
+  el.innerHTML = `${mslot('sm')}
+    <div class="page"><span class="tab">${stopTab(st)}</span>
+      <div class="row" style="justify-content:space-between"><span class="eyebrow">${PARTS[st.part]?.icon || ''} ${esc(PARTS[st.part]?.label || '')}</span><span class="eyebrow">${kaart ? '🗺️ Kaart' : ''}</span></div>
+      <h2>${esc(st.name)}</h2><p class="clue">${esc(st.clue)}</p>
+      ${kaart && hasL ? '<div class="mapwrap"><div id="mapslot"></div><div id="bordslot" class="bordslot" hidden></div><button class="mapbtn plain b3d" id="b3d" aria-label="Wissel tussen kaart en 3D-speelbord">3D</button><button class="mapbtn plain" id="fit" aria-label="Kaart centreren">🎯</button></div>' : ''}
+      ${kaart ? '<div id="dist"></div><div class="meter" aria-hidden="true"><i></i></div>' : '<div class="rolenote" id="rolenote"></div>'}
+      <p class="status" id="status"></p>
+      <div id="navbtns" class="row"></div>
+    </div>`;
+  if (kaart && hasL) {
+    if (id !== bordStop) { bordStop = id; bordOn = !bordKapot; } // nieuwe stop: weer op het speelbord beginnen
+    $('#mapslot', el).appendChild(wmap.el);
+    const showView = async () => {
+      $('#mapslot', el).hidden = bordOn; $('#bordslot', el).hidden = !bordOn; $('#b3d', el).textContent = bordOn ? 'Kaart' : '3D';
+      if (bordOn) { await ensureBoard($('#bordslot', el)); updateBoard(); if (!board) showView(); } else wmap.invalidate();
+    };
+    $('#fit', el).onclick = () => bordOn ? board?.recenter() : fitMap();
+    $('#b3d', el).onclick = () => { bordOn = !bordOn; showView(); };
+    showView();
+  }
+  el.addEventListener('click', e => { const b = e.target.closest('[data-n]')?.dataset.n;
+    if (b === 'tele') arrive(id); if (b === 'gps') { gpsError = ''; stopGps(); startGps(); update(); } });
+  const update = () => {
+    const pos = S().pos, r = radiusOf(st);
+    let dist = '…', pct = 0, warm = '', status = gpsError || (test ? 'Testmodus: geen GPS. Gebruik de teleportknop.' : 'GPS zoekt jullie positie…');
+    if (pos && !test) {
+      const d = haversine(pos, st); pct = Math.max(0, Math.min(100, 100 - ((d - r) / 300) * 100));
+      warm = lastDist == null ? '' : d < lastDist - 1 ? '🔥 Warmer!' : d > lastDist + 1 ? '🧊 Kouder…' : ''; lastDist = d;
+      dist = Math.round(d);
+      status = kaart ? (d <= r + 30 ? 'Bijna! Nog een klein stukje.' : 'Volg de stippellijn op de kaart.') + ` · GPS ±${Math.round(pos.acc)} m` : (d <= r + 30 ? 'Bijna! Nog een klein stukje.' : '');
+    }
+    if (kaart) { $('#dist', el).innerHTML = `<div class="dist">${dist}<small> m</small></div><div class="status">${warm}</div>`; $('.meter i', el).style.width = pct + '%'; updateMap(st, true); updateBoard(); }
+    else { const who = whoHas('kaart'); $('#rolenote', el).innerHTML = `<p class="clue" style="font-size:1rem">🗺️ De kaart en de afstand staan op de telefoon van <b>${esc(who || 'de kaartlezer')}</b>. Loop samen op!</p>`; }
+    const s = $('#status', el); s.textContent = status; s.classList.toggle('bad', !!gpsError);
+    $('#navbtns', el).innerHTML = (test ? '<button class="berry grow" data-n="tele">🛸 Teleporteer naar deze plek</button>' : '') + (gpsError ? '<button class="berry grow" data-n="gps">📡 Locatie opnieuw proberen</button>' : '');
+    checkArrival();
+  };
+  update(); return { update, destroy: () => { wmap?.el.remove(); board?.el.remove(); } };
+};
+
+/* ---------- puzzel bij de actieve stop (ook de finale thuis)
+   Alleen de werkbanktelefoon (rol `werkbank`) krijgt de puzzelinvoer; de andere telefoons zien de vraag en wie de werkbank heeft.
+   Puzzels met `multi: true` (splits, slot, sync) worden op elke telefoon getekend: ieder toestel heeft daar zijn eigen stuk;
+   via api.roles weet de puzzel of dit de werkbank is. */
+const modCache = {};
+const PUZZLE_V = 9; // ophogen bij wijzigingen in js/puzzles/
+const loadPuzzle = type => modCache[type] ||= import(`./js/puzzles/${type}.js?v=${PUZZLE_V}`).then(m => m.default);
+screens.puz = (el, id) => {
+  const st = state.stop(id), { n, total } = stopNo(st);
+  let mod = null, modErr = '', pending = [], sig = '', askedArrive = false, submitting = false;
+  let seenWrong = null, seenSolved = null; // voor de banner GOED / NIET GOED: alleen bij een nieuwe poging, niet bij het openen
+  // Foute pogingen tellen, los van het puzzeltype: tries als lijst (vraag, code, slot, qr, splits, wachtwoord), als getal (licht) of wrong (keuze).
+  const wrongInfo = d => {
+    if (Array.isArray(d?.tries)) { const w = d.tries.filter(t => !t.ok && !t.unknown), l = w[w.length - 1]; return { n: w.length, v: String(l?.v ?? l?.code ?? '') }; }
+    if (typeof d?.tries === 'number') return { n: d.tries, v: '' };
+    if (Array.isArray(d?.wrong)) return { n: d.wrong.length, v: String(d.wrong[d.wrong.length - 1] ?? '') };
+    return { n: 0, v: '' };
+  };
+  const kort = v => v.length > 22 ? v.slice(0, 20) + '…' : v;
+  el.innerHTML = `${mslot('sm')}
+    <div class="page"><span class="tab">📍 Jullie zijn er · ${st.key === 'home' ? 'Finale' : isBonus(st) ? 'Bonus' : `plek ${n} van ${total}`}</span>
+      <h2>${esc(st.name)}</h2>${(m => m?.name ? `<p class="note" style="margin:-4px 0 4px">🔧 Hier heeft <b>${esc(m.name)}</b> (${esc(m.talent)}) de leiding</p>` : '')(monteurOf(st.part))}
+      <div id="pz" class="col" style="display:flex;flex-direction:column;gap:12px"><p class="note">Puzzel wordt opengevouwen…</p></div>
+      <div id="radiobox"></div><div id="hintbox"></div><div id="submit" class="submit" hidden></div></div>`;
+  const pz = $('#pz', el);
+  el.addEventListener('click', e => { if (e.target.closest('#rebrief') && lastBrief?.text && !busy()) say(lastBrief.text, { voice: true, ms: 16000 }); });
+  let modType = null;
+  const ps = () => { const p = S().puzzle; return p && p.stop_id === st.id ? p : null; };
+  const config = p => (st.puzzles || [])[p?.variant ?? 0] || st.puzzles?.[0] || { type: 'opdracht', question: '' };
+  const ctxOf = p => ({ seed: p.seed, variant: p.variant, players: S().players, phones: state.phones(), devices: state.devices() });
+
+  // Zet direct lokaal tonen (pending) en naar de server sturen; zodra de server hem terugstuurt valt hij uit pending.
+  function move(m) {
+    const id = Math.random().toString(36).slice(2, 10), mv = { ...m, id, by: state.me()[0]?.id };
+    pending.push(mv); audio.play('plop'); buzz(15); update(true);
+    sync.move({ ...m, id }, st.id).catch(e => { pending = pending.filter(x => x !== mv); toast('⚠️ ' + e.message); update(true); });
+  }
+  async function submit() {
+    const p = ps(); if (!p || submitting) return; submitting = true; update(true);
+    try { await sync.solve(dropsFor(p), st.id); } catch (e) { toast('⚠️ ' + e.message); } finally { submitting = false; update(true); }
+  }
+  function update(force) {
+    // Dit scherm hoort bij één stop; is die al afgerond, dan schuift refresh() zo het volgende scherm in.
+    if (state.activeStop()?.id !== st.id || !['puzzel', 'finale'].includes(S().game?.phase)) return;
+    const p = ps();
+    if (!p) { if (!askedArrive && sync.isLoggedIn()) { askedArrive = true; arrive(st.id); } return; }
+    const type = config(p).type;
+    if (type !== modType) { modType = type; mod = null; modErr = '';
+      loadPuzzle(type).then(m => { if (modType === type) { mod = m; update(true); } }).catch(() => { modErr = type; update(true); }); }
+    if (modErr) { pz.innerHTML = `<p class="feedback">Puzzel "${esc(modErr)}" ontbreekt. Vraag de begeleider om de stop goed te keuren.</p>`; return; }
+    if (!mod) return;
+    pending = pending.filter(x => !p.moves.some(m => m.id === x.id));
+    const cfg = config(p), ctx = ctxOf(p), moves = [...p.moves, ...pending];
+    const roles = myRoles(), werkbank = roles.includes('werkbank') || !!mod.multi;
+    const s = [lastBrief?.stopId, p.id, moves.length, p.hints, p.solved_at, ctx.phones, ctx.devices.join(), roles.join(), submitting, state.myTalents().join(), S().game?.settings?.any_can_submit, keyHolder()?.id].join('|');
+    if (s === sig && !force) return; sig = s;
+    let data; try { data = moves.reduce((d, m) => mod.reduce(d, m, ctx), mod.init(cfg, ctx)); }
+    catch (e) { console.error(e); pz.innerHTML = '<p class="feedback">Deze puzzel struikelt. Vraag de begeleider.</p>'; return; }
+    const solved = !!p.solved_at || mod.isSolved(data, cfg, ctx);
+    const wi = wrongInfo(data);
+    if (seenWrong !== null && !p.solved_at && !install.busy) {
+      if (solved && !seenSolved) { const k = keyHolder();
+        verdict('good', `<b>✓ GOED!</b><span>${canSubmit() ? 'Nu nog indienen: druk op de groene knop 🔑' : k ? `Roep ${esc(k.name)}: zij dient in 🔑` : 'De begeleider keurt het goed.'}</span>`, 3000); audio.play('ok'); buzz([60, 40, 60, 40, 140]); }
+      else if (wi.n > seenWrong && !solved) {
+        verdict('bad', `<b>✗ NIET GOED</b><span>${wi.v ? `“${esc(kort(wi.v))}” is het niet.` : 'Dat is het nog niet.'} Probeer het nog eens!</span><small>Fout kost geen stroopdruppels.</small>`); audio.play('fout'); buzz([140, 70, 140]); }
+    }
+    seenWrong = wi.n; seenSolved = solved;
+    if (werkbank) {
+      mod.render(pz, data, { me: state.me(), talents: state.myTalents(), phones: ctx.phones, config: cfg, hints: p.hints, move, hint: () => sync.hint(st.id).catch(e => toast(e.message)), solve: submit,
+        roles, deviceIndex: ctx.devices.indexOf(S().device.id), devices: ctx.devices, players: ctx.players, werkbankDevice: deviceWithRole('werkbank'), radioDevice: deviceWithRole('radio') });
+    } else { // niet de werkbank: alleen de vraag, en wie hem maakt
+      mod.destroy?.(pz);
+      pz.innerHTML = `${pimgHtml(cfg)}<p class="question">${esc(cfg.question || '')}</p>
+        <p class="clue" style="font-size:1rem">🔧 De werkbank staat op de telefoon van <b>${esc(whoHas('werkbank') || 'een ander')}</b>. ${solved ? 'De puzzel is opgelost!' : 'Help mee denken en roep het antwoord!'}</p>`;
+    }
+    $('#radiobox', el).innerHTML = roles.includes('radio') && lastBrief?.stopId === st.id && !solved ? '<button class="plain wide" id="rebrief">📻 Bericht van Mecha-Pof nog eens horen</button>' : '';
+    // hint: op elke telefoon zichtbaar zodra één monteur hem vraagt
+    $('#hintbox', el).innerHTML = !cfg.hint ? '' : p.hints > 0 ? `<div class="hint">💡 ${esc(cfg.hint)}</div>` : solved ? '' : '<button class="ghost" id="askhint">💡 Hint nodig? (kost 3 stroopdruppels)</button>';
+    const ah = $('#askhint', el); if (ah) ah.onclick = () => { if (confirm('Hint vragen? Dat kost 3 stroopdruppels van dit onderdeel.')) sync.hint(st.id).catch(e => toast(e.message)); };
+    const sb = $('#submit', el); sb.hidden = !solved;
+    if (solved) {
+      const kh = keyHolder();
+      const dz = dropsFor(p), box = `<div class="solvedbox"><b>✓ GOED OPGELOST!</b><span>Dit levert <b><i class="sd"></i>${dz}</b> stroopdruppels op${dz > 10 ? ' (10 + 3 poedersuiker omdat jullie snel zijn ⚡)' : (p.hints || 0) > 0 ? ' (hint gebruikt 💡)' : ''}.</span></div>`;
+      sb.innerHTML = p.solved_at ? '<p class="feedback ok">✓ Ingediend!</p>'
+        : canSubmit() ? `${box}<p><b>Laatste stap:</b> ${state.hasTalent('sleutelbewaarder') ? 'jij bent de Sleutelbewaarder. D' : 'd'}ien het in om het deel te verdienen.</p><button class="ok wide big-btn" id="dosubmit" ${submitting ? 'disabled' : ''}>🔑 Indienen</button>`
+        : kh ? `${box}<p class="callkey">🔑 Roep <b>${esc(kh.name)}</b>! Alleen de Sleutelbewaarder kan indienen.</p>`
+        : `${box}<p>Er is nog geen Sleutelbewaarder. De begeleider keurt deze stop goed.</p>`;
+      const d = $('#dosubmit', el); if (d) d.onclick = submit;
+    }
+  }
+  update(true);
+  return { update: () => update(false), destroy: () => { verdict(null); mod?.destroy?.(pz); } };
+};
+
+/* ---------- klaar: finale (Mega-Mecha-Pof, vers, confetti) en daarna het eindscherm met badges per speurder (js/finale.js)
+   De finale start vanzelf zodra de hoed na het installatieritueel geland is (monster.js → pkm.finale.start()).
+   Staat het kernscherm thuis aan (kern.html meldt zich via settings.kern_at), dan praat alleen de laptop en tonen de telefoons de tekst. */
+const FIN_TEXT = { check: ['Systeemcontrole…', 'Alle zeven onderdelen klikken aan.'], mega: ['MEGA-MECHA-POF!', 'De stroopmeter staat op MEGA.'], vers: ['🎵 DJ Mecha-Pof', 'Roep HOERA na elk “hiep hiep”!'],
+  confetti: ['🎉 Robotdans!', 'Doe Mecha-Pof na. Poppers erbij!'], terugblik: ['Wat een spel!', ''], taart: ['Nieuwe missie!', ''] };
+// Beeld bij de finale op de telefoons (zelfde als op het kernscherm, kleiner): de check en de volgende missie.
+const finVisual = stg => stg === 'check' ? `<div class="fin-check">${Object.values(PARTS).map((p, i) => `<i style="animation-delay:${(i * CHECK_MS / 1000).toFixed(2)}s">${p.icon}</i>`).join('')}</div>`
+  : stg === 'taart' ? TAART_HTML : stg === 'terugblik' ? slideHTML(finale.slide?.item, finale.slide?.i, finale.slide?.n) : '';
+screens.klaar = el => {
+  // Eigen eindkaart: de druppels van haar onderdeel en haar portrettekening (als de regie die heeft goedgekeurd). Alleen voor de monteur(s) op deze telefoon.
+  let mijnPortret = {};
+  loadDropLog(sync, state).then(l => { if (l.size >= dropLog.size) dropLog = l; update(); }).catch(() => {});
+  Promise.resolve(sync.myPortraits?.()).then(p => { mijnPortret = p || {}; update(); }).catch(() => {});
+  const update = () => {
+    const g = S().game, stops = state.route().filter(x => x.part).length || 7, b = birthday(), stg = finale.stage;
+    const showEnd = stg === 'eind' || finale.done || (stg === 'idle' && !install.busy);
+    const sig = showEnd ? 'end:' + naAfloop() + S().players.map(p => p.id + (p.badges || []).join()).join('|') + (g.drops || 0) + ':' + dropLog.size + ':' + Object.keys(mijnPortret).length + state.me().map(p => p.id).join() : 'fin:' + stg + (finale.slide ? ':' + finale.slide.i : '');
+    if (el.dataset.sig === sig) return; el.dataset.sig = sig;
+    if (!showEnd) {
+      const [h, p] = FIN_TEXT[stg] || ['Mecha-Pof start op…', 'De boterknop is ingedrukt. Even geduld…'];
+      el.innerHTML = `<div class="center"><span class="eyebrow">Finale</span><h1>${esc(h)}</h1></div>${stg === 'taart' ? '' : mslot('lg')}<div class="page center"><span class="tab">Mega-Mecha-Pof</span>${finVisual(stg)}${p ? `<p class="clue">${esc(p)}</p>` : ''}${kernOnline() ? '<p class="note">Kijk en luister naar het grote scherm binnen!</p>' : ''}</div>`;
+      return;
+    }
+    const stack = stackOf(g.drops || 0, stops);
+    const mijn = state.me().map(p => p.id), alle = dropLog.size ? dropsByPlayer(dropLog, S().players) : {}, mijnDruppels = Object.fromEntries(mijn.filter(id => alle[id] != null).map(id => [id, alle[id]]));
+    el.innerHTML = `<div class="center"><span class="eyebrow">Dossier gesloten</span><h1>MEGA-MECHA-POF!</h1></div>
+      ${mslot('lg')}
+      <div class="page center"><span class="tab">Het Reparatieteam</span>
+        <div class="fin-cards">${endCards(state, { mijn, portret: mijnPortret, druppels: mijnDruppels })}</div>
+        ${naAfloop() ? '<p class="note">Operatie geslaagd op vrijdag 13 november. Dit is jullie eindstand. Bliep!</p>' : `<div class="row" style="justify-content:center"><button class="plain" data-k="foto">📸 Teamfoto</button></div>`}</div>
+      <div class="page center"><span class="tab">Eindcijfer</span>
+        <div class="stack syr">${Array.from({ length: stack }, (_, i) => `<i style="width:${150 - i * 6}px;animation-delay:${i * .12}s"></i>`).join('')}</div>
+        <h2>${stack} van de 10 pannenkoeken hoog</h2>
+        <p>${g.drops || 0} stroopdruppels · ${g.hints || 0} hint${g.hints === 1 ? '' : 's'}</p>
+        ${b ? `<p class="clue">${esc(b.name)}, jij hebt de boterknop aangezet. Gefeliciteerd, jarige!</p>` : ''}
+      </div>
+      <div class="page center"><span class="tab">Volgende missie</span>${TAART_HTML}</div>`;
+    placeMonster();
+  };
+  el.addEventListener('click', e => { const k = e.target.closest('[data-k]')?.dataset.k; if (k === 'walkie') startWalkie(); if (k === 'foto') teamFoto();
+    const img = e.target.closest('img[data-groot]'); if (img) { const o = overlay(`<img src="${esc(img.src)}" alt="" style="margin:auto;max-width:100%;max-height:100%;border-radius:14px">`); o.onclick = closeOverlay; } });
+  update(); return { update };
+};
+function teamFoto() {
+  let n = 5;
+  const o = overlay(`<div class="page"><span class="tab">Teamfoto</span>${mslot('md')}<h2>Allemaal voor de poster!</h2><div class="dist" id="tf">${n}</div><p class="clue">Zeg allemaal: <b>PANNENKOEK!</b></p></div>`);
+  const l = lineText('teamfoto'); if (l) say(l, { voice: kernOnline() ? false : undefined });
+  const t = setInterval(() => { n--; const c = $('#tf', o); if (c) c.textContent = n > 0 ? n : '📸'; if (n <= 0) { clearInterval(t); audio.play('klik'); confetti(); setTimeout(() => { if (o.isConnected) closeOverlay(); }, 2500); } }, 1000);
+}
+
+/* ================================================================ start */
+state.on('change', () => refresh());
+// QR op de monteurspas: …/speurtocht/#m=1234 logt die monteur meteen in op deze telefoon (de code staat in de hash, die gaat
+// niet mee naar de server). De hash verdwijnt daarna uit de adresbalk. Na het feest toont dezelfde link het eindscherm met de score.
+let pasCode = (location.hash.match(/[#&]m=(\d{4})(?!\d)/) || [])[1] || null;
+if (pasCode) { try { history.replaceState(null, '', location.pathname + location.search); } catch {} }
+async function pasLogin() {
+  const code = pasCode; pasCode = null; if (!code) return;
+  try { const res = await sync.login(code); wantLogin = false; toast(`🪪 Monteurspas herkend: welkom, ${res.player?.name || 'monteur'}!`, 4200); if (res.mission) showMission(res.mission, res.player.name); }
+  catch (err) { toast(err.code === 'offline' ? 'Geen verbinding. Scan je pas zo nog eens.' : 'Deze pas herkennen we niet. Tik je code met de hand in.', 5000); }
+}
+async function boot() {
+  try {
+    await sync.connect();
+    for (const e of S().events) seen.add(e.id);
+    primed = true; booted = true; bootError = '';
+    await pasLogin();
+  } catch (e) { bootError = e.message || 'Geen verbinding'; }
+  refresh('remount');
+}
+addEventListener('hashchange', () => { const m = (location.hash.match(/[#&]m=(\d{4})(?!\d)/) || [])[1]; if (!m || !booted) return; pasCode = m; try { history.replaceState(null, '', location.pathname + location.search); } catch {} pasLogin().then(() => refresh()); });
+// Tikken op het monster: hooguit eens per 20 s vertelt hij waar de walkie zit, en de knop (of de radio in de rollenregel) licht op.
+var lastTapHint = 0, wijsUntil = 0; // var: renderBar() kan al eerder lopen; // wijsUntil: tot wanneer de walkieknop (of de radio in de rollenregel) oplicht
+function tapLine() {
+  const g = S().game;
+  if (!state.me().length || !g || naAfloop() || Date.now() - lastTapHint < 20_000 || callRinging() || walkie) return null;
+  lastTapHint = Date.now();
+  const mine = hasRole('radio'), who = mine ? '' : speakerNames();
+  wijsUntil = Date.now() + 2400; renderBar(); setTimeout(renderBar, 2500);
+  if (mine) return 'Bliep! Wil je me spreken? Tik op de gouden knop. Walkie! Daar zit mijn mond.';
+  return who ? `Hihi, dat kietelt! Wil je me spreken? Mijn walkie zit bij ${who}. Roep haar maar!` : 'Hihi, dat kietelt! Mijn walkie zit op een andere telefoon. Daar kun je me spreken.';
+}
+window.pkm = { tapLine, stroopDrip, poedersuiker, state, sync, router, finale, PARTS, TALENTS, mon, monsterUrl, monsterImage, audio, toast, say, bubble, chime: audio.chime, buzz, refresh, roles: { myRoles, hasRole, whoHas, deviceWithRole }, install, surprises, nav, callRinging, ringCall, walkieTools, get walkie() { return walkie; } };
+renderBar(); refresh('remount'); boot();
+</script>
+</body>
+</html>
