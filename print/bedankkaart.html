@@ -146,8 +146,9 @@ function kaartSvg(p, d, opt) {
   const kop = jarig ? `Hoera, ${p.name}!` : `Bedankt, ${p.name}!`;
   const tekst = (jarig ? opt.jarig : opt.gast).replaceAll('{naam}', p.name).replaceAll('{talent}', t?.label || 'monteur');
   const deel = t ? t.deel.replace(/^(de|het) /, '').replace(' en de ', ' en ') : '';
-  const pof = jarig ? `Bliep! Tien jaar en mijn boterknop zit er weer op. Jij was de baas van mijn Reparatieteam. Over en sluiten!`
-    : t ? `Bliep! Dankzij jou heb ik mijn ${deel} terug. Zonder jou was ik nog een pratend doosje. Over en sluiten!` : 'Bliep! Dankzij jou sta ik weer overeind. Over en sluiten!';
+  const pof = jarig ? `Bliep! Tien jaar, en jij was de baas van mijn Reparatieteam. Over en sluiten!`
+    : t ? `Bliep! Dankzij jou heb ik mijn ${deel} terug. Over en sluiten!` : 'Bliep! Dankzij jou sta ik weer overeind. Over en sluiten!';
+  const PX = 161, PB = 66; // Mecha-Pof: midden (mm) en maat van zijn vak; hij staat vóór de tekening en de kaart
   // middenkolom: teamfoto boven, tekening onder; de hoogte volgt de verhouding van de beelden
   const A = d.teamfoto, B = d[opt.welke] || d.groep || d.feest, MX = 63, MW = 83, MY = 31, MH = 110, GAP = 4;
   const nat = b => b ? MW * b.h / b.w : MH / 2; let hA = nat(A), hB = nat(B); const k = (MH - GAP) / (hA + hB); hA = Math.max(40, Math.min(MH - GAP - 40, hA * k)); hB = MH - GAP - hA;
@@ -183,12 +184,12 @@ function kaartSvg(p, d, opt) {
   <g transform="rotate(-8 183 90.5)" fill="none" stroke="#E0352B"><rect x="170.5" y="85.6" width="25" height="9.6" rx="1.7" fill="#FFF9EE" fill-opacity=".88" stroke-width=".55"/>
     <text x="183" y="89" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="1.4" letter-spacing=".22" fill="#E0352B" stroke="none">MECHA-POF GEREPAREERD</text>
     <text x="183" y="93.3" text-anchor="middle" font-family="Lilita One" font-size="2.75" fill="#E0352B" stroke="none">MISSIE GESLAAGD</text></g>
-  <ellipse cx="176" cy="141.4" rx="9.5" ry="1.6" fill="#000" opacity=".1"/>
-  ${opt.monster ? `<svg x="161.75" y="117" width="28.5" height="28.5" ${opt.monster.replace(/^<svg/, '').replace(/xmlns="[^"]*"/, '')}` : ''}
-  ${(() => { const br = regels(pof, 47, '800', 2.35).slice(0, 4), bh = br.length * 3.05 + 6.6, by = 101.5;
-    return `<g><path d="M152.5 ${by}h47a2.5 2.5 0 0 1 2.5 2.5v${(bh - 5).toFixed(2)}a2.5 2.5 0 0 1-2.5 2.5h-19.5l-2.6 3-.9-3h-24a2.5 2.5 0 0 1-2.5-2.5v-${(bh - 5).toFixed(2)}a2.5 2.5 0 0 1 2.5-2.5z" fill="#fff" stroke="${INK}" stroke-width=".45" stroke-linejoin="round"/>
-      <text x="153" y="${(by + 3.9).toFixed(2)}" font-family="Chakra Petch" font-weight="700" font-size="1.9" letter-spacing=".35" fill="#15A4C8">MECHA-POF AAN ${esc(p.name.toUpperCase())}</text>
-      ${br.map((r, i) => `<text x="153" y="${(by + 7.5 + i * 3.05).toFixed(2)}" font-weight="800" font-size="2.35" fill="${INK}">${esc(r)}</text>`).join('')}</g>`; })()}
+  <ellipse cx="${PX}" cy="142.2" rx="21" ry="2.6" fill="#000" opacity=".13"/>
+  ${opt.monster ? `<svg x="${PX - PB / 2}" y="${143 - .88 * PB}" width="${PB}" height="${PB}" ${opt.monster.replace(/^<svg/, '').replace(/xmlns="[^"]*"/, '')}` : ''}
+  ${(() => { const bw = 25, bx = 202.6 - bw, br = regels(pof, bw - 3.4, '800', 2.3).slice(0, 7), bh = br.length * 3 + 7, by = 101.5, m = Math.min(9, bh / 2);
+    return `<g><path d="M${bx + 2.5} ${by}h${bw - 5}a2.5 2.5 0 0 1 2.5 2.5v${(bh - 5).toFixed(2)}a2.5 2.5 0 0 1-2.5 2.5h-${bw - 5}a2.5 2.5 0 0 1-2.5-2.5v-${(bh - 5 - m).toFixed(2)}l-4.4-.6 4.4-3v-${(m - 3.6).toFixed(2)}a2.5 2.5 0 0 1 2.5-2.5z" fill="#fff" stroke="${INK}" stroke-width=".45" stroke-linejoin="round"/>
+      <text x="${bx + 1.8}" y="${(by + 3.9).toFixed(2)}" font-family="Chakra Petch" font-weight="700" font-size="1.9" letter-spacing=".35" fill="#15A4C8">MECHA-POF:</text>
+      ${br.map((r, i) => `<text x="${bx + 1.8}" y="${(by + 7.4 + i * 3).toFixed(2)}" font-weight="800" font-size="2.3" fill="${INK}">${esc(r)}</text>`).join('')}</g>`; })()}
 </svg>`;
 }
 
