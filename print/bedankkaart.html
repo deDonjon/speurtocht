@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Bedankkaart Operatie Mecha-Pof</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+/* Bedankkaart (13 nov, na het feest). Per meid één kaart op A5 liggend: de teamfoto, de teamtekening van Mecha-Pof, haar eigen
+   stripportret en de spelkaart met de gelopen route. De foto's komen met de regiesleutel uit de PRIVÉ-bucket (functies monster-foto
+   en monster-origineel); er staat niets van de kinderen in de repo. Elke kaart is één SVG: die drukt scherp af en kan ook als
+   afbeelding (PNG) bewaard worden om te versturen. Proberen zonder foto's: ?demo=1 */
+*{box-sizing:border-box}html,body{margin:0}
+body{background:#2A3142;font-family:'Nunito',system-ui,sans-serif;font-weight:800;color:#EAF2FF;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pbar{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:10px 12px;align-items:center;padding:10px 16px;background:#141A26;font-size:14px}
+.pbar b{font-size:16px}.pbar .sp{flex:1}
+button,select,input,textarea{font:inherit;font-weight:800;border-radius:10px;border:2px solid #3A4660;background:#1E2738;color:#EAF2FF;padding:7px 10px}
+button{font-weight:900;border:0;background:#F2BE62;color:#3A1C06;cursor:pointer;padding:8px 14px}button.plain{background:#33405A;color:#EAF2FF}button:disabled{opacity:.5;cursor:default}
+.paneel{max-width:230mm;margin:14px auto 0;padding:0 12px;display:grid;gap:10px}
+.vak{background:#1B2333;border:2px solid #33405A;border-radius:14px;padding:12px 14px;display:grid;gap:8px}
+.vak label{font-size:13px;color:#93A0B8;display:grid;gap:4px}.vak textarea{width:100%;min-height:62px;resize:vertical;line-height:1.35}
+.rij{display:flex;flex-wrap:wrap;gap:10px;align-items:end}.rij label{flex:1;min-width:180px}
+.note{margin:0;font-size:13px;color:#93A0B8;line-height:1.4}.fout{color:#FFB4A8}
+.sheet{width:210mm;max-width:calc(100vw - 16px);aspect-ratio:210/148;margin:16px auto 4px;background:#FFF9EE;box-shadow:0 10px 40px rgba(0,0,0,.5);overflow:hidden}
+.sheet svg{display:block;width:100%;height:100%}
+.onder{max-width:210mm;margin:0 auto 10px;padding:0 8px;display:flex;justify-content:flex-end;gap:8px}
+@media print{
+  body{background:none}.pbar,.paneel,.onder{display:none!important}
+  .sheet{width:210mm;max-width:none;height:148mm;margin:0;box-shadow:none;break-inside:avoid}
+  body.a5 .sheet{break-after:page}
+  body.a4 .sheet:nth-of-type(odd){margin-bottom:.5mm;outline:.1mm dashed #B9A98A}
+  body.a4 .sheet:nth-of-type(even){break-after:page}
+}
+</style>
+<style id="pagina"></style>
+</head>
+<body class="a4">
+<div class="pbar"><b>Bedankkaart</b><span class="sp"></span>
+  <select id="papier" title="Papier"><option value="a4">A4: twee kaarten per blad</option><option value="a5">A5: één kaart per blad</option></select>
+  <button id="alles" class="plain" disabled>💾 Alle kaarten als afbeelding</button>
+  <button id="druk" disabled>🖨️ Afdrukken</button></div>
+<div class="paneel">
+  <div class="vak" id="inlog">
+    <div class="rij"><label>Regiesleutel (de foto's staan privé)<input id="sleutel" type="password" autocomplete="off"></label><button id="laad">Foto's ophalen</button></div>
+    <p class="note" id="status">De kaarten worden hier op je eigen scherm gemaakt. Er wordt niets openbaar gezet.</p>
+  </div>
+  <div class="vak" id="tekst" hidden>
+    <label>Tekst voor de gasten ({naam} en {talent} worden per kaart ingevuld)<textarea id="t-gast"></textarea></label>
+    <label>Tekst op Hannahs eigen kaart<textarea id="t-jarig"></textarea></label>
+    <div class="rij"><label>Tekening op de kaart<select id="welke"><option value="groep">Het Reparatieteam (teamtekening)</option><option value="feest">De feestplaat</option></select></label>
+      <label>Van<input id="van" value="Hannah"></label></div>
+  </div>
+</div>
+<main id="sheets"></main>
+<script type="module">
+import { SUPABASE_URL, SUPABASE_KEY } from '../js/sync.js';
+import { TALENT_INFO, PART_COLOR, ICONS } from './print.js';
+import { kaart, seed, OX, OY, MAPW, MAPH } from './kaart.js';
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DEMO = new URLSearchParams(location.search).has('demo');
+const W = 210, H = 148, INK = '#141A26', GOUD = '#F2BE62', BRUIN = '#5A3A1A';
+const STD_GAST = 'Lieve {naam}, wat fijn dat je op mijn feest was! Dankzij jou, onze {talent}, staat Mecha-Pof weer overeind. Bedankt dat je erbij was!';
+const STD_JARIG = 'Tien jaar! Met dit Reparatieteam hebben we Mecha-Pof weer helemaal in elkaar gezet. Wat een feest was het.';
+const bewaard = (k, d) => { try { return localStorage.getItem('pkm2_bedank_' + k) ?? d; } catch { return d; } };
+const bewaar = (k, v) => { try { localStorage.setItem('pkm2_bedank_' + k, v); } catch {} };
+
+/* ================================================================ foto's ophalen (privé-bucket, regiesleutel) */
+async function post(functie, sleutel) {
+  const r = await fetch(`${SUPABASE_URL}/functions/v1/${functie}`, { method: 'POST', body: JSON.stringify({ actie: 'lijst' }),
+    headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'x-regie-key': sleutel, 'content-type': 'application/json' } });
+  const j = await r.json().catch(() => ({ ok: false, error: `HTTP ${r.status}` }));
+  if (!j.ok) throw new Error(j.error || `HTTP ${r.status}`);
+  return j.rijen || [];
+}
+/** Beeld ophalen en verkleinen (max 1800 px), met de juiste draaiing van de camera → { url (data), w, h }. */
+async function beeld(bron, max = 1800) {
+  const blob = bron instanceof Blob ? bron : await (await fetch(bron)).blob();
+  let bm; try { bm = await createImageBitmap(blob, { imageOrientation: 'from-image' }); }
+  catch { bm = await new Promise((ok, nee) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => nee(new Error('foto niet leesbaar')); i.src = URL.createObjectURL(blob); }); }
+  const k = Math.min(1, max / Math.max(bm.width, bm.height)), w = Math.round(bm.width * k), h = Math.round(bm.height * k);
+  const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(bm, 0, 0, w, h);
+  return { url: c.toDataURL('image/jpeg', .9), w, h };
+}
+const laatste = rijen => rijen.slice().sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
+const kies = rijen => { const klaar = rijen.filter(r => r.status === 'klaar' && r.url); return klaar.find(r => r.goedgekeurd) || laatste(klaar); };
+
+async function haalOp(sleutel, meld) {
+  meld('Lijst ophalen…');
+  const [tek, orig] = await Promise.all([post('monster-foto', sleutel), post('monster-origineel', sleutel).catch(() => [])]);
+  const ids = [...new Set(tek.filter(r => r.soort === 'portret' && r.player_id).map(r => r.player_id))];
+  let spelers = [];
+  if (ids.length) { // naam, talent en wie de jarige is (anon mag de tabel player lezen)
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/player?select=id,name,talent,is_birthday&id=in.(${ids.join(',')})`, { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } });
+    spelers = r.ok ? await r.json() : [];
+  }
+  const naam = Object.fromEntries(tek.filter(r => r.naam).map(r => [r.player_id, r.naam]));
+  const wie = ids.map(id => spelers.find(s => s.id === id) || { id, name: naam[id] || '', talent: null, is_birthday: false })
+    .sort((a, b) => (!!b.is_birthday - !!a.is_birthday) || a.name.localeCompare(b.name));
+  const foto = laatste(orig.filter(o => o.slot === 'groep' && o.url)), groep = kies(tek.filter(r => r.soort === 'groep')), feest = kies(tek.filter(r => r.soort === 'feest'));
+  const taken = [['teamfoto', foto], ['groep', groep], ['feest', feest], ...wie.map(p => ['p:' + p.id, kies(tek.filter(r => r.soort === 'portret' && r.player_id === p.id))])].filter(([, r]) => r?.url);
+  const uit = { wie, portret: {} }; let n = 0;
+  for (const [k, r] of taken) { // één voor één: de teamfoto is groot
+    meld(`Foto ${++n} van ${taken.length} laden…`);
+    try { const b = await beeld(r.url); if (k.startsWith('p:')) uit.portret[k.slice(2)] = b; else uit[k] = b; } catch (e) { console.warn('[bedankkaart]', k, e.message); }
+  }
+  return uit;
+}
+/** ?demo=1: gekleurde vlakken in plaats van foto's, om de opmaak te bekijken. */
+function demoData() {
+  const vlak = (w, h, kleur, t) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); const g = x.createLinearGradient(0, 0, w, h); g.addColorStop(0, kleur); g.addColorStop(1, '#141A26'); x.fillStyle = g; x.fillRect(0, 0, w, h);
+    x.fillStyle = '#fff'; x.font = `900 ${Math.round(w / 12)}px system-ui`; x.textAlign = 'center'; x.fillText(t, w / 2, h / 2); return { url: c.toDataURL('image/jpeg', .8), w, h }; };
+  const namen = [['Hannah', 'sleutelbewaarder', true], ['Elin', 'kaartlezer'], ['Evy', 'speurneus'], ['Isa', 'codekraker'], ['Julia', 'rekenmeester'], ['Lauren', 'tijdbewaker']];
+  const wie = namen.map(([name, talent, b], i) => ({ id: 'd' + i, name, talent, is_birthday: !!b }));
+  return { wie, teamfoto: vlak(1600, 1200, '#3B82A0', 'teamfoto'), groep: vlak(1536, 1024, '#C9862B', 'teamtekening'), feest: vlak(1536, 1024, '#B3261E', 'feestplaat'),
+    portret: Object.fromEntries(wie.map(p => [p.id, vlak(1024, 1536, '#7A4FB0', p.name)])) };
+}
+
+/* ================================================================ de kaart als SVG (maten in mm) */
+const meet = document.createElement('canvas').getContext('2d');
+function regels(tekst, breedte, font, size) { // woordafbreking: SVG kent geen automatische regels
+  meet.font = `${font} ${size * 20}px Nunito`; const max = breedte * 20, uit = []; let r = '';
+  for (const alinea of String(tekst).split(/\n/)) { for (const w of alinea.split(/\s+/).filter(Boolean)) { const t = r ? r + ' ' + w : w; if (r && meet.measureText(t).width > max) { uit.push(r); r = w; } else r = t; } uit.push(r); r = ''; }
+  return uit.filter((x, i, a) => x || i < a.length - 1);
+}
+let clipN = 0;
+/** Foto in een wit lijstje, bijgesneden op het vak (iets naar boven gericht, zodat hoofden blijven staan). */
+function lijst(b, x, y, w, h, { rot = 0, rand = 1.4, focus = 'xMidYMid' } = {}) {
+  const id = 'c' + (++clipN), ix = x + rand, iy = y + rand, iw = w - 2 * rand, ih = h - 2 * rand;
+  return `<g transform="rotate(${rot} ${x + w / 2} ${y + h / 2})">
+    <rect x="${x + .6}" y="${y + .9}" width="${w}" height="${h}" rx="1.6" fill="#000" opacity=".16"/>
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="1.6" fill="#fff" stroke="${INK}" stroke-width=".35"/>
+    <clipPath id="${id}"><rect x="${ix}" y="${iy}" width="${iw}" height="${ih}" rx=".8"/></clipPath>
+    ${b ? `<image href="${b.url}" x="${ix}" y="${iy}" width="${iw}" height="${ih}" preserveAspectRatio="${focus} slice" clip-path="url(#${id})"/>`
+        : `<rect x="${ix}" y="${iy}" width="${iw}" height="${ih}" rx=".8" fill="#EFE3CB"/><text x="${x + w / 2}" y="${y + h / 2 + 1}" text-anchor="middle" font-family="Nunito" font-weight="800" font-size="3" fill="#A08A66">geen foto gevonden</text>`}
+  </g>`;
+}
+const chip = (x, y, t, kleur = INK, tekst = '#fff') => { meet.font = `700 ${2.3 * 20}px "Chakra Petch"`; const w = meet.measureText(t).width / 20 + t.length * .32 + 4;
+  return `<g><rect x="${x}" y="${y}" width="${w.toFixed(1)}" height="4.6" rx="2.3" fill="${kleur}"/><text x="${x + 2}" y="${y + 3.25}" font-family="Chakra Petch" font-weight="700" font-size="2.3" letter-spacing=".32" fill="${tekst}">${esc(t)}</text></g>`; };
+
+let routeSvg = '';
+function kaartSvg(p, d, opt) {
+  const t = TALENT_INFO[p.talent], kleur = PART_COLOR[t?.part] || '#15A4C8', jarig = !!p.is_birthday;
+  const kop = jarig ? `Hoera, ${p.name}!` : `Bedankt, ${p.name}!`;
+  const tekst = (jarig ? opt.jarig : opt.gast).replaceAll('{naam}', p.name).replaceAll('{talent}', t?.label || 'monteur');
+  // middenkolom: teamfoto boven, tekening onder; de hoogte volgt de verhouding van de beelden
+  const A = d.teamfoto, B = d[opt.welke] || d.groep || d.feest, MX = 63, MW = 83, MY = 31, MH = 110, GAP = 4;
+  const nat = b => b ? MW * b.h / b.w : MH / 2; let hA = nat(A), hB = nat(B); const k = (MH - GAP) / (hA + hB); hA = Math.max(40, Math.min(MH - GAP - 40, hA * k)); hB = MH - GAP - hA;
+  // tekst links onder het portret
+  const lr = regels(tekst, 47, '800', 3.1).slice(0, 8), ty = 110.5;
+  const ondertekend = opt.van && !jarig ? `<text x="57" y="${Math.min(141.5, ty + lr.length * 4.05 + 2.6)}" text-anchor="end" font-family="Lilita One" font-size="4.6" fill="#15A4C8" transform="rotate(-3 57 ${ty + lr.length * 4.05 + 2.6})">Liefs, ${esc(opt.van)}</text>` : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}mm" height="${H}mm" font-family="Nunito">
+  <defs>__FONTS__</defs>
+  <rect width="${W}" height="${H}" fill="#FFF9EE"/>
+  <circle cx="40" cy="120" r="34" fill="#F6E7C4" opacity=".55"/><circle cx="176" cy="20" r="26" fill="#DDF6FD" opacity=".7"/>
+  <rect x="3.5" y="3.5" width="${W - 7}" height="${H - 7}" rx="4" fill="none" stroke="${INK}" stroke-width="1"/>
+  <rect x="5" y="5" width="${W - 10}" height="${H - 10}" rx="2.8" fill="none" stroke="${GOUD}" stroke-width=".45"/>
+  <text x="10" y="13.2" font-family="Chakra Petch" font-weight="700" font-size="2.7" letter-spacing=".62" fill="#0E6F8A">OPERATIE MECHA-POF · HANNAH 10 JAAR · VEGHEL, 13 NOVEMBER 2026</text>
+  <text x="10.5" y="26.4" font-family="Lilita One" font-size="13" fill="${GOUD}">${esc(kop)}</text>
+  <text x="10" y="25.7" font-family="Lilita One" font-size="13" fill="${INK}">${esc(kop)}</text>
+  ${opt.monster ? `<svg x="181" y="5.5" width="23" height="23" ${opt.monster.replace(/^<svg/, '').replace(/xmlns="[^"]*"/, '')}` : ''}
+  ${t ? `<g transform="translate(${opt.monster ? 142 : 164} 9)"><rect width="37" height="14" rx="3" fill="#fff" stroke="${kleur}" stroke-width=".6"/><svg x="1.5" y="1.5" width="11" height="11" viewBox="-6 -2 112 106">${ICONS[t.part] || ''}</svg>
+    <text x="14" y="6.2" font-family="Chakra Petch" font-weight="700" font-size="2" letter-spacing=".3" fill="#7A5A3A">TALENT</text><text x="14" y="10.6" font-family="Nunito" font-weight="900" font-size="${t.label.length > 12 ? 2.6 : 3.1}" fill="${INK}">${esc(t.label)}</text></g>` : ''}
+
+  ${lijst(d.portret[p.id], 11, 31, 46, 69, { rot: -1.2, focus: 'xMidYMin' })}
+  <g transform="rotate(-1.2 34 65.5)">${chip(13.5, 96.5, ('MONTEUR ' + p.name).toUpperCase().slice(0, 26), kleur)}</g>
+  ${lr.map((r, i) => `<text x="10" y="${(ty + i * 4.05).toFixed(2)}" font-weight="800" font-size="3.1" fill="${BRUIN}">${esc(r)}</text>`).join('')}
+  ${ondertekend}
+
+  ${lijst(A, MX, MY, MW, hA, { rot: .6, focus: 'xMidYMid' })}
+  <g transform="rotate(.6 ${MX + MW / 2} ${MY + hA / 2})">${chip(MX + 3, MY + hA - 7, 'HET REPARATIETEAM', INK)}</g>
+  ${lijst(B, MX, MY + hA + GAP, MW, hB, { rot: -.5 })}
+  <g transform="rotate(-.5 ${MX + MW / 2} ${MY + hA + GAP + hB / 2})">${chip(MX + 3, MY + hA + GAP + hB - 7, 'ZO TEKENDE MECHA-POF ONS', '#15A4C8')}</g>
+
+  <rect x="151.6" y="31.9" width="50" height="80.3" rx="1.6" fill="#000" opacity=".16"/>
+  <svg x="151" y="31" width="50" height="80.3" viewBox="${OX} ${OY} ${MAPW} ${MAPH}" preserveAspectRatio="xMidYMid slice"><rect x="${OX}" y="${OY}" width="${MAPW}" height="${MAPH}" fill="#F3E3BB"/>${routeSvg}</svg>
+  <rect x="151" y="31" width="50" height="80.3" rx="1.6" fill="none" stroke="#3B2A1A" stroke-width=".7"/>
+  <text x="176" y="116.6" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="2.5" letter-spacing=".5" fill="#0E6F8A">DE ROUTE VAN ONS TEAM</text>
+  <text x="176" y="120.6" text-anchor="middle" font-weight="800" font-size="2.15" fill="#7A5A3A">1 pantser · 2 ogen · 3 neus · 4 mond</text>
+  <text x="176" y="123.7" text-anchor="middle" font-weight="800" font-size="2.15" fill="#7A5A3A">5 armen · 6 benen · 7 boterknop</text>
+  <g transform="rotate(7 176 133.5)" fill="none" stroke="#E0352B" opacity=".9"><rect x="156" y="127" width="40" height="13" rx="2.2" stroke-width=".7"/><rect x="157.1" y="128.1" width="37.8" height="10.8" rx="1.4" stroke-width=".25"/>
+    <text x="176" y="132" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="2" letter-spacing=".4" fill="#E0352B" stroke="none">MECHA-POF GEREPAREERD</text>
+    <text x="176" y="137.6" text-anchor="middle" font-family="Lilita One" font-size="4.1" fill="#E0352B" stroke="none">MISSIE GESLAAGD</text></g>
+</svg>`;
+}
+
+/* ================================================================ afbeelding (PNG) van een kaart */
+let fontCss = null;
+async function fonts() { // lettertypes in de SVG zelf: een SVG die als afbeelding getekend wordt, ziet de lettertypes van de pagina niet
+  if (fontCss != null) return fontCss;
+  const F = [['Lilita One', 400, 'lilita-one-latin-400-normal'], ['Chakra Petch', 700, 'chakra-petch-latin-700-normal'], ['Nunito', 800, 'nunito-latin-800-normal'], ['Nunito', 900, 'nunito-latin-900-normal']];
+  const css = await Promise.all(F.map(async ([fam, w, f]) => { const buf = new Uint8Array(await (await fetch(`fonts/${f}.woff2`)).arrayBuffer()); let s = ''; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+    return `@font-face{font-family:'${fam}';font-weight:${w};src:url(data:font/woff2;base64,${btoa(s)}) format('woff2')}`; }));
+  return (fontCss = `<style>${css.join('')}</style>`);
+}
+async function png(svg, breed = 2480) {
+  const vol = svg.replace('__FONTS__', await fonts());
+  const url = URL.createObjectURL(new Blob([vol], { type: 'image/svg+xml;charset=utf-8' }));
+  try {
+    const img = new Image(); img.decoding = 'sync'; await new Promise((ok, nee) => { img.onload = ok; img.onerror = () => nee(new Error('kaart kon niet getekend worden')); img.src = url; });
+    await img.decode?.().catch(() => {});
+    const c = document.createElement('canvas'); c.width = breed; c.height = Math.round(breed * H / W); const x = c.getContext('2d');
+    x.drawImage(img, 0, 0, c.width, c.height); await new Promise(r => setTimeout(r, 60)); x.drawImage(img, 0, 0, c.width, c.height); // tweede keer: Safari tekent ingesloten beelden soms pas daarna
+    return await new Promise(ok => c.toBlob(ok, 'image/png'));
+  } finally { URL.revokeObjectURL(url); }
+}
+const bestand = p => `bedankkaart-${p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'kaart'}.png`;
+function download(blob, naam) { const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: naam }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10_000); }
+async function deelOfBewaar(files) {
+  if (matchMedia('(pointer:coarse)').matches && navigator.canShare?.({ files })) { try { await navigator.share({ files }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  for (const f of files) { download(f, f.name); await new Promise(r => setTimeout(r, 350)); }
+}
+
+/* ================================================================ pagina */
+let data = null, svgs = new Map(), monster = '';
+const opties = () => ({ gast: $('t-gast').value.trim() || STD_GAST, jarig: $('t-jarig').value.trim() || STD_JARIG, welke: $('welke').value, van: $('van').value.trim(), monster });
+function teken() {
+  if (!data) return; clipN = 0; svgs = new Map();
+  $('sheets').innerHTML = data.wie.map(p => { const s = kaartSvg(p, data, opties()); svgs.set(p.id, s);
+    return `<div class="sheet">${s.replace('__FONTS__', '')}</div><div class="onder"><button class="plain" data-png="${esc(p.id)}">💾 ${esc(p.name)} als afbeelding</button></div>`; }).join('');
+}
+function papier() { const v = $('papier').value; document.body.className = v; $('pagina').textContent = `@page{size:${v === 'a4' ? 'A4 portrait' : '210mm 148mm'};margin:0}`; bewaar('papier', v); }
+async function start(sleutel) {
+  const st = $('status'); st.classList.remove('fout'); $('laad').disabled = true;
+  try {
+    data = DEMO ? demoData() : await haalOp(sleutel, t => { st.textContent = t; });
+    if (!data.wie.length) throw new Error('geen portretten gevonden bij dit spel');
+    seed(13); routeSvg = kaart(true, true);
+    await Promise.all(['400 10px "Lilita One"', '700 10px "Chakra Petch"', '800 10px Nunito', '900 10px Nunito'].map(f => document.fonts.load(f))).catch(() => {});
+    $('inlog').hidden = true; $('tekst').hidden = false; $('druk').disabled = $('alles').disabled = false;
+    teken();
+    // Mecha-Pof in de hoek: alleen als hij binnen een paar tellen geladen is (hij komt van buiten de pagina)
+    import('./print.js').then(m => Promise.race([m.monsterSvg(['lijf', 'ogen', 'neus', 'mond', 'armen', 'benen', 'hoed']), new Promise((_, nee) => setTimeout(nee, 6000))])).then(s => { monster = s; teken(); }).catch(() => {}).finally(() => { window.__ready = true; });
+  } catch (e) { st.textContent = '⚠️ ' + (/401|403|sleutel/i.test(e.message) ? 'Regiesleutel klopt niet.' : e.message || e); st.classList.add('fout'); }
+  finally { $('laad').disabled = false; }
+}
+$('t-gast').value = bewaard('gast', STD_GAST); $('t-jarig').value = bewaard('jarig', STD_JARIG); $('van').value = bewaard('van', 'Hannah'); $('welke').value = bewaard('welke', 'groep'); $('papier').value = bewaard('papier', 'a4'); papier();
+for (const [id, k] of [['t-gast', 'gast'], ['t-jarig', 'jarig'], ['van', 'van'], ['welke', 'welke']]) $(id).addEventListener('input', e => { bewaar(k, e.target.value); teken(); });
+$('papier').addEventListener('change', papier);
+$('druk').addEventListener('click', () => print());
+$('laad').addEventListener('click', () => start($('sleutel').value.trim()));
+$('sleutel').addEventListener('keydown', e => { if (e.key === 'Enter') start($('sleutel').value.trim()); });
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-png]'); if (!b) return;
+  const p = data.wie.find(x => x.id === b.dataset.png); b.disabled = true;
+  try { await deelOfBewaar([new File([await png(svgs.get(p.id))], bestand(p), { type: 'image/png' })]); } catch (err) { alert('Bewaren mislukt: ' + (err.message || err)); } finally { b.disabled = false; }
+});
+$('alles').addEventListener('click', async e => {
+  const b = e.currentTarget, was = b.textContent; b.disabled = true;
+  try { const files = []; for (const p of data.wie) { b.textContent = `💾 ${files.length + 1} van ${data.wie.length}…`; files.push(new File([await png(svgs.get(p.id))], bestand(p), { type: 'image/png' })); } await deelOfBewaar(files); }
+  catch (err) { alert('Bewaren mislukt: ' + (err.message || err)); } finally { b.textContent = was; b.disabled = false; }
+});
+window.__png = async id => { const b = await png(svgs.get(id)); return await new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(b); }); }; // voor de test
+if (DEMO) start('');
+</script>
+</body>
+</html>
